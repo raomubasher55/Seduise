@@ -170,7 +170,7 @@ const Header = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden text-gray-400"
+              className="md:hidden text-gray-400 menu-button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -272,7 +272,7 @@ const NavLink = ({ href, current, label }: NavLinkProps) => {
 
 interface MobileNavLinkProps {
   href: string;
-  label: string;
+  label: React.ReactNode;
   onClick: () => void;
 }
 
