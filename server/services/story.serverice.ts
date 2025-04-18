@@ -42,7 +42,8 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
             isPublic: isPublic, // Set using the parameter
             imageUrl: null,
             likes: 0,
-            plays: 0
+            plays: 0,
+            category: category // Set category using the parameter
         });
         
         await story.save();
