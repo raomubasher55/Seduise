@@ -26,6 +26,9 @@ const Community = () => {
   const { data: categoryStories, isLoading: isLoadingCategoryStories } = useQuery({
     queryKey: ['/api/stories/by-category', selectedCategory],
     enabled: !!selectedCategory,
+    queryFn: () => {
+      return fetch(`/api/stories/by-category/${selectedCategory}`).then(res => res.json());
+    }
   });
   
   // Story categories
@@ -249,6 +252,8 @@ interface PopularStoryItemProps {
 }
 
 const PopularStoryItem = ({ story }: PopularStoryItemProps) => {
+  const [, navigate] = useLocation();
+  
   return (
     <Card className="bg-[#1E1E1E] border-0 hover:bg-[#2D2D2D] transition-colors">
       <CardContent className="p-6">
@@ -264,7 +269,12 @@ const PopularStoryItem = ({ story }: PopularStoryItemProps) => {
             <Play className="h-4 w-4 mr-1" /> 
             <span>{story.plays} plays</span>
           </div>
-          <Button variant="outline" size="sm" className="text-[#D9B08C] border-[#D9B08C]">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-[#D9B08C] border-[#D9B08C]"
+            onClick={() => navigate(`/story/${story.id}`)}
+          >
             Read
           </Button>
         </div>
