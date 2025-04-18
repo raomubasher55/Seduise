@@ -103,12 +103,33 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       });
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to continue story. Please try again.",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Check if this is insufficient credits error
+      if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
+        toast({
+          title: "Insufficient Credits",
+          description: (
+            <div className="flex flex-col space-y-2">
+              <p>You don't have enough credits to continue this story.</p>
+              <Button 
+                size="sm" 
+                onClick={() => navigate('/credits')}
+                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
+              >
+                Purchase Credits
+              </Button>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to continue story. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 

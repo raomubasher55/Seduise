@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { generateStory } from "@/lib/ai";
 import { StorySettings } from "@shared/schema";
 import { Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TIME_PERIODS = ["Contemporary", "Medieval", "Victorian", "Future", "Fantasy Realm"];
 const LOCATIONS = ["Urban City", "Beach Resort", "Mountain Retreat", "Luxury Estate", "Exotic Island"];
@@ -21,8 +24,10 @@ const NARRATION_VOICES = ["Soft Female", "Deep Male", "Sensual Female", "Authori
 const WRITING_STYLES = ["Romantic", "Passionate", "Playful", "Intense"];
 
 const CreateStory = () => {
+  const { isPremium, user, hasCredits } = useAuth();
   const [, navigate] = useLocation();
   const [storyTitle, setStoryTitle] = useState<string>("");
+  const [isPublic, setIsPublic] = useState<boolean>(false);
   const [settings, setSettings] = useState<StorySettings>({
     timePeriod: "Contemporary",
     location: "Beach Resort",
@@ -38,6 +43,7 @@ const CreateStory = () => {
   const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
   const [activeTab, setActiveTab] = useState<"setting" | "characters" | "style" | "voice">("style");
   const [explicitLevel, setExplicitLevel] = useState(50); // For slider in Style tab
+  const [creditsWarningShown, setCreditsWarningShown] = useState(false);
   
   // For additional inputs in the Setting tab
   const [settingDescription, setSettingDescription] = useState<string>("");
@@ -65,6 +71,26 @@ const CreateStory = () => {
           duration: 5000,
         });
         setShowUpgradeAlert(true);
+      } 
+      // Check if this is insufficient credits error
+      else if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
+        toast({
+          title: "Insufficient Credits",
+          description: (
+            <div className="flex flex-col space-y-2">
+              <p>You don't have enough credits to generate a story.</p>
+              <Button 
+                size="sm" 
+                onClick={() => navigate('/credits')}
+                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
+              >
+                Purchase Credits
+              </Button>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 5000,
+        });
       } else {
         toast({
           title: "Error",
@@ -87,6 +113,29 @@ const CreateStory = () => {
       return;
     }
     
+    // Check if user has credits
+    if (!isPremium && !hasCredits && !creditsWarningShown) {
+      toast({
+        title: "Insufficient Credits",
+        description: (
+          <div className="flex flex-col space-y-2">
+            <p>You don't have enough credits to generate a story.</p>
+            <Button 
+              size="sm" 
+              onClick={() => navigate('/credits')}
+              className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
+            >
+              Purchase Credits
+            </Button>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 5000,
+      });
+      setCreditsWarningShown(true);
+      return;
+    }
+    
     // Include additional descriptions in settings
     const enhancedSettings = {
       ...settings,
@@ -99,7 +148,8 @@ const CreateStory = () => {
     storyGenerationMutation.mutate({
       title: storyTitle,
       settings: enhancedSettings,
-      maxTokens: settings.length * 500 // Adjust token count based on length
+      maxTokens: settings.length * 500, // Adjust token count based on length
+      isPublic: isPremium ? isPublic : false // Only premium users can set stories to public
     });
   };
 
@@ -375,6 +425,38 @@ const CreateStory = () => {
                 </Select>
               </div>
               
+              {/* Visibility Toggle - Only for Premium Users */}
+              {isPremium && (
+                <div className="mt-6 p-4 bg-[#1E1E1E] border border-gray-700 rounded-lg">
+                  <h3 className="text-lg font-medium mb-2">Story Visibility</h3>
+                  <div className="flex items-center space-x-2 mb-1">
+                    <Switch 
+                      id="story-visibility"
+                      checked={isPublic}
+                      onCheckedChange={setIsPublic}
+                    />
+                    <Label htmlFor="story-visibility" className="cursor-pointer">
+                      {isPublic ? 'Public - Share with the community' : 'Private - Only visible to you'}
+                    </Label>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {isPublic 
+                      ? 'Your story will be visible in the community section for others to enjoy.' 
+                      : 'Your story will only be visible to you in your dashboard.'}
+                  </p>
+                  <div className="flex items-center mt-3 bg-[#2C2C2C] p-2 rounded border border-gray-700">
+                    <div className="flex-shrink-0 mr-3">
+                      <div className="h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
+                        <span className="text-xs font-bold text-black">!</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-300">
+                      Premium feature: Only premium members can share stories publicly in the community.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-between mt-8">
                 <Button 
                   variant="outline" 
@@ -386,9 +468,13 @@ const CreateStory = () => {
                 <Button 
                   className="bg-[#8B1E3F] hover:bg-[#a82b4f] text-white px-8"
                   onClick={handleGenerateStory}
-                  disabled={storyGenerationMutation.isPending}
+                  disabled={storyGenerationMutation.isPending || (!isPremium && (creditsWarningShown || !hasCredits))}
                 >
-                  {storyGenerationMutation.isPending ? "Generating..." : "Generate Story"}
+                  {storyGenerationMutation.isPending 
+                    ? "Generating..." 
+                    : (isPremium || hasCredits) 
+                      ? "Generate Story (1 Credit)" 
+                      : "No Credits Available"}
                 </Button>
               </div>
             </div>

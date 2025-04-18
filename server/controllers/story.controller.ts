@@ -17,15 +17,26 @@ export const createStory = async (req: Request, res: Response) => {
     const settingsSchema = z.object({
       title: z.string().min(1, "Title is required"),
       settings: storySettingsSchema,
-      maxTokens: z.number().optional()
+      maxTokens: z.number().optional(),
+      isPublic: z.boolean().optional().default(false)
     });
 
-    const { title, settings, maxTokens } = settingsSchema.parse(req.body);
+    const { title, settings, maxTokens, isPublic } = settingsSchema.parse(req.body);
     const userId = req.session.userId;
     if (!userId) {
       throw new Error("User not found");
     }
-    const story = await createStoryService(title, settings, maxTokens, userId);
+    
+    // Check if non-premium user is trying to make public story
+    if (isPublic && req.session.role !== 'premium') {
+      return res.status(403).json({
+        message: "Only premium users can create public stories",
+        code: "PREMIUM_REQUIRED",
+        isPremiumRequired: true
+      });
+    }
+    
+    const story = await createStoryService(title, settings, maxTokens, userId, isPublic);
     res.status(201).json(story);
   } catch (error) {
     console.error("Error creating story:", error);
@@ -39,6 +50,14 @@ export const createStory = async (req: Request, res: Response) => {
         message: error.message,
         code: "STORY_LIMIT_REACHED",
         isPremiumRequired: true
+      });
+    }
+
+    // Check for insufficient credits
+    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+      return res.status(402).json({
+        message: "You don't have enough credits to generate a story. Please purchase more credits.",
+        code: "INSUFFICIENT_CREDITS"
       });
     }
 
@@ -60,9 +79,31 @@ export const getStoryAudio = async (req: Request, res: Response) => {
 };
 
 export const continueStory = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const story = await continueStoryService(id);
-  res.status(200).json(story);
+  try {
+    const { id } = req.params;
+    const story = await continueStoryService(id);
+    res.status(200).json(story);
+  } catch (error) {
+    console.error("Error continuing story:", error);
+    
+    // Check for insufficient credits
+    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+      return res.status(402).json({
+        message: "You don't have enough credits to continue this story. Please purchase more credits.",
+        code: "INSUFFICIENT_CREDITS"
+      });
+    }
+    
+    if (error instanceof Error && error.message === "Story not found") {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    if (error instanceof Error && error.message === "User not found") {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.status(500).json({ message: "Failed to continue story" });
+  }
 };
 
 

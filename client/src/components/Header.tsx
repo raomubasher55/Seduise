@@ -54,6 +54,18 @@ const Header = () => {
               </Button>
             )}
             
+            {isAuthenticated && (
+              <Link href="/credits">
+                <Button variant="outline" className="flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                    <circle cx="12" cy="12" r="8" />
+                    <path d="M9.5 9 h5 l-5 6 h5" />
+                  </svg>
+                  <span className="font-medium text-amber-500">{user?.credits || 0}</span>
+                </Button>
+              </Link>
+            )}
+            
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -72,6 +84,15 @@ const Header = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem className="hover:bg-[#282828]">
                     <Link href="/dashboard" className="w-full">My Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:bg-[#282828]">
+                    <Link href="/credits" className="w-full flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mr-2">
+                        <circle cx="12" cy="12" r="8" />
+                        <path d="M9.5 9 h5 l-5 6 h5" />
+                      </svg>
+                      Credits: {user?.credits || 0}
+                    </Link>
                   </DropdownMenuItem>
                   {user?.role === 'admin' && (
                     <DropdownMenuItem className="hover:bg-[#282828]">

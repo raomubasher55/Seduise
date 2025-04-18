@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryClient } from "@/lib/queryClient";
-import { Clock, Search, Eye, EyeOff, Plus, Trash2, Heart, Edit, BookOpen } from "lucide-react";
+import { Clock, Search, Eye, EyeOff, Plus, Trash2, Heart, Edit, BookOpen, Coins } from "lucide-react";
+import CreditDisplay from "@/components/CreditDisplay";
 
 interface Story {
   _id: string;
@@ -51,11 +52,17 @@ export default function Dashboard() {
         body: JSON.stringify({ isPublic }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
+        // Check if premium required error
+        if (response.status === 403 && data.code === "PREMIUM_REQUIRED") {
+          throw new Error("PREMIUM_REQUIRED");
+        }
         throw new Error("Failed to update story visibility");
       }
       
-      return await response.json();
+      return data;
     },
     onSuccess: () => {
       toast({
@@ -64,12 +71,32 @@ export default function Dashboard() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user/stories"] });
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update story visibility. Please try again.",
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      if (error.message === "PREMIUM_REQUIRED") {
+        toast({
+          title: "Premium Feature",
+          description: (
+            <div className="flex flex-col space-y-2">
+              <p>Setting stories to private requires a premium account.</p>
+              <Button 
+                size="sm" 
+                onClick={() => navigate('/premium')}
+                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
+              >
+                Upgrade to Premium
+              </Button>
+            </div>
+          ),
+          variant: "default",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update story visibility. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -143,28 +170,38 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-['Playfair_Display'] font-bold mb-2">My Stories</h1>
-        <p className="text-gray-400">Manage your personal collection of stories.</p>
-      </div>
-
-      <div className="mb-6 flex flex-col md:flex-row justify-between gap-4">
-        <div className="relative w-full md:w-1/3">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input
-            placeholder="Search stories..."
-            className="pl-10 bg-[#2D2D2D] border-gray-700"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="md:col-span-2">
+          <h1 className="text-3xl font-['Playfair_Display'] font-bold mb-2">My Stories</h1>
+          <p className="text-gray-400">Manage your personal collection of stories.</p>
+          
+          <div className="mt-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative w-full sm:w-2/3">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <Input
+                placeholder="Search stories..."
+                className="pl-10 bg-[#2D2D2D] border-gray-700"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Button 
+              className="bg-[#8B1E3F] hover:bg-[#A93B5B] flex items-center w-full sm:w-auto"
+              onClick={() => navigate("/create")}
+            >
+              <Plus className="mr-2" size={16} />
+              Create New Story
+            </Button>
+          </div>
+        </div>
+        
+        <div>
+          <CreditDisplay 
+            credits={user?.credits || 0}
+            isPremium={user?.isPremium}
+            onTopUp={() => navigate('/credits')}
           />
         </div>
-        <Button 
-          className="bg-[#8B1E3F] hover:bg-[#A93B5B] flex items-center"
-          onClick={() => navigate("/create")}
-        >
-          <Plus className="mr-2" size={16} />
-          Create New Story
-        </Button>
       </div>
 
       <Tabs 
@@ -216,6 +253,8 @@ interface StoryCardProps {
 
 const StoryCard = ({ story, onToggleVisibility, onDelete }: StoryCardProps) => {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const isPremium = user?.isPremium || false;
   
   // Truncate content for display
   const truncatedContent = story.content.length > 100 
@@ -266,17 +305,39 @@ const StoryCard = ({ story, onToggleVisibility, onDelete }: StoryCardProps) => {
         <div className="mt-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <Switch 
-                id={`visibility-${story._id}`} 
-                checked={story.isPublic}
-                onCheckedChange={() => onToggleVisibility(story._id, story.isPublic)}
-              />
-              <Label 
-                htmlFor={`visibility-${story._id}`} 
-                className="ml-2 text-sm"
-              >
-                {story.isPublic ? 'Public' : 'Private'}
-              </Label>
+              {isPremium || story.isPublic ? (
+                <>
+                  <Switch 
+                    id={`visibility-${story._id}`} 
+                    checked={story.isPublic}
+                    onCheckedChange={() => onToggleVisibility(story._id, story.isPublic)}
+                    disabled={!isPremium && !story.isPublic}
+                  />
+                  <Label 
+                    htmlFor={`visibility-${story._id}`} 
+                    className="ml-2 text-sm flex items-center"
+                  >
+                    {story.isPublic ? 'Public' : 'Private'}
+                    {!isPremium && (
+                      <span className="ml-2 text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                        Premium
+                      </span>
+                    )}
+                  </Label>
+                </>
+              ) : (
+                <div className="text-xs text-amber-400 flex items-center">
+                  <span className="mr-1">Private stories require</span>
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="h-auto p-0 text-xs text-amber-500 font-semibold"
+                    onClick={() => navigate('/premium')}
+                  >
+                    Premium
+                  </Button>
+                </div>
+              )}
             </div>
             <span className="text-xs text-gray-500">
               {formatDate(story.createdAt || new Date().toISOString())}

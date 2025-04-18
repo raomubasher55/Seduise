@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +8,9 @@ import { Award, Heart, MessageSquare, Play } from "lucide-react";
 import { ForumTopic, CommunityStory } from "@/types";
 
 const Community = () => {
-  const [activeTab, setActiveTab] = useState("discussions");
+  const [activeTab, setActiveTab] = useState("categories");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [, navigate] = useLocation();
   
   // Fetch discussions
   const { data: discussions, isLoading: isLoadingDiscussions } = useQuery({
@@ -18,6 +21,24 @@ const Community = () => {
   const { data: popularStories, isLoading: isLoadingStories } = useQuery({
     queryKey: ['/api/community/popular-stories'],
   });
+  
+  // Fetch stories by category (when a category is selected)
+  const { data: categoryStories, isLoading: isLoadingCategoryStories } = useQuery({
+    queryKey: ['/api/stories/by-category', selectedCategory],
+    enabled: !!selectedCategory,
+  });
+  
+  // Story categories
+  const categories = [
+    { id: "romance", name: "Romance", icon: "❤️", color: "#FF6B8B" },
+    { id: "fantasy", name: "Fantasy", icon: "✨", color: "#8A4FFF" },
+    { id: "historical", name: "Historical", icon: "📜", color: "#B78040" },
+    { id: "contemporary", name: "Contemporary", icon: "🏙️", color: "#4A90E2" },
+    { id: "adventure", name: "Adventure", icon: "🌋", color: "#50C878" },
+    { id: "passionate", name: "Passionate", icon: "🔥", color: "#FF4500" },
+    { id: "playful", name: "Playful", icon: "😏", color: "#FF9500" },
+    { id: "intense", name: "Intense", icon: "⚡", color: "#9747FF" }
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -30,18 +51,24 @@ const Community = () => {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-[#1E1E1E] border-b border-gray-800 p-0 mb-6">
-            <TabsTrigger 
-              value="discussions" 
-              className={`px-6 py-3 ${activeTab === 'discussions' ? 'border-b-2 border-[#D9B08C] text-[#D9B08C]' : 'text-gray-400'}`}
-            >
-              Discussions
-            </TabsTrigger>
+          <TabsList className="bg-[#1E1E1E] border-b border-gray-800 p-0 mb-6 flex flex-wrap">
             <TabsTrigger 
               value="stories" 
               className={`px-6 py-3 ${activeTab === 'stories' ? 'border-b-2 border-[#D9B08C] text-[#D9B08C]' : 'text-gray-400'}`}
             >
               Popular Stories
+            </TabsTrigger>
+            <TabsTrigger 
+              value="categories" 
+              className={`px-6 py-3 ${activeTab === 'categories' ? 'border-b-2 border-[#D9B08C] text-[#D9B08C]' : 'text-gray-400'}`}
+            >
+              Categories
+            </TabsTrigger>
+            <TabsTrigger 
+              value="discussions" 
+              className={`px-6 py-3 ${activeTab === 'discussions' ? 'border-b-2 border-[#D9B08C] text-[#D9B08C]' : 'text-gray-400'}`}
+            >
+              Discussions
             </TabsTrigger>
             <TabsTrigger 
               value="writers" 
@@ -95,6 +122,83 @@ const Community = () => {
                     </CardContent>
                   </Card>
                 )}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="categories">
+            {selectedCategory ? (
+              // Show stories for selected category
+              <div>
+                <div className="mb-6 flex items-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setSelectedCategory(null)}
+                    className="mr-4"
+                  >
+                    ← Back to Categories
+                  </Button>
+                  <h3 className="text-xl font-semibold">
+                    {categories.find(c => c.id === selectedCategory)?.icon}{' '}
+                    {categories.find(c => c.id === selectedCategory)?.name} Stories
+                  </h3>
+                </div>
+                
+                {isLoadingCategoryStories ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Card key={i} className="bg-[#1E1E1E] border-0 animate-pulse h-48"></Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {categoryStories && categoryStories.length > 0 ? (
+                      categoryStories.map((story: CommunityStory) => (
+                        <PopularStoryItem key={story.id} story={story} />
+                      ))
+                    ) : (
+                      <Card className="bg-[#1E1E1E] border-0 col-span-2">
+                        <CardContent className="p-6 text-center">
+                          <p className="text-gray-400">No stories found in this category yet.</p>
+                          <Button
+                            className="mt-4 bg-[#8B1E3F] hover:bg-[#A93B5B]"
+                            onClick={() => navigate("/create")}
+                          >
+                            Create the First Story
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Show category grid
+              <div>
+                <h3 className="text-xl font-semibold mb-6">Browse Stories by Category</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {categories.map(category => (
+                    <Card 
+                      key={category.id} 
+                      className="bg-[#1E1E1E] border-0 hover:bg-[#2D2D2D] transition-colors cursor-pointer"
+                      onClick={() => setSelectedCategory(category.id)}
+                    >
+                      <CardContent className="p-4 md:p-6 flex flex-col items-center text-center">
+                        <div 
+                          className="text-4xl mb-2 w-14 h-14 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: `${category.color}20` }} // 20% opacity of the color
+                        >
+                          {category.icon}
+                        </div>
+                        <h4 className="font-medium">{category.name}</h4>
+                        <p className="text-xs text-gray-400 mt-1">
+                          View all stories
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>

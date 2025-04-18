@@ -8,7 +8,7 @@ const connectDB = async () => {
 
   
     // await mongoose.connect(process.env.MONGO_URI as string);
-    await mongoose.connect(process.env.MONGODB_URI as string);
+    await mongoose.connect("mongodb://82.25.118.148:27017/story");
     console.log('MongoDB connected');
   } catch (error) {
     console.error('MongoDB connection error:', error);

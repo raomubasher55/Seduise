@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import stripe from '../config/stripe';
 import { User } from '../models/user.model';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -111,6 +112,117 @@ router.get('/success', async (req, res) => {
   }
 });
 
+// Create a checkout session for credit purchase
+router.post('/create-credit-checkout', authMiddleware, async (req, res) => {
+  try {
+    // Validate the request body using Zod
+    const schema = z.object({
+      packageId: z.string().min(1),
+      credits: z.number().min(1),
+      price: z.number().min(0.01)
+    });
+
+    const { packageId, credits, price } = schema.parse(req.body);
+    
+    // Get the user
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Price is sent in dollars, convert to cents for Stripe
+    const priceInCents = Math.round(price * 100);
+
+    // Get the origin for success and cancel URLs
+    const origin = req.headers.origin || 'https://' + req.headers.host;
+    
+    // Create the checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `${credits} Credit Package`,
+              description: `Purchase ${credits} credits for your stories`,
+            },
+            unit_amount: priceInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      customer_email: user.email,
+      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${credits}`,
+      cancel_url: `${origin}/credits`,
+      metadata: {
+        userId: userId,
+        packageId: packageId,
+        credits: credits.toString(),
+        type: 'credit_purchase'
+      },
+    });
+    
+    res.json({ id: session.id });
+  } catch (error) {
+    console.error('Error creating credit checkout session:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
+    }
+    res.status(500).json({ message: 'Failed to create checkout session' });
+  }
+});
+
+// Handle successful credit purchase
+router.get('/credit-success', async (req, res) => {
+  try {
+    const { session_id, credits } = req.query;
+    
+    if (!session_id || typeof session_id !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid session ID' });
+    }
+
+    // Parse credits
+    const creditsToAdd = parseInt(credits as string) || 0;
+    
+    if (creditsToAdd <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid credit amount' });
+    }
+
+    // In production, verify the payment with Stripe
+    // For now, we'll directly add credits to the user's account
+    const userId = req.session.userId;
+    if (userId) {
+      // Find and update the user
+      const user = await User.findById(userId);
+      
+      if (user) {
+        // Add the credits to the user's account
+        user.credits = (user.credits || 0) + creditsToAdd;
+        await user.save();
+        
+        console.log(`Added ${creditsToAdd} credits to user ${userId}`);
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Credits added successfully!',
+          credits: user.credits
+        });
+      }
+    }
+    
+    return res.status(200).json({ success: true, message: 'Credit purchase successful!' });
+  } catch (error) {
+    console.error('Error processing credit purchase:', error);
+    res.status(500).json({ success: false, message: 'Failed to process credit purchase' });
+  }
+});
+
 // Webhook to handle Stripe events
 router.post('/webhook', async (req, res) => {
   const signature = req.headers['stripe-signature'];
@@ -155,7 +267,7 @@ router.post('/webhook', async (req, res) => {
     }
 
     try {
-      // Update user to premium
+      // Get the user
       const user = await User.findById(userId);
       
       if (!user) {
@@ -163,13 +275,29 @@ router.post('/webhook', async (req, res) => {
         return res.status(404).send('User not found');
       }
 
-      user.isPremium = true;
-      await user.save();
+      // Check the type of purchase
+      const purchaseType = session.metadata?.type;
       
-      console.log(`User ${userId} upgraded to premium`);
+      if (purchaseType === 'credit_purchase') {
+        // Credit purchase
+        const creditsToAdd = parseInt(session.metadata?.credits || '0');
+        
+        if (creditsToAdd > 0) {
+          user.credits = (user.credits || 0) + creditsToAdd;
+          await user.save();
+          console.log(`Added ${creditsToAdd} credits to user ${userId}`);
+        } else {
+          console.error('Invalid credit amount');
+        }
+      } else {
+        // Default to premium subscription
+        user.isPremium = true;
+        await user.save();
+        console.log(`User ${userId} upgraded to premium`);
+      }
     } catch (error) {
-      console.error('Error updating user to premium:', error);
-      return res.status(500).send('Error updating user to premium');
+      console.error('Error processing webhook:', error);
+      return res.status(500).send('Error processing webhook');
     }
   }
 

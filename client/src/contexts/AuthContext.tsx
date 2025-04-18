@@ -8,6 +8,7 @@ interface User {
   name: string;
   role: string;
   isPremium?: boolean;
+  credits?: number;
 }
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isPremium: boolean;
+  hasCredits: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: isLoading || loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending,
         isAuthenticated: !!user,
         isPremium: !!user?.isPremium,
+        hasCredits: (user?.credits ?? 0) > 0,
         login,
         signup,
         logout,

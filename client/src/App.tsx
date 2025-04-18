@@ -18,9 +18,11 @@ import Admin from "@/pages/Admin";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import CreditTopUp from "@/pages/CreditTopUp";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PremiumUpgrade from "@/pages/PremiumUpgrade";
 import PaymentSuccess from "@/pages/PaymentSuccess";
+import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
 
 function App() {
@@ -91,10 +93,22 @@ function App() {
                   <PaymentSuccess />
                 </ProtectedRoute>
               </Route>
+
+              <Route path="/payment/credit-success">
+                <ProtectedRoute>
+                  <PaymentCreditSuccess />
+                </ProtectedRoute>
+              </Route>
               
               <Route path="/payment/cancel">
                 <ProtectedRoute>
                   <PaymentCancel />
+                </ProtectedRoute>
+              </Route>
+              
+              <Route path="/credits">
+                <ProtectedRoute>
+                  <CreditTopUp />
                 </ProtectedRoute>
               </Route>
 

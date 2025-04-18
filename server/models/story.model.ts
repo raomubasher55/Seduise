@@ -11,11 +11,12 @@ const storySchema = new Schema({
   isPublic: { type: Boolean, default: true },
   imageUrl: { type: String },
   likes: { type: Number, default: 0 },
-  plays: { type: Number, default: 0 }
+  plays: { type: Number, default: 0 },
+  category: { type: String, default: "romance" },
+  creditsCost: { type: Number, default: 1 }  // Cost in credits to generate this story
 }, { timestamps: true });
 
 // Remove any existing indexes on the id field
 storySchema.index({ id: 1 }, { unique: false });
 
 export const Story = model("Story", storySchema);
-

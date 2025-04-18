@@ -63,6 +63,99 @@ export class MemStorage implements IStorage {
     this.commentId = 1;
     this.voiceId = 1;
     
+    // Initialize with sample popular stories
+    const exampleStory1: Story = {
+      _id: this.storyId.toString(),
+      title: "Midnight in Paris",
+      content: "A passionate encounter under the Parisian moonlight changes everything for two strangers...",
+      settings: {
+        timePeriod: "Contemporary",
+        location: "Paris",
+        atmosphere: "Romantic",
+        protagonistGender: "female",
+        partnerGender: "male",
+        relationship: "Strangers",
+        writingTone: "Passionate",
+        length: 1500
+      },
+      userId: "system",
+      isPublic: true,
+      likes: 238,
+      plays: 567,
+      createdAt: new Date()
+    };
+    this.stories.set(this.storyId.toString(), exampleStory1);
+    this.storyId++;
+    
+    const exampleStory2: Story = {
+      _id: this.storyId.toString(),
+      title: "The Pirate's Captive",
+      content: "Captured by a notorious pirate captain, a noble lady discovers her own desires at sea...",
+      settings: {
+        timePeriod: "Medieval",
+        location: "Caribbean Sea",
+        atmosphere: "Mysterious",
+        protagonistGender: "female",
+        partnerGender: "male",
+        relationship: "Enemies to Lovers",
+        writingTone: "Intense",
+        length: 2000
+      },
+      userId: "system",
+      isPublic: true,
+      likes: 186,
+      plays: 423,
+      createdAt: new Date()
+    };
+    this.stories.set(this.storyId.toString(), exampleStory2);
+    this.storyId++;
+    
+    const exampleStory3: Story = {
+      _id: this.storyId.toString(),
+      title: "CEO's Secret",
+      content: "When a young executive discovers her boss's hidden desires, their professional relationship transforms...",
+      settings: {
+        timePeriod: "Contemporary",
+        location: "Manhattan",
+        atmosphere: "Tense",
+        protagonistGender: "female",
+        partnerGender: "male",
+        relationship: "Boss/Employee",
+        writingTone: "Passionate",
+        length: 1800
+      },
+      userId: "system",
+      isPublic: true,
+      likes: 312,
+      plays: 678,
+      createdAt: new Date()
+    };
+    this.stories.set(this.storyId.toString(), exampleStory3);
+    this.storyId++;
+    
+    const exampleStory4: Story = {
+      _id: this.storyId.toString(),
+      title: "Dragon's Desire",
+      content: "In a world of magic, a dragon shifter finds his fated mate in an unexpected place...",
+      settings: {
+        timePeriod: "Fantasy Realm",
+        location: "Enchanted Forest",
+        atmosphere: "Magical",
+        protagonistGender: "male",
+        partnerGender: "female",
+        relationship: "Fated Mates",
+        writingTone: "Intense",
+        length: 2200
+      },
+      userId: "system",
+      isPublic: true,
+      likes: 156,
+      plays: 389,
+      createdAt: new Date()
+    };
+    this.stories.set(this.storyId.toString(), exampleStory4);
+    this.storyId++;
+    
     // Initialize with some sample voices
     this.initializeVoices();
     
@@ -70,24 +163,31 @@ export class MemStorage implements IStorage {
     this.discussions = [
       {
         id: 1,
-        title: "Writing Techniques for Sensual Scenes",
-        content: "Tips and advice for creating evocative imagery in your stories.",
-        author: "WriterGirl88",
-        commentCount: 24
+        title: "Writing Techniques for Passionate Romance",
+        content: "I'm trying to improve the passionate scenes in my stories. Any tips from experienced writers?",
+        author: "RomanceWriter",
+        commentCount: 15
       },
       {
         id: 2,
-        title: "Historical Settings That Inspire Passion",
-        content: "Exploring time periods that provide rich backdrops for romantic encounters.",
-        author: "HistoryLover42",
-        commentCount: 18
+        title: "Historical Accuracy in Period Romances",
+        content: "How important is historical accuracy in your erotic historical fiction?",
+        author: "HistoryBuff",
+        commentCount: 8
       },
       {
         id: 3,
-        title: "Character Development: Creating Desire",
-        content: "How to build characters with chemistry and emotional depth.",
-        author: "NovelistDreams",
-        commentCount: 31
+        title: "Character Development in Short Stories",
+        content: "How do you develop compelling characters in shorter formats?",
+        author: "StoryMaster",
+        commentCount: 22
+      },
+      {
+        id: 4,
+        title: "Favorite Settings for Steamy Encounters",
+        content: "What are some unique settings you've used that worked well?",
+        author: "CreativeScribe",
+        commentCount: 17
       }
     ];
   }

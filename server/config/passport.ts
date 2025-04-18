@@ -5,9 +5,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Google OAuth Strategy
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID || '',
+// Configure Google OAuth only if client ID is available
+if (process.env.GOOGLE_CLIENT_ID) {
+  // Google OAuth Strategy
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
     passReqToCallback: true,
@@ -60,6 +62,7 @@ passport.use(new GoogleStrategy({
     }
   }
 ));
+}
 
 // Serialization and Deserialization
 passport.serializeUser((user: any, done) => {
