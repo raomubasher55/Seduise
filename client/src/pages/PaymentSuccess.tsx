@@ -9,6 +9,8 @@ const PaymentSuccess = () => {
   const [isVerifying, setIsVerifying] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const { user, refreshUser } = useAuth();
+
+  console.log('user ' , user)
   
   useEffect(() => {
     const verifyPayment = async () => {
@@ -53,7 +55,7 @@ const PaymentSuccess = () => {
     }, 1500);
     
     return () => clearTimeout(timeout);
-  }, [refreshUser]);
+  }, []);
   
   return (
     <div className="container mx-auto px-4 py-16">

@@ -54,6 +54,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       // setDuration(audioData.duration);
       // console.log("Duration is :" , audioData);
       setHasAudio(true);
+      // window.location.reload();
     } else if (audioData === null || audioData === undefined || !audioData.audioUrl) {
       // console.log("No valid audio data found, setting hasAudio to false");
       setHasAudio(false);

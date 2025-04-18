@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
+import { redirectToCheckout } from '@/lib/stripe';
 
 const CreditTopUp = () => {
   const { user, isPremium } = useAuth();
@@ -52,21 +53,21 @@ const CreditTopUp = () => {
 
       const { id: sessionId } = await response.json();
       
+      redirectToCheckout(sessionId);
+    
       // Load Stripe.js
-      const stripe = await loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_sample");
+      // const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
       
-      if (!stripe) {
-        throw new Error("Failed to load Stripe");
-      }
+      // if (!stripe) {
+      //   throw new Error("Failed to load Stripe");
+      // }
 
-      // Redirect to Stripe Checkout
-      const { error } = await stripe.redirectToCheckout({
-        sessionId,
-      });
+      // // Redirect to Stripe Checkout
+      // const { error } = await stripe.redirectToCheckout({
+      //   sessionId,
+      // });
 
-      if (error) {
-        throw error;
-      }
+    
       
     } catch (error) {
       console.error("Error during checkout:", error);

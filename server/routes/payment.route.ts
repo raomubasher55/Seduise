@@ -80,9 +80,11 @@ router.get('/success', async (req, res) => {
           
           if (user) {
             user.isPremium = true;
-            await user.save();
-            console.log(`User ${userId} upgraded to premium via session: ${session_id}`);
-            return res.status(200).json({ success: true, message: 'Premium upgrade successful!' });
+            user.subscription = "pro";
+            user.credits = (user.credits || 0) +100;
+            await user.save({validateBeforeSave : false});
+            console.log(`User ${userId} upgraded to premium via session: ${session_id} AAA`);
+            return res.status(200).json({ success: true, message: 'Premium upgrade successful!  EEEE' });
           }
         }
       }
@@ -99,13 +101,15 @@ router.get('/success', async (req, res) => {
       
       if (user) {
         user.isPremium = true;
+        user.subscription = "pro";
+        user.credits = (user.credits || 0) +100;
         await user.save();
-        console.log(`User ${userId} upgraded to premium via direct session`);
-        return res.status(200).json({ success: true, message: 'Premium upgrade successful!' });
+        console.log(`User ${userId} upgraded to premium via direct session BBBB`);
+        return res.status(200).json({ success: true, message: 'Premium upgrade successful! CCC' });
       }
     }
     
-    return res.status(200).json({ success: true, message: 'Premium upgrade successful!' });
+    return res.status(200).json({ success: true, message: 'Premium upgrade successful!  DDD  ' });
   } catch (error) {
     console.error('Error processing payment success:', error);
     res.status(500).json({ success: false, message: 'Failed to process payment success' });

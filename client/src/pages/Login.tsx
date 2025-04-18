@@ -47,6 +47,7 @@ export default function Login() {
       return data;
     },
     onSuccess: (data) => {
+      console.log("Login successful: " , data);
       if (data.token) {
         localStorage.setItem('token', data.token);
       }

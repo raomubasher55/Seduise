@@ -55,7 +55,7 @@ export async function initiatePremiumUpgrade(userId: string): Promise<string> {
     
     // Immediately redirect to Stripe checkout
     await redirectToCheckout(sessionId);
-    console.log("Redirecting to checkout with session ID:", sessionId);
+    
     
     return sessionId;
   } catch (error) {
