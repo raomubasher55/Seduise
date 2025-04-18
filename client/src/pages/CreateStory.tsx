@@ -22,12 +22,23 @@ const RELATIONSHIPS = ["Strangers", "Dating", "Married", "Friends", "Colleagues"
 const WRITING_TONES = ["Romantic", "Sensual", "Intense", "Playful", "Explicit"];
 const NARRATION_VOICES = ["Soft Female", "Deep Male", "Sensual Female", "Authoritative Male", "Playful Female"];
 const WRITING_STYLES = ["Romantic", "Passionate", "Playful", "Intense"];
+const CATEGORIES = [
+  { id: "romance", name: "Romance", icon: "❤️", color: "#FF6B8B" },
+  { id: "fantasy", name: "Fantasy", icon: "✨", color: "#8A4FFF" },
+  { id: "historical", name: "Historical", icon: "📜", color: "#B78040" },
+  { id: "contemporary", name: "Contemporary", icon: "🏙️", color: "#4A90E2" },
+  { id: "adventure", name: "Adventure", icon: "🌋", color: "#50C878" },
+  { id: "passionate", name: "Passionate", icon: "🔥", color: "#FF4500" },
+  { id: "playful", name: "Playful", icon: "😏", color: "#FF9500" },
+  { id: "intense", name: "Intense", icon: "⚡", color: "#9747FF" }
+];
 
 const CreateStory = () => {
   const { isPremium, user, hasCredits } = useAuth();
   const [, navigate] = useLocation();
   const [storyTitle, setStoryTitle] = useState<string>("");
   const [isPublic, setIsPublic] = useState<boolean>(false);
+  const [category, setCategory] = useState<string>("romance");
   const [settings, setSettings] = useState<StorySettings>({
     timePeriod: "Contemporary",
     location: "Beach Resort",
@@ -149,7 +160,8 @@ const CreateStory = () => {
       title: storyTitle,
       settings: enhancedSettings,
       maxTokens: settings.length * 500, // Adjust token count based on length
-      isPublic: isPremium ? isPublic : false // Only premium users can set stories to public
+      isPublic: isPremium ? isPublic : false, // Only premium users can set stories to public
+      category: category
     });
   };
 

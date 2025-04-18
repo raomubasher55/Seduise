@@ -28,6 +28,7 @@ export const stories = pgTable("stories", {
   plays: integer("plays").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   isPublic: boolean("is_public").default(false),
+  category: text("category").default("romance"),
 });
 
 export const insertStorySchema = createInsertSchema(stories).omit({
