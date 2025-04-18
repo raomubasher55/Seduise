@@ -528,7 +528,7 @@ const CreateStory = () => {
           <p className="text-gray-300 mb-8">Customize every aspect of your narrative for a truly personalized experience.</p>
           
           {/* Story Title Input */}
-          <div className="mb-8">
+          <div className="mb-6">
             <label htmlFor="story-title" className="block text-lg font-medium text-white mb-2">Story Title <span className="text-red-500">*</span></label>
             <Input
               id="story-title"
@@ -545,6 +545,50 @@ const CreateStory = () => {
             />
             {titleError && <p className="mt-1 text-sm text-red-500">{titleError}</p>}
           </div>
+
+          {/* Category Selection */}
+          <div className="mb-6">
+            <label htmlFor="category" className="block text-lg font-medium text-white mb-2">Category</label>
+            <Select
+              value={category}
+              onValueChange={setCategory}
+            >
+              <SelectTrigger id="category" className="w-full bg-[#121212] border border-gray-700 text-white py-3 h-auto text-lg">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#121212] border border-gray-700">
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <div className="flex items-center">
+                      <span className="mr-2">{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Public/Private Toggle (Premium users only) */}
+          {isPremium && (
+            <div className="mb-8 p-4 bg-[#121212] border border-gray-700 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="public-toggle" 
+                    checked={isPublic} 
+                    onCheckedChange={setIsPublic} 
+                  />
+                  <Label htmlFor="public-toggle" className="text-white">
+                    Make story public
+                  </Label>
+                </div>
+                <div className="text-xs text-gray-400">
+                  {isPublic ? "Your story will be visible in the Community section" : "Only you can view this story"}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tabbed Interface */}
           <div className="rounded-xl overflow-hidden shadow-md">

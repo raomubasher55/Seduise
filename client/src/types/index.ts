@@ -28,6 +28,7 @@ export interface StoryGenerationParams {
   settings: StorySettings;
   maxTokens?: number;
   isPublic?: boolean;
+  category?: string;
 }
 
 export interface TextToSpeechParams {

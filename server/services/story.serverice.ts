@@ -3,7 +3,7 @@ import { StorySettings } from "@shared/schema";
 import { continueStory, generateStory } from "../utils/openai";
 import { User } from "../models/user.model";
 
-export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false) => {
+export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance") => {
     const user = await User.findById(userId);
     if (!user) {
         throw new Error("User not found");

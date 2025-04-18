@@ -18,10 +18,11 @@ export const createStory = async (req: Request, res: Response) => {
       title: z.string().min(1, "Title is required"),
       settings: storySettingsSchema,
       maxTokens: z.number().optional(),
-      isPublic: z.boolean().optional().default(false)
+      isPublic: z.boolean().optional().default(false),
+      category: z.string().optional().default("romance")
     });
 
-    const { title, settings, maxTokens, isPublic } = settingsSchema.parse(req.body);
+    const { title, settings, maxTokens, isPublic, category } = settingsSchema.parse(req.body);
     const userId = req.session.userId;
     if (!userId) {
       throw new Error("User not found");
@@ -36,7 +37,7 @@ export const createStory = async (req: Request, res: Response) => {
       });
     }
     
-    const story = await createStoryService(title, settings, maxTokens, userId, isPublic);
+    const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category);
     res.status(201).json(story);
   } catch (error) {
     console.error("Error creating story:", error);
