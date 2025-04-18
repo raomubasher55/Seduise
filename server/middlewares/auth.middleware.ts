@@ -23,25 +23,26 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
   // If no session, check JWT token
   const token = req.headers.authorization?.split(' ')[1];
-  console.log("Token from headr"  , token) 
+  console.log("Token from header:", token) 
   if (!token) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as {id: string};
     if (!decoded) {
       return res.status(401).json({ message: "Invalid token" });
     }
 
-    console.log("Decoded JWT" , decoded)
+    console.log("Decoded JWT:", decoded)
     
     // Set session data from JWT
-    req.session.userId = decoded.id ;
+    req.session.userId = decoded.id;
     req.session.token = token;
     
     next();
   } catch (error) {
+    console.error("Token verification error:", error);
     return res.status(401).json({ message: "Invalid token" });
   }
 };

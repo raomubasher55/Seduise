@@ -107,14 +107,18 @@ export const googleCallback = (req: Request, res: Response) => {
     // Store token in session for API calls
     req.session.token = token;
     
-    // Log the token (first few chars for debugging)
+    // Log the token details for debugging
     const tokenPreview = token.substring(0, 10) + '...';
     console.log(`Generated auth token: ${tokenPreview}`);
+    console.log(`User ID in session: ${req.session.userId}`);
+    console.log(`User role in session: ${req.session.role}`);
+    
+    // Encode the token for URL safety
+    const encodedToken = encodeURIComponent(token);
     
     // For SPA, redirect to homepage with token in query params
-    
     // The Home component will handle storing it in localStorage
-    res.redirect(`/?token=${token}&googleAuth=success`);
+    res.redirect(`/?token=${encodedToken}&googleAuth=success`);
   } catch (error) {
     console.error('Google auth callback error:', error);
     res.redirect('/?error=google-auth-failed');
