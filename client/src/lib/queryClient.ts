@@ -18,6 +18,13 @@ export async function apiRequest(
   // Get token from localStorage
   const token = localStorage.getItem('token');
   
+  // Debug token
+  if (token) {
+    console.log("Using token from localStorage:", token.substring(0, 10) + '...');
+  } else {
+    console.log("No token found in localStorage");
+  }
+  
   const res = await fetch(apiUrl, {
     method,
     headers: {
@@ -46,7 +53,13 @@ export const getQueryFn: <T>(options: {
     // Get token from localStorage
     const token = localStorage.getItem('token');
     
-    console.log(`Fetching data for key: ${apiUrl}`);
+    // Debug token
+    if (token) {
+      console.log(`Fetching data for key: ${apiUrl} with token: ${token.substring(0, 10)}...`);
+    } else {
+      console.log(`Fetching data for key: ${apiUrl} without token`);
+    }
+    
     const res = await fetch(apiUrl, {
       credentials: "include",
       headers: {

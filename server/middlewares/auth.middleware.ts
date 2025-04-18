@@ -29,7 +29,10 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {id: string};
+    // Use secret with proper type casting
+    const jwtSecret = JWT_SECRET as jwt.Secret;
+    const decoded = jwt.verify(token, jwtSecret) as any;
+    
     if (!decoded) {
       return res.status(401).json({ message: "Invalid token" });
     }
@@ -79,8 +82,9 @@ export const isAdmin = async (req: Request, res: Response, next: NextFunction) =
     // 2. Fallback to token-based authentication
     else if (req.headers.authorization?.startsWith("Bearer ")) {
       const token = req.headers.authorization.split(" ")[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-      userId = decoded.userId;
+      const jwtSecret = JWT_SECRET as jwt.Secret;
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      userId = decoded.id || decoded.userId;
       role = decoded.role;
     } else {
       return res.status(401).json({ message: "Not authenticated" });

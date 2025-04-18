@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, Crown, User, Menu, X, LogOut } from "lucide-react";
+import { Search, Crown, User, Menu, X, LogOut, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,27 @@ const Header = () => {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isPremium, logout } = useAuth();
+  const isMobile = useIsMobile();
+  
+  // Close mobile menu when location changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
+  
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.mobile-menu') && !target.closest('.menu-button')) {
+        setMobileMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   return (
     <header className="py-4 bg-[#1E1E1E] border-b border-gray-800">
@@ -42,21 +64,27 @@ const Header = () => {
               <Search size={20} />
             </Button>
             
+            {/* Premium button - hidden on small mobile screens */}
             {isPremium ? (
-              <Button className="flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
+              <Button className="hidden sm:flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
                 <Crown size={18} className="mr-2" />
-                <span>Premium Active</span>
+                <span>Premium</span>
               </Button>
             ) : (
-              <Button className="flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
-                <Crown size={18} className="mr-2" />
-                <span>Get Premium</span>
-              </Button>
+              <Link href="/premium">
+                <Button className="hidden sm:flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
+                  <Crown size={18} className="mr-2" />
+                  <span>Get Premium</span>
+                </Button>
+              </Link>
             )}
             
+            {/* Credits button - always show when authenticated */}
             {isAuthenticated && (
               <Link href="/credits">
-                <Button variant="outline" className="flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group">
+                <Button variant="outline" 
+                  className={`flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group ${isMobile ? 'px-2' : 'px-3'}`}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
                     <circle cx="12" cy="12" r="8" />
                     <path d="M9.5 9 h5 l-5 6 h5" />
@@ -78,6 +106,11 @@ const Header = () => {
                   <DropdownMenuLabel className="text-[#D9B08C]">
                     {user?.name}
                   </DropdownMenuLabel>
+                  {isPremium && (
+                    <div className="px-2 py-1 text-xs bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] text-white rounded m-2 text-center">
+                      Premium Member
+                    </div>
+                  )}
                   <DropdownMenuSeparator className="bg-gray-800" />
                   <DropdownMenuItem className="hover:bg-[#282828]">
                     <Link href="/profile" className="w-full">My Profile</Link>
@@ -94,6 +127,14 @@ const Header = () => {
                       Credits: {user?.credits || 0}
                     </Link>
                   </DropdownMenuItem>
+                  {!isPremium && (
+                    <DropdownMenuItem className="hover:bg-[#282828]">
+                      <Link href="/premium" className="w-full flex items-center">
+                        <Crown size={16} className="mr-2 text-[#D9B08C]" />
+                        Get Premium
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {user?.role === 'admin' && (
                     <DropdownMenuItem className="hover:bg-[#282828]">
                       <Link href="/admin" className="w-full">Admin Dashboard</Link>
@@ -112,11 +153,13 @@ const Header = () => {
             ) : (
               <div className="flex items-center space-x-2">
                 <Link href="/login">
-                  <Button variant="outline" className="text-[#D9B08C] border-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E]">
+                  <Button variant="outline" 
+                    className={`text-[#D9B08C] border-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E] ${isMobile ? 'px-3 text-sm' : ''}`}
+                  >
                     Login
                   </Button>
                 </Link>
-                <Link href="/signup">
+                <Link href="/signup" className="hidden sm:block">
                   <Button variant="default" className="bg-[#D9B08C] text-[#1E1E1E] hover:bg-[#E5C7AD]">
                     Sign Up
                   </Button>
@@ -137,20 +180,53 @@ const Header = () => {
         
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 py-4 bg-[#1E1E1E] border-t border-gray-800">
+          <div className="md:hidden mt-4 py-4 bg-[#1E1E1E] border-t border-gray-800 mobile-menu">
             <nav className="flex flex-col space-y-4">
               <MobileNavLink href="/discover" label="Discover" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/create" label="Create" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/community" label="Community" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="#role-play" label="Role-Play" onClick={() => setMobileMenuOpen(false)} />
-              {!isAuthenticated && (
+              
+              {/* Premium link for mobile */}
+              {!isPremium && (
+                <MobileNavLink 
+                  href="/premium" 
+                  label={
+                    <div className="flex items-center">
+                      <Crown size={16} className="mr-2 text-[#D9B08C]" />
+                      <span>Get Premium</span>
+                    </div>
+                  } 
+                  onClick={() => setMobileMenuOpen(false)} 
+                />
+              )}
+              
+              {/* Credits link for mobile when authenticated */}
+              {isAuthenticated && (
+                <MobileNavLink 
+                  href="/credits" 
+                  label={
+                    <div className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mr-2">
+                        <circle cx="12" cy="12" r="8" />
+                        <path d="M9.5 9 h5 l-5 6 h5" />
+                      </svg>
+                      <span>Credits: {user?.credits || 0}</span>
+                    </div>
+                  } 
+                  onClick={() => setMobileMenuOpen(false)} 
+                />
+              )}
+              
+              {/* Auth links */}
+              {!isAuthenticated ? (
                 <>
                   <MobileNavLink href="/login" label="Login" onClick={() => setMobileMenuOpen(false)} />
                   <MobileNavLink href="/signup" label="Sign Up" onClick={() => setMobileMenuOpen(false)} />
                 </>
-              )}
-              {isAuthenticated && (
+              ) : (
                 <>
+                  <MobileNavLink href="/profile" label="My Profile" onClick={() => setMobileMenuOpen(false)} />
                   <MobileNavLink href="/dashboard" label="My Dashboard" onClick={() => setMobileMenuOpen(false)} />
                   {user?.role === 'admin' && (
                     <MobileNavLink href="/admin" label="Admin Dashboard" onClick={() => setMobileMenuOpen(false)} />
