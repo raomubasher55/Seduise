@@ -5,6 +5,71 @@ import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 
+// Helper function to determine voice gender based on name and labels
+function determineVoiceGender(voiceName: string, labels?: Record<string, string>): string {
+  // If labels already has a valid gender, use it
+  if (labels && labels.gender && 
+      (labels.gender.toLowerCase() === 'male' || 
+       labels.gender.toLowerCase() === 'female')) {
+    return labels.gender.toLowerCase();
+  }
+  
+  // Common male names for voice actors
+  const maleNames = [
+    'adam', 'josh', 'thomas', 'charlie', 'james', 'matthew', 'daniel', 
+    'michael', 'david', 'william', 'joseph', 'chris', 'george', 'robert', 
+    'jack', 'john', 'henry', 'jacob', 'sam', 'samuel', 'tom', 'callum', 
+    'harry', 'oliver', 'peter', 'will', 'liam', 'lucas'
+  ];
+  
+  // Common female names for voice actors
+  const femaleNames = [
+    'rachel', 'sarah', 'emily', 'bella', 'domi', 'charlotte', 'olivia', 
+    'emma', 'ava', 'sophia', 'isabella', 'mia', 'amelia', 'alice', 
+    'lily', 'grace', 'chloe', 'jessica', 'sophia', 'amy', 'katie', 
+    'susan', 'jennifer', 'elizabeth', 'mary', 'kathy', 'matilda', 'river'
+  ];
+  
+  // Clean and normalize the name for comparison
+  const normalizedName = voiceName.toLowerCase().trim();
+  const firstNamePart = normalizedName.split(' ')[0];
+  
+  // Check for explicit gender mentions in the name
+  if (normalizedName.includes('female') || normalizedName.includes('woman')) {
+    return 'female';
+  }
+  
+  if (normalizedName.includes('male') || normalizedName.includes('man')) {
+    return 'male';
+  }
+  
+  // Check name against male and female lists
+  if (maleNames.includes(firstNamePart)) {
+    return 'male';
+  }
+  
+  if (femaleNames.includes(firstNamePart)) {
+    return 'female';
+  }
+  
+  // Check if name has common male or female patterns
+  if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) {
+    return 'male';
+  }
+  
+  if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) {
+    return 'female';
+  }
+  
+  // Special case for voices named after rivers, usually female
+  if (normalizedName === 'river') {
+    return 'female';
+  }
+  
+  // Default gender when cannot determine
+  return 'unknown';
+}
+
 const router = Router();
 
 // Voice options endpoint - must be before generic story routes
@@ -32,10 +97,8 @@ router.get("/voice-options", async (req, res) => {
         description: description || (voice.labels && voice.labels.description) || '',
         labels: {
           ...voice.labels,
-          // Add some defaults if missing
-          gender: (voice.labels && voice.labels.gender) || 
-                 (voice.name.toLowerCase().includes('female') ? 'female' : 
-                 (voice.name.toLowerCase().includes('male') ? 'male' : 'unknown')),
+          // Add some defaults if missing with improved gender detection
+          gender: determineVoiceGender(voice.name, voice.labels),
           accent: (voice.labels && voice.labels.accent) || 'neutral',
           age: (voice.labels && voice.labels.age) || 'adult',
           style: (voice.labels && voice.labels.style) || 'natural'
