@@ -7,13 +7,8 @@ import { Separator } from '@/components/ui/separator';
 
 export default function CreditsPage() {
   const { user } = useAuth();
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
-  const handleSelectPackage = (packageId: string) => {
-    setSelectedPackage(packageId);
-    // Here you would initiate the checkout process
-    // This might redirect to a Stripe checkout page
-  };
+
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -41,7 +36,6 @@ export default function CreditsPage() {
             
             <CreditPackages 
               isPremium={user.isPremium} 
-              onSelectPackage={handleSelectPackage}
             />
           </div>
 

@@ -1,49 +1,43 @@
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { XCircle, ArrowLeft, Home } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 
 const PaymentCancelPage = () => {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="container max-w-lg mx-auto my-16 px-4">
-      <Card className="text-center">
-        <CardHeader>
-          <div className="flex justify-center mb-4">
-            <XCircle className="h-16 w-16 text-red-500" />
-          </div>
-          <CardTitle className="text-2xl">Payment Cancelled</CardTitle>
-        </CardHeader>
+    <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+      <div className="bg-[#1E1E1E] rounded-xl p-8 max-w-lg w-full text-center">
+        <div className="flex justify-center mb-6">
+          <XCircle className="h-16 w-16 text-red-500" />
+        </div>
         
-        <CardContent>
-          <p className="mb-4">
-            Your payment has been cancelled and you have not been charged.
-          </p>
-          <p className="text-muted-foreground">
-            If you experienced any issues during checkout, please try again or contact our support team for assistance.
-          </p>
-        </CardContent>
+        <h2 className="text-2xl font-['Playfair_Display'] font-bold mb-4">Payment Cancelled</h2>
         
-        <CardFooter className="flex justify-center gap-3">
-          <Button 
-            onClick={() => setLocation('/')}
+        <div className="text-center mb-8">
+          <p className="text-gray-400 mb-4">
+            Your payment process was cancelled and you haven't been charged.
+          </p>
+          <p className="text-gray-400">
+            You can try again whenever you're ready.
+          </p>
+        </div>
+        
+        <div className="flex justify-center space-x-4">
+          <Button
+            className="bg-[#8B1E3F] hover:bg-[#A93B5B]"
+            onClick={() => setLocation('/credits')}
+          >
+            Try Again
+          </Button>
+          <Button
             variant="outline"
-            className="flex items-center gap-2"
+            onClick={() => setLocation('/')}
           >
-            <Home className="h-4 w-4" />
-            <span>Home</span>
+            Return to Home
           </Button>
-          
-          <Button 
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Go Back</span>
-          </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

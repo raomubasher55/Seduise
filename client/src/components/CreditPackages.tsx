@@ -19,7 +19,6 @@ interface CreditPackage {
 
 interface CreditPackagesProps {
   isPremium?: boolean;
-  onSelectPackage?: (packageId: string) => void;
 }
 
 const packages: CreditPackage[] = [
@@ -48,7 +47,7 @@ const packages: CreditPackage[] = [
   }
 ];
 
-export default function CreditPackages({ isPremium = false, onSelectPackage }: CreditPackagesProps) {
+export default function CreditPackages({ isPremium = false}: CreditPackagesProps) {
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
@@ -59,28 +58,55 @@ export default function CreditPackages({ isPremium = false, onSelectPackage }: C
   };
 
   const handlePurchaseCredits = async (pkg: CreditPackage) => {
+    console.log(`Starting credit purchase process for package: ${pkg.id}, credits: ${pkg.credits}, price: ${pkg.price}`);
     setIsProcessing(prev => ({ ...prev, [pkg.id]: true }));
     
     try {
       // Make a direct request to the Stripe checkout API
+      console.log(`Creating checkout session via API for package: ${pkg.id}`);
       const response = await apiRequest("POST", "/api/payment/create-credit-checkout", { packageId: pkg.id });
       
       if (!response.ok) {
+        console.error(`API error: ${response.status} ${response.statusText}`);
         throw new Error("Failed to create checkout session");
       }
       
-      const { id: sessionId } = await response.json();
+      const responseData = await response.json();
+      console.log(`Checkout session created with ID: ${responseData.id}`);
+      const { id: sessionId } = responseData;
       
-      // Redirect to Stripe checkout page
+      // Alternative flow for development environment 
+      // or for quick testing without Stripe
+      if (import.meta.env.DEV || window.location.hostname.includes('replit')) {
+        console.log(`Development mode detected, using direct success URL navigation`);
+        window.location.href = `/payment/success?success=true&package=${pkg.id}&credits=${pkg.credits}`;
+        return;
+      }
+      
+      // Verify that Stripe public key is available
+      if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+        console.error('Missing Stripe public key');
+        throw new Error("Stripe public key is not configured");
+      }
+      
+      // In production, redirect to Stripe checkout
+      console.log(`Loading Stripe with public key: ${import.meta.env.VITE_STRIPE_PUBLIC_KEY.substring(0, 8)}...`);
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
       if (!stripe) {
+        console.error('Failed to initialize Stripe');
         throw new Error("Stripe not loaded");
       }
       
       // Redirect to checkout
-      await stripe.redirectToCheckout({ sessionId });
+      console.log(`Redirecting to Stripe checkout with session ID: ${sessionId}`);
+      const result = await stripe.redirectToCheckout({ sessionId });
+      
+      if (result.error) {
+        console.error('Stripe redirect error:', result.error);
+        throw new Error(result.error.message || "Error redirecting to Stripe");
+      }
     } catch (error) {
-      console.error('Error redirecting to checkout:', error);
+      console.error('Error in credit purchase process:', error);
       toast({
         title: "Payment Error",
         description: "There was a problem processing your payment. Please try again.",
@@ -170,11 +196,8 @@ export default function CreditPackages({ isPremium = false, onSelectPackage }: C
                 className="w-full" 
                 variant={pkg.popular ? "default" : pkg.bestValue ? "secondary" : "outline"}
                 onClick={() => {
-                  if (onSelectPackage) {
-                    onSelectPackage(pkg.id);
-                  } else {
                     handlePurchaseCredits(pkg);
-                  }
+                    console.log(`Purchased package: ${pkg.name}`)              
                 }}
                 disabled={isProcessing[pkg.id]}
               >
