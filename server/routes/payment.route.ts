@@ -368,6 +368,46 @@ router.post('/credit-success', async (req, res) => {
   }
 });
 
+// Add a simple endpoint to update user credits directly
+router.post('/update-credits', async (req, res) => {
+  try {
+    const { credits } = req.body;
+    const userId = req.session.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+    
+    if (!credits || isNaN(parseInt(credits))) {
+      return res.status(400).json({ success: false, message: 'Invalid credit amount' });
+    }
+    
+    const creditsToAdd = parseInt(credits);
+    
+    // Find and update the user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Add the credits to the user's account
+    user.credits = (user.credits || 0) + creditsToAdd;
+    await user.save();
+    
+    console.log(`Added ${creditsToAdd} credits to user ${userId} via direct update`);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Credits updated successfully',
+      credits: user.credits
+    });
+  } catch (error) {
+    console.error('Error updating credits:', error);
+    res.status(500).json({ success: false, message: 'Failed to update credits' });
+  }
+});
+
 // Also add a GET route for Stripe redirects 
 router.get('/credit-success', async (req, res) => {
   try {
