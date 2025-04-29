@@ -1,10 +1,10 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { apiRequest } from './queryClient';
 
-// Initialize Stripe with the publishable key
+// Initialize Stripe with the publishable key from environment variables
 // This key is safe to be in client-side code
-// const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY;
-// console.log('Stripe publishable key available:', !!stripePublishableKey);
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+console.log('Stripe publishable key available:', !!stripePublishableKey);
 
 /**
  * Creates a checkout session for the premium subscription
@@ -29,8 +29,11 @@ export async function createCheckoutSession(userId: string): Promise<string> {
  * @param sessionId The ID of the checkout session
  */
 export async function redirectToCheckout(sessionId: string): Promise<void> {
-  const stripe = await loadStripe('pk_test_51RBam7CIAxhZIlG2COHivgVCsVndRvu2mA2pU0C0On3FmLNLTMTi6UFYC56eyToJitDwJUsRX4JQdmiEtsyWkFTu006bWpCVhu');
+  if (!stripePublishableKey) {
+    throw new Error('Stripe publishable key is not available');
+  }
 
+  const stripe = await loadStripe(stripePublishableKey);
   
   if (!stripe) {
     throw new Error('Stripe failed to load');

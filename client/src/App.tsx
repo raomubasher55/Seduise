@@ -111,6 +111,10 @@ function App() {
               <Route path="/payment/success">
                 <PaymentSuccessPage />
               </Route>
+
+              <Route path="/payment/credit-success">
+                <PaymentSuccessPage />
+              </Route>
               
               <Route path="/payment/cancel">
                 <PaymentCancelPage />

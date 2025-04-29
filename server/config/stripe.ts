@@ -8,12 +8,12 @@ dotenv.config();
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 if (!stripeSecretKey) {
-  console.error('Missing Stripe secret key. Please check your environment variables.');
-  console.log('Using development mode with fallback key for Stripe. This should only be used for testing.');
+  console.error('CRITICAL ERROR: Missing STRIPE_SECRET_KEY environment variable.');
+  throw new Error('Stripe secret key is required for payment processing. Please provide a valid STRIPE_SECRET_KEY in your environment variables.');
 }
 
 // Create a new Stripe instance
-const stripe = new Stripe(stripeSecretKey || "sk_test_fallback", {
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16' as any, // Use compatible API version
 });
 

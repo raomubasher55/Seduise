@@ -41,7 +41,7 @@ const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: window.location.origin + '/payment/success',
+          return_url: window.location.origin + '/payment/credit-success?type=credit',
         },
       });
 
