@@ -14,9 +14,23 @@ const userSchema = new Schema({
   password: { type: String, required: false }, // Made optional for Google auth
   name: { type: String, required: true },
   role: { type: String, enum: ["admin", "user"], default: "user" },
-  subscription: { type: String, enum: ["free", "pro"], default: "free" },
-  isPremium: { type: Boolean, default: false },
+  subscription: { 
+    type: String, 
+    enum: ["free", "essential", "passion", "escape", "pro"], 
+    default: "free" 
+  },
+  isPremium: { type: Boolean, default: false }, // True for any paid plan
   credits: { type: Number, default: 10 }, // Default 10 credits for new users
+  // Subscription usage tracking
+  usageThisMonth: {
+    storiesGenerated: { type: Number, default: 0 },
+    chaptersGenerated: { type: Number, default: 0 },
+    audioMinutesUsed: { type: Number, default: 0 },
+    lastResetDate: { type: Date, default: Date.now }
+  },
+  // For Stripe integration
+  stripeCustomerId: { type: String },
+  stripeSubscriptionId: { type: String },
   stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },

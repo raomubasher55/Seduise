@@ -44,7 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Second, define the query with proper conditions based on token check
   const { data: currentUser, isLoading, refetch } = useQuery({
     queryKey: ["/api/auth/me"],
-    enabled: hasCheckedToken && !user && !!localStorage.getItem('token'),
+    enabled: hasCheckedToken && !!localStorage.getItem('token'),
+    staleTime: 300000, // 5 minutes
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
     retry: false
   });
 

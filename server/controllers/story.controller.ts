@@ -10,6 +10,14 @@ import { generateTitleSuggestions } from "server/utils/openai";
 import path from "path";
 import fs from "fs";
 import { Story } from "../models/story.model";
+import { User } from "../models/user.model";
+import { 
+  canPerformAction, 
+  deductCredits, 
+  trackStoryGeneration,
+  trackChapterGeneration, 
+  trackAudioGeneration 
+} from "../services/subscription.service";
 
 
 
@@ -31,8 +39,14 @@ export const createStory = async (req: Request, res: Response) => {
       throw new Error("User not found");
     }
     
+    // Get user to check premium status
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
     // Check if non-premium user is trying to make public story
-    if (isPublic && req.session.role !== 'premium') {
+    if (isPublic && !user.isPremium) {
       return res.status(403).json({
         message: "Only premium users can create public stories",
         code: "PREMIUM_REQUIRED",
@@ -40,12 +54,57 @@ export const createStory = async (req: Request, res: Response) => {
       });
     }
     
-    const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category);
-    res.status(201).json(story);
+    // Check subscription limits and credit balance
+    const actionCheck = await canPerformAction(userId, 'generateStory');
+    
+    if (!actionCheck.canProceed) {
+      return res.status(403).json({
+        message: actionCheck.message || "You've reached your story generation limit",
+        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
+        requiredCredits: actionCheck.requiredCredits,
+        currentCredits: actionCheck.currentCredits,
+        isPremiumRequired: actionCheck.subscriptionLimitReached
+      });
+    }
+    
+    // If subscription limit reached but has credits, deduct them
+    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
+      if (!deducted) {
+        return res.status(402).json({
+          message: "Failed to deduct credits for story generation",
+          code: "PAYMENT_REQUIRED"
+        });
+      }
+    }
+    
+    console.log(`Attempting to generate story "${title}" for user ${userId}`);
+    
+    try {
+      // Generate the story with detailed error handling
+      const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category);
+      
+      // Track story generation for subscription limits
+      await trackStoryGeneration(userId);
+      
+      res.status(201).json(story);
+    } catch (storyGenError) {
+      console.error("Error in story generation service:", storyGenError);
+      // Refund credits if story generation fails
+      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+        await User.findByIdAndUpdate(userId, { $inc: { credits: actionCheck.requiredCredits } });
+        console.log(`Refunded ${actionCheck.requiredCredits} credits to user ${userId} due to story generation failure`);
+      }
+      throw storyGenError; // Re-throw to be caught by outer catch block
+    }
   } catch (error) {
     console.error("Error creating story:", error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Validation error", errors: error.errors });
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: error.errors,
+        code: "VALIDATION_ERROR"
+      });
     }
 
     // Check for story limit error
@@ -64,8 +123,24 @@ export const createStory = async (req: Request, res: Response) => {
         code: "INSUFFICIENT_CREDITS"
       });
     }
+    
+    // Check for API key related errors
+    if (error instanceof Error && 
+        (error.message.includes("API key") || 
+         error.message.includes("api key") ||
+         error.message.includes("check your API keys"))) {
+      return res.status(503).json({ 
+        message: "External content generation service unavailable. Please try again later.",
+        code: "API_SERVICE_ERROR"
+      });
+    }
 
-    res.status(500).json({ message: "Failed to create story" });
+    // Generic error with additional context for debugging
+    res.status(500).json({ 
+      message: "Failed to create story", 
+      details: error instanceof Error ? error.message : "Unknown error",
+      code: "STORY_GENERATION_FAILED"
+    });
   }
 };
 
@@ -122,7 +197,42 @@ export const getStoryAudio = async (req: Request, res: Response) => {
 export const continueStory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.session.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+    
+    // Check subscription limits and credit balance for chapter generation
+    const actionCheck = await canPerformAction(userId, 'generateChapter');
+    
+    if (!actionCheck.canProceed) {
+      return res.status(403).json({
+        message: actionCheck.message || "You've reached your chapter generation limit",
+        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
+        requiredCredits: actionCheck.requiredCredits,
+        currentCredits: actionCheck.currentCredits,
+        isPremiumRequired: actionCheck.subscriptionLimitReached
+      });
+    }
+    
+    // If subscription limit reached but has credits, deduct them
+    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
+      if (!deducted) {
+        return res.status(402).json({
+          message: "Failed to deduct credits for chapter generation",
+          code: "PAYMENT_REQUIRED"
+        });
+      }
+    }
+    
+    // Continue the story
     const story = await continueStoryService(id);
+    
+    // Track chapter generation for subscription limits
+    await trackChapterGeneration(userId);
+    
     res.status(200).json(story);
   } catch (error) {
     console.error("Error continuing story:", error);

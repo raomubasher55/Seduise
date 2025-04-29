@@ -18,12 +18,14 @@ import Admin from "@/pages/Admin";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
-import CreditTopUp from "@/pages/CreditTopUp";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import PremiumUpgrade from "@/pages/PremiumUpgrade";
-import PaymentSuccess from "@/pages/PaymentSuccess";
-import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
-import PaymentCancel from "@/pages/PaymentCancel";
+
+// Subscription and Payment Pages
+import SubscriptionPage from "@/pages/SubscriptionPage";
+import CreditsPage from "@/pages/CreditsPage";
+import CheckoutPage from "@/pages/CheckoutPage";
+import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
+import PaymentCancelPage from "@/pages/PaymentCancelPage";
 
 function App() {
   return (
@@ -88,28 +90,30 @@ function App() {
                 </ProtectedRoute>
               </Route> */}
               
-              <Route path="/payment/success">
-                {/* <ProtectedRoute> */}
-                  <PaymentSuccess />
-                {/* </ProtectedRoute> */}
-              </Route>
-
-              <Route path="/payment/credit-success">
-                {/* <ProtectedRoute> */}
-                  <PaymentCreditSuccess />
-                {/* </ProtectedRoute> */}
-              </Route>
-              
-              <Route path="/payment/cancel">
+              <Route path="/subscription">
                 <ProtectedRoute>
-                  <PaymentCancel />
+                  <SubscriptionPage />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/credits">
                 <ProtectedRoute>
-                  <CreditTopUp />
+                  <CreditsPage />
                 </ProtectedRoute>
+              </Route>
+              
+              <Route path="/checkout/:type/:id">
+                <ProtectedRoute>
+                  <CheckoutPage />
+                </ProtectedRoute>
+              </Route>
+
+              <Route path="/payment/success">
+                <PaymentSuccessPage />
+              </Route>
+              
+              <Route path="/payment/cancel">
+                <PaymentCancelPage />
               </Route>
 
               <Route component={NotFound} />

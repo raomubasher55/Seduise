@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const router = Router();
 
-// Create a checkout session for premium subscription
+// Create a checkout session for premium subscription with plan selection
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   try {
     const userId = req.session.userId;
@@ -19,35 +19,47 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    // Premium subscription price (in cents)
-    const PREMIUM_PRICE = 9990; // $99.90
+    
+    // Validate request body
+    const schema = z.object({
+      plan: z.enum(['essential', 'passion', 'escape']).default('passion')
+    });
+    
+    const { plan } = schema.parse(req.body);
+    
+    // Import subscription plans from constants
+    const { SUBSCRIPTION_PLANS } = await import('../constants/plans');
+    
+    // Get the selected plan price (in cents)
+    const planPrice = SUBSCRIPTION_PLANS[plan].price;
 
     // Get the origin for success and cancel URLs
     const origin = req.headers.origin || 'https://' + req.headers.host;
     
-    // Create the checkout session for test mode
+    // Create the checkout session with plan information
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'eur', // Using Euro as per requirements
             product_data: {
-              name: 'Premium Subscription',
-              description: '800 credits story generations and premium features',
+              name: `${SUBSCRIPTION_PLANS[plan].name} Subscription`,
+              description: SUBSCRIPTION_PLANS[plan].description,
             },
-            unit_amount: PREMIUM_PRICE,
+            unit_amount: planPrice,
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: 'payment', // For simplicity using one-time payments; in production use 'subscription'
       customer_email: user.email,
-      success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
       cancel_url: `${origin}/payment/cancel`,
       metadata: {
         userId: userId,
+        plan: plan,
+        type: 'subscription_purchase'
       },
     });
     res.json({ id: session.id });
@@ -57,13 +69,24 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   }
 });
 
-// Handle successful payment
+// Handle successful subscription payment
 router.get('/success', async (req, res) => {
   try {
-    const { session_id } = req.query;
+    const { session_id, plan } = req.query;
     
     if (!session_id || typeof session_id !== 'string') {
       return res.status(400).json({ success: false, message: 'Invalid session ID' });
+    }
+
+    // Default to passion plan if not provided
+    const subscriptionPlan = typeof plan === 'string' ? plan : 'passion';
+    
+    // Import subscription plans from constants
+    const { SUBSCRIPTION_PLANS } = await import('../constants/plans');
+    
+    // Validate plan
+    if (!['essential', 'passion', 'escape'].includes(subscriptionPlan)) {
+      return res.status(400).json({ success: false, message: 'Invalid subscription plan' });
     }
 
     // In Stripe test mode, retrieve the session to verify it
@@ -74,17 +97,50 @@ router.get('/success', async (req, res) => {
       if (session.payment_status === 'paid' || session.status === 'complete') {
         // Payment was successful, update the user
         const userId = req.session.userId || session.metadata?.userId;
+        const purchasedPlan = session.metadata?.plan || subscriptionPlan;
         
         if (userId) {
           const user = await User.findById(userId);
           
           if (user) {
+            // Update user with subscription details
             user.isPremium = true;
-            user.subscription = "pro";
-            user.credits = (user.credits || 0) +800;
-            await user.save({validateBeforeSave : false});
-            console.log(`User ${userId} upgraded to premium via session: ${session_id} AAA`);
-            return res.status(200).json({ success: true, message: 'Premium upgrade successful!  EEEE' });
+            user.subscription = purchasedPlan as "essential" | "passion" | "escape";
+            
+            // Add bonus credits based on the plan
+            let creditsToAdd = 0;
+            switch (purchasedPlan) {
+              case 'essential':
+                creditsToAdd = 100;
+                break;
+              case 'passion':
+                creditsToAdd = 200;
+                break;
+              case 'escape':
+                creditsToAdd = 400;
+                break;
+              default:
+                creditsToAdd = 100;
+            }
+            
+            user.credits = (user.credits || 0) + creditsToAdd;
+            
+            // Reset usage tracking for the new month
+            user.usageThisMonth = {
+              storiesGenerated: 0,
+              chaptersGenerated: 0,
+              audioMinutesUsed: 0,
+              lastResetDate: new Date()
+            };
+            
+            await user.save({validateBeforeSave: false});
+            
+            console.log(`User ${userId} subscribed to ${purchasedPlan} plan via session: ${session_id}`);
+            return res.status(200).json({ 
+              success: true, 
+              message: `Successfully subscribed to ${purchasedPlan} plan!`,
+              plan: purchasedPlan
+            });
           }
         }
       }
@@ -96,20 +152,55 @@ router.get('/success', async (req, res) => {
     // Fallback for test environment - just upgrade the current user
     const userId = req.session.userId;
     if (userId) {
-      // Update user to premium if they're logged in
+      // Update user to the subscription if they're logged in
       const user = await User.findById(userId);
       
       if (user) {
+        // Update user with subscription details
         user.isPremium = true;
-        user.subscription = "pro";
-        user.credits = (user.credits || 0) +100;
+        user.subscription = subscriptionPlan as "essential" | "passion" | "escape";
+        
+        // Add bonus credits based on the plan
+        let creditsToAdd = 0;
+        switch (subscriptionPlan) {
+          case 'essential':
+            creditsToAdd = 100;
+            break;
+          case 'passion':
+            creditsToAdd = 200;
+            break;
+          case 'escape':
+            creditsToAdd = 400;
+            break;
+          default:
+            creditsToAdd = 100;
+        }
+        
+        user.credits = (user.credits || 0) + creditsToAdd;
+        
+        // Reset usage tracking for the new month
+        user.usageThisMonth = {
+          storiesGenerated: 0,
+          chaptersGenerated: 0,
+          audioMinutesUsed: 0,
+          lastResetDate: new Date()
+        };
+        
         await user.save();
-        console.log(`User ${userId} upgraded to premium via direct session BBBB`);
-        return res.status(200).json({ success: true, message: 'Premium upgrade successful! CCC' });
+        console.log(`User ${userId} subscribed to ${subscriptionPlan} plan via direct session`);
+        return res.status(200).json({ 
+          success: true, 
+          message: `Successfully subscribed to ${subscriptionPlan} plan!`,
+          plan: subscriptionPlan
+        });
       }
     }
     
-    return res.status(200).json({ success: true, message: 'Premium upgrade successful!  DDD  ' });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Subscription successful!',
+      plan: subscriptionPlan
+    });
   } catch (error) {
     console.error('Error processing payment success:', error);
     res.status(500).json({ success: false, message: 'Failed to process payment success' });
@@ -119,14 +210,22 @@ router.get('/success', async (req, res) => {
 // Create a checkout session for credit purchase
 router.post('/create-credit-checkout', authMiddleware, async (req, res) => {
   try {
+    // Import credit packages from constants
+    const { CREDIT_PACKAGES } = await import('../constants/plans');
+    
     // Validate the request body using Zod
     const schema = z.object({
-      packageId: z.string().min(1),
-      credits: z.number().min(1),
-      price: z.number().min(0.01)
+      packageId: z.enum(['starter', 'popular', 'premium']).default('popular')
     });
 
-    const { packageId, credits, price } = schema.parse(req.body);
+    const { packageId } = schema.parse(req.body);
+    
+    // Get the selected package
+    const selectedPackage = CREDIT_PACKAGES[packageId as keyof typeof CREDIT_PACKAGES];
+    
+    if (!selectedPackage) {
+      return res.status(400).json({ message: 'Invalid package ID' });
+    }
     
     // Get the user
     const userId = req.session.userId;
@@ -138,23 +237,23 @@ router.post('/create-credit-checkout', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    // Price is sent in dollars, convert to cents for Stripe
-    const priceInCents = Math.round(price * 100);
+    
+    // Get price in cents directly from the package
+    const priceInCents = selectedPackage.price;
 
     // Get the origin for success and cancel URLs
     const origin = req.headers.origin || 'https://' + req.headers.host;
     
-    // Create the checkout session
+    // Create the checkout session with package information
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'eur', // Using Euro as per requirements
             product_data: {
-              name: `${credits} Credit Package`,
-              description: `Purchase ${credits} credits for your stories`,
+              name: selectedPackage.name,
+              description: `${selectedPackage.credits} credits - ${selectedPackage.description}`,
             },
             unit_amount: priceInCents,
           },
@@ -163,12 +262,12 @@ router.post('/create-credit-checkout', authMiddleware, async (req, res) => {
       ],
       mode: 'payment',
       customer_email: user.email,
-      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${credits}`,
+      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${selectedPackage.credits}&package=${packageId}`,
       cancel_url: `${origin}/credits`,
       metadata: {
         userId: userId,
         packageId: packageId,
-        credits: credits.toString(),
+        credits: selectedPackage.credits.toString(),
         type: 'credit_purchase'
       },
     });
@@ -293,11 +392,51 @@ router.post('/webhook', async (req, res) => {
         } else {
           console.error('Invalid credit amount');
         }
-      } else {
-        // Default to premium subscription
+      } else if (purchaseType === 'subscription_purchase') {
+        // Subscription purchase
+        const plan = session.metadata?.plan || 'passion';
+        
+        // Validate plan
+        if (!['essential', 'passion', 'escape'].includes(plan)) {
+          console.error('Invalid subscription plan:', plan);
+          return res.status(400).send('Invalid subscription plan');
+        }
+        
+        // Update user with subscription details
         user.isPremium = true;
+        user.subscription = plan as "essential" | "passion" | "escape";
+        
+        // Add bonus credits based on the plan
+        let creditsToAdd = 0;
+        switch (plan) {
+          case 'essential':
+            creditsToAdd = 100;
+            break;
+          case 'passion':
+            creditsToAdd = 200;
+            break;
+          case 'escape':
+            creditsToAdd = 400;
+            break;
+          default:
+            creditsToAdd = 100;
+        }
+        
+        user.credits = (user.credits || 0) + creditsToAdd;
+        
+        // Reset usage tracking for the new month
+        user.usageThisMonth = {
+          storiesGenerated: 0,
+          chaptersGenerated: 0,
+          audioMinutesUsed: 0,
+          lastResetDate: new Date()
+        };
+        
         await user.save();
-        console.log(`User ${userId} upgraded to premium`);
+        console.log(`User ${userId} subscribed to ${plan} plan via webhook`);
+      } else {
+        // Default handling for unknown purchase types
+        console.log(`Unknown purchase type: ${purchaseType}`);
       }
     } catch (error) {
       console.error('Error processing webhook:', error);

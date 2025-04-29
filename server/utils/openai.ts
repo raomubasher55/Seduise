@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-// Using Novita.ai for compatibility with OpenAI API but with DeepSeek model
+
+// Using Novita.ai as our story generation engine
 const novitaAI = new OpenAI({
   baseURL: "https://api.novita.ai/v3/openai",
   apiKey: "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI",
@@ -97,12 +98,16 @@ Format your response as JSON with the following structure:
   "content": "Full story with proper paragraphs and formatting"
 }`;
 
+  const userPrompt = "Generate a high-quality erotic story based on the parameters.";
+
   try {
+    // Use Novita.ai with the deepseek model for story generation
+    console.log("Generating story with Novita.ai deepseek model...");
     const completion = await novitaAI.chat.completions.create({
       model: "deepseek/deepseek_v3",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: "Generate a high-quality erotic story based on the parameters." },
+        { role: "user", content: userPrompt },
       ],
       max_tokens: maxTokens,
       temperature: 0.8,
@@ -123,13 +128,40 @@ Format your response as JSON with the following structure:
       fullResponse = fullResponse.replace(/```json\s?/g, '').replace(/```\s?/g, '');
 
       try {
-        const result = JSON.parse(fullResponse);
-        return { title: title || result.title, content: result.content };
+        // First try to extract JSON if the response contains JSON object markers
+        const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+        let jsonStr = jsonMatch ? jsonMatch[0] : fullResponse;
+        
+        // Remove any potential problematic escape characters
+        jsonStr = jsonStr.replace(/\\n/g, '\\n')
+                         .replace(/\\'/g, "\\'")
+                         .replace(/\\"/g, '\\"')
+                         .replace(/\\&/g, '\\&')
+                         .replace(/\\r/g, '\\r')
+                         .replace(/\\t/g, '\\t')
+                         .replace(/\\b/g, '\\b')
+                         .replace(/\\f/g, '\\f');
+        
+        try {
+          // Try to parse the cleaned JSON
+          const result = JSON.parse(jsonStr);
+          return { 
+            title: title || result.title || "Untitled Story", 
+            content: result.content || fullResponse 
+          };
+        } catch (nestedJsonError) {
+          console.error("Error parsing cleaned JSON from stream:", nestedJsonError);
+          // If still cannot parse, just use the response text directly
+          return {
+            title: title || "Untitled Story",
+            content: fullResponse
+          };
+        }
       } catch (jsonError) {
         console.error("Error parsing JSON response in stream:", jsonError);
         return {
           title: title || "Untitled Story",
-          content: fullResponse.replace(/[{}"\\]/g, '')
+          content: fullResponse
         };
       }
     } else {
@@ -139,20 +171,48 @@ Format your response as JSON with the following structure:
       responseText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '');
 
       try {
-        const result = JSON.parse(responseText);
-        return { title: title || result.title, content: result.content };
+        // First try to extract JSON if the response contains JSON object markers
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        let jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+        
+        // Clean the string of problematic escape and control characters
+        jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove all control characters
+                         .replace(/\\n/g, '\\n')
+                         .replace(/\\'/g, "\\'")
+                         .replace(/\\"/g, '\\"')
+                         .replace(/\\&/g, '\\&')
+                         .replace(/\\r/g, '\\r')
+                         .replace(/\\t/g, '\\t')
+                         .replace(/\\b/g, '\\b')
+                         .replace(/\\f/g, '\\f');
+        
+        try {
+          // Try to parse the cleaned JSON
+          const result = JSON.parse(jsonStr);
+          return { 
+            title: title || result.title || "Untitled Story", 
+            content: result.content || responseText 
+          };
+        } catch (nestedJsonError) {
+          console.error("Error parsing cleaned JSON:", nestedJsonError);
+          // If still cannot parse, just use the response text directly
+          return {
+            title: title || "Untitled Story",
+            content: responseText
+          };
+        }
       } catch (jsonError) {
-        console.error("Error parsing JSON response:", jsonError);
-        // Fallback to creating a basic object
+        console.error("Error parsing JSON response from Novita:", jsonError);
+        // Fallback to creating a basic object from raw text
         return {
           title: title || "Untitled Story",
-          content: responseText.replace(/[{}"\\]/g, '')
+          content: responseText
         };
       }
     }
   } catch (error) {
-    console.error("Error generating story:", error);
-    throw new Error("Failed to generate story. Please try again.");
+    console.error("All story generation attempts failed:", error);
+    throw new Error("Failed to generate story. Please try again later or check your API keys.");
   }
 }
 
@@ -193,8 +253,38 @@ export async function generateTitleSuggestions(content: string): Promise<string[
     responseText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '');
 
     try {
-      const result = JSON.parse(responseText);
-      return result.titles || ["Untitled Story"];
+      // First try to extract JSON if the response contains JSON object markers
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      let jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+      
+      // Clean the string of problematic escape and control characters
+      jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove all control characters
+                       .replace(/\\n/g, '\\n')
+                       .replace(/\\'/g, "\\'")
+                       .replace(/\\"/g, '\\"')
+                       .replace(/\\&/g, '\\&')
+                       .replace(/\\r/g, '\\r')
+                       .replace(/\\t/g, '\\t')
+                       .replace(/\\b/g, '\\b')
+                       .replace(/\\f/g, '\\f');
+      
+      try {
+        // Try to parse the cleaned JSON
+        const result = JSON.parse(jsonStr);
+        return result.titles || ["Untitled Story"];
+      } catch (nestedJsonError) {
+        console.error("Error parsing cleaned JSON for titles:", nestedJsonError);
+        
+        // Try to extract titles from a non-JSON response
+        const lines = responseText.split('\n').filter(line => line.trim().length > 0);
+        if (lines.length >= 3) {
+          return lines.slice(0, 5).map(line =>
+            line.replace(/^\d+\.\s*/, '').replace(/"/g, '').trim()
+          );
+        }
+        
+        return ["Untitled Story", "Passionate Encounter", "Desire Awakened", "Night's Embrace", "Secret Liaison"];
+      }
     } catch (jsonError) {
       console.error("Error parsing JSON for title suggestions:", jsonError);
 

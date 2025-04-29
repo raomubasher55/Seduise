@@ -1,7 +1,6 @@
-import React from 'react';
-import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
-import { Coins } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Coins, Star } from 'lucide-react';
 
 interface CreditDisplayProps {
   credits: number;
@@ -10,55 +9,53 @@ interface CreditDisplayProps {
   onTopUp?: () => void;
 }
 
-const CreditDisplay = ({ 
+export default function CreditDisplay({ 
   credits, 
-  maxCredits = 20, 
+  maxCredits = 0, 
   isPremium = false,
-  onTopUp
-}: CreditDisplayProps) => {
+  onTopUp 
+}: CreditDisplayProps) {
+  const progress = maxCredits > 0 ? Math.min(100, (credits / maxCredits) * 100) : 0;
+  
   return (
-    <div className="p-4 bg-[#1E1E1E] border border-gray-800 rounded-xl">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-2">
-          <Coins size={18} className="text-amber-400" />
-          <h3 className="text-lg font-medium">Story Credits</h3>
+    <Card className="w-full max-w-md border-2">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Coins className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold">Your Credits</h3>
+          </div>
+          {isPremium && (
+            <div className="flex items-center gap-1 bg-primary/20 px-2 py-0.5 rounded-full">
+              <Star className="h-3.5 w-3.5 text-primary fill-primary" />
+              <span className="text-xs font-medium">Premium</span>
+            </div>
+          )}
         </div>
-        <div className="text-amber-400 font-semibold">
-          {credits} / {isPremium ? '∞' : maxCredits}
+        
+        <div className="flex items-end justify-between mb-3">
+          <div className="text-4xl font-bold">{credits}</div>
+          {maxCredits > 0 && (
+            <div className="text-sm text-muted-foreground">of {maxCredits} monthly credits</div>
+          )}
         </div>
-      </div>
-      
-      <Slider
-        value={[credits]}
-        max={maxCredits}
-        step={1}
-        disabled
-        className="mb-4"
-      />
-      
-      <div className="text-sm text-gray-400 mb-3">
-        {credits === 0 ? (
-          <span className="text-red-400">You're out of credits! Top up to create more stories.</span>
-        ) : credits < 3 ? (
-          <span className="text-amber-400">You're running low on credits.</span>
-        ) : (
-          <span>Use credits to create new stories or continue existing ones.</span>
+        
+        {maxCredits > 0 && (
+          <div className="mb-4">
+            <Progress value={progress} className="h-2.5" />
+            <p className="text-xs text-muted-foreground mt-1">
+              {maxCredits - credits} credits remaining this month
+            </p>
+          </div>
         )}
-        {isPremium && (
-          <span className="ml-1 text-emerald-400">Premium users get discounted credit rates!</span>
-        )}
-      </div>
-      
-      <Button 
-        onClick={onTopUp} 
-        variant="outline" 
-        className="w-full border-amber-500 hover:bg-amber-500/20 text-amber-400"
-      >
-        <Coins size={16} className="mr-2" />
-        {credits === 0 ? 'Top Up Credits Now' : 'Get More Credits'}
-      </Button>
-    </div>
+        
+        <p className="text-sm text-muted-foreground mt-2">
+          {isPremium 
+            ? "As a premium member, you receive monthly credits that renew each billing cycle."
+            : "Purchase credits to create stories, chapters, and audio narrations beyond your monthly limits."
+          }
+        </p>
+      </CardContent>
+    </Card>
   );
-};
-
-export default CreditDisplay;
+}
