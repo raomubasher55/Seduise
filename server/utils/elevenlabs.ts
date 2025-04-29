@@ -451,7 +451,14 @@ class ElevenLabsService {
       return voiceMappings.female.default;
     }
 
-    // Normalize input
+    // The important fix: if the input is an ElevenLabs voice ID format (typically a 21-character alphanumeric string),
+    // use it directly without trying to map it
+    if (voiceId && voiceId.length >= 20 && /^[a-zA-Z0-9]+$/.test(voiceId)) {
+      console.log(`Using direct ElevenLabs voice ID: ${voiceId}`);
+      return voiceId;
+    }
+
+    // Normalize input for text-based matching
     const normalizedInput = voiceId.toLowerCase().trim();
 
     // Check for direct mapping first
@@ -460,13 +467,13 @@ class ElevenLabsService {
       return directMappings[voiceId];
     }
 
-    // Check if it's a valid ElevenLabs voice ID
+    // Check if it's a valid ElevenLabs voice ID in our known list
     const validVoiceIds = [
       ...Object.values(voiceMappings.male),
       ...Object.values(voiceMappings.female)
     ];
     if (validVoiceIds.includes(voiceId)) {
-      console.log(`Using provided valid voice ID: ${voiceId}`);
+      console.log(`Using provided valid voice ID from our known list: ${voiceId}`);
       return voiceId;
     }
 
