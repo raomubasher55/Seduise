@@ -65,7 +65,7 @@ const Header = () => {
             </Button>
             
             {/* Premium button - hidden on small mobile screens */}
-            {isPremium ? (
+            {/* {isPremium ? (
               <Button className="hidden sm:flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
                 <Crown size={18} className="mr-2" />
                 <span>Premium</span>
@@ -77,7 +77,7 @@ const Header = () => {
                   <span>Get Premium</span>
                 </Button>
               </Link>
-            )}
+            )} */}
             
             {/* Credits button - always show when authenticated */}
             {isAuthenticated && (

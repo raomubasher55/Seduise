@@ -71,8 +71,8 @@ export default function CreditsPage() {
                     <h3 className="text-lg font-semibold">Credit Costs</h3>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• Story generation: 2 credits</li>
-                      <li>• Chapter continuation: 1 credit</li>
-                      <li>• Audio narration: 3 credits per 10 minutes</li>
+                      {/* <li>• Chapter continuation: 1 credit</li> */}
+                      {/* <li>• Audio narration: 3 credits per 10 minutes</li> */}
                     </ul>
                   </div>
                   <div className="flex flex-col gap-2">

@@ -28,21 +28,21 @@ const Discover = () => {
 
   // Fetch stories
   const { data: stories, isLoading } = useQuery({
-    queryKey: ['/api/stories'],
+    queryKey: ['/api/stories/public'],
   });
 
   // Filter stories based on search term and category
-  const filteredStories = stories?.filter((story: Story) => {
+  const filteredStories = Array.isArray(stories) ? stories.filter((story: any) => {
     const matchesSearch = searchTerm === "" || 
-      story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      story.content.toLowerCase().includes(searchTerm.toLowerCase());
+      (story.title && story.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (story.content && story.content.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesCategory = category === "All" || 
-      (story.settings as any)?.writingTone === category || 
-      (story.settings as any)?.atmosphere === category;
+      (story.settings && story.settings.writingTone === category) || 
+      (story.settings && story.settings.atmosphere === category);
     
     return matchesSearch && matchesCategory;
-  });
+  }) : [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -85,8 +85,8 @@ const Discover = () => {
           <>
             {filteredStories && filteredStories.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredStories.map((story: Story) => (
-                  <StoryCard key={story.id} story={story} />
+                {filteredStories.map((story: any) => (
+                  <StoryCard key={story._id} story={story} />
                 ))}
               </div>
             ) : (

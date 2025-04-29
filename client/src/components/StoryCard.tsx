@@ -9,7 +9,7 @@ interface StoryCardProps {
 
 const StoryCard = ({ story }: StoryCardProps) => {
   return (
-    <Link href={`/story/${story.id}`}>
+    <Link href={`/story/${story._id || story.id}`}>
       <a>
         <Card className="story-card bg-[#1E1E1E] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <div 

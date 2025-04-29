@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CoinsIcon, TrendingUpIcon, SparklesIcon } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
 
 interface CreditPackage {
   id: string;
@@ -61,13 +62,28 @@ export default function CreditPackages({ isPremium = false, onSelectPackage }: C
     setIsProcessing(prev => ({ ...prev, [pkg.id]: true }));
     
     try {
-      // Navigate to the checkout page instead of direct API call
-      window.location.href = `/checkout/credit/${pkg.id}`;
+      // Make a direct request to the Stripe checkout API
+      const response = await apiRequest("POST", "/api/payment/create-credit-checkout", { packageId: pkg.id });
+      
+      if (!response.ok) {
+        throw new Error("Failed to create checkout session");
+      }
+      
+      const { id: sessionId } = await response.json();
+      
+      // Redirect to Stripe checkout page
+      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+      if (!stripe) {
+        throw new Error("Stripe not loaded");
+      }
+      
+      // Redirect to checkout
+      await stripe.redirectToCheckout({ sessionId });
     } catch (error) {
       console.error('Error redirecting to checkout:', error);
       toast({
-        title: "Navigation Error",
-        description: "There was a problem redirecting to the checkout page. Please try again.",
+        title: "Payment Error",
+        description: "There was a problem processing your payment. Please try again.",
         variant: "destructive",
       });
       setIsProcessing(prev => ({ ...prev, [pkg.id]: false }));
@@ -138,10 +154,10 @@ export default function CreditPackages({ isPremium = false, onSelectPackage }: C
                   <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
                   <span>Create new stories</span>
                 </li>
-                <li className="flex items-center gap-2">
+                {/* <li className="flex items-center gap-2">
                   <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
                   <span>Generate chapters</span>
-                </li>
+                </li> */}
                 <li className="flex items-center gap-2">
                   <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
                   <span>Create audio narrations</span>

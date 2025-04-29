@@ -435,6 +435,7 @@ class ElevenLabsService {
       'Bella': voiceMappings.female.sensual,
       'Josh': voiceMappings.male.authoritative,
       'Domi': voiceMappings.female.playful,
+      'Charlie': 'IKne3meq5aSn9XLyUdCD',  // Add Charlie's voice ID
       'Soft Female': voiceMappings.female.soft,
       'Deep Male': voiceMappings.male.deep,
       'Sensual Female': voiceMappings.female.sensual,
@@ -537,6 +538,13 @@ class ElevenLabsService {
         preview_url: "https://api.elevenlabs.io/v1/voices/21m00Tcm4TlvDq8ikWAM/preview",
         category: "elevenlabs",
         labels: { gender: "female", style: "playful" }
+      },
+      {
+        voice_id: "IKne3meq5aSn9XLyUdCD",
+        name: "Charlie",
+        preview_url: "https://api.elevenlabs.io/v1/voices/IKne3meq5aSn9XLyUdCD/preview",
+        category: "elevenlabs",
+        labels: { gender: "male", style: "conversational" }
       }
     ];
   }

@@ -184,14 +184,28 @@ Format your response as JSON with the following structure:
                          .replace(/\\r/g, '\\r')
                          .replace(/\\t/g, '\\t')
                          .replace(/\\b/g, '\\b')
-                         .replace(/\\f/g, '\\f');
+                         .replace(/\\f/g, '\\f')
+                         .replace(/\n/g, ' '); // Replace newlines with spaces to help with parsing
         
         try {
           // Try to parse the cleaned JSON
           const result = JSON.parse(jsonStr);
+          
+          // Process content to remove any remaining JSON formatting
+          let finalContent = result.content || responseText;
+          
+          // If content still contains JSON-like structures, clean it further
+          if (finalContent.includes('{') && finalContent.includes('}')) {
+            finalContent = finalContent
+              .replace(/{[^}]*}/g, '') // Remove any remaining JSON objects
+              .replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, '') // Remove arrays of strings
+              .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
+              .trim();
+          }
+          
           return { 
             title: title || result.title || "Untitled Story", 
-            content: result.content || responseText 
+            content: finalContent 
           };
         } catch (nestedJsonError) {
           console.error("Error parsing cleaned JSON:", nestedJsonError);
@@ -266,11 +280,26 @@ export async function generateTitleSuggestions(content: string): Promise<string[
                        .replace(/\\r/g, '\\r')
                        .replace(/\\t/g, '\\t')
                        .replace(/\\b/g, '\\b')
-                       .replace(/\\f/g, '\\f');
+                       .replace(/\\f/g, '\\f')
+                       .replace(/\n/g, ' '); // Replace newlines with spaces to help with parsing
       
       try {
         // Try to parse the cleaned JSON
         const result = JSON.parse(jsonStr);
+        
+        // Handle different possible response formats
+        if (Array.isArray(result)) {
+          return result.slice(0, 5).map(title => typeof title === 'string' ? title : title.toString());
+        } else if (result.titles && Array.isArray(result.titles)) {
+          return result.titles.slice(0, 5);
+        } else if (typeof result === 'object') {
+          // Try to extract any array property if exists
+          const arrayProp = Object.values(result).find(val => Array.isArray(val));
+          if (arrayProp) {
+            return arrayProp.slice(0, 5).map(title => typeof title === 'string' ? title : title.toString());
+          }
+        }
+        
         return result.titles || ["Untitled Story"];
       } catch (nestedJsonError) {
         console.error("Error parsing cleaned JSON for titles:", nestedJsonError);
@@ -370,7 +399,19 @@ export async function continueStory(existingContent: string, settings: StoryGene
       temperature: 0.8,
     });
 
-    return response.choices[0].message.content || "The story continues...";
+    let responseText = response.choices[0].message.content || "The story continues...";
+    
+    // Clean the response of any JSON or markdown formatting
+    if (responseText.includes('{') && responseText.includes('}')) {
+      responseText = responseText
+        .replace(/```json\s?/g, '').replace(/```\s?/g, '')
+        .replace(/{[^}]*}/g, '') // Remove any JSON objects
+        .replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, '') // Remove arrays of strings
+        .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
+        .trim();
+    }
+    
+    return responseText;
   } catch (error) {
     console.error("Error continuing story:", error);
     throw new Error("Failed to continue the story. Please try again.");
