@@ -158,10 +158,10 @@ class ElevenLabsService {
         .replace(/"/g, '"')                             // Replace smart double quotes
         .trim();                                        // Remove leading/trailing whitespace
       
-      // Split text into chunks of 5000 characters (increased from 2500), keeping sentences intact
-      // This allows for longer audio generation, approximately 5 minutes per chunk
-      const chunks = this.splitTextIntoChunks(sanitizedText, 5000);
-      console.log(`Split text into ${chunks.length} chunks for processing (max 5000 chars each)`);
+      // Split text into chunks of 10000 characters, keeping sentences intact
+      // This allows for longer audio generation, approximately 10 minutes per chunk
+      const chunks = this.splitTextIntoChunks(sanitizedText, 10000);
+      console.log(`Split text into ${chunks.length} chunks for processing (max 10000 chars each)`);
       
       // Generate unique base filename
       const baseFilename = `story_${Date.now()}`;
@@ -436,7 +436,8 @@ class ElevenLabsService {
       'Bella': voiceMappings.female.sensual,
       'Josh': voiceMappings.male.authoritative,
       'Domi': voiceMappings.female.playful,
-      'Charlie': 'IKne3meq5aSn9XLyUdCD',  // Add Charlie's voice ID
+      'Charlie': 'IKne3meq5aSn9XLyUdCD',
+      'Will': 'bIHbv24MWmeRgasZH58o',  // Add Will's voice ID from logs
       'Soft Female': voiceMappings.female.soft,
       'Deep Male': voiceMappings.male.deep,
       'Sensual Female': voiceMappings.female.sensual,
