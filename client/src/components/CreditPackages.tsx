@@ -90,8 +90,14 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
       }
       
       // In production, redirect to Stripe checkout
-      console.log(`Loading Stripe with public key: ${import.meta.env.VITE_STRIPE_PUBLIC_KEY.substring(0, 8)}...`);
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+      const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+      if (!STRIPE_PUBLIC_KEY || typeof STRIPE_PUBLIC_KEY !== 'string') {
+        console.error('Invalid or missing Stripe public key');
+        throw new Error("Stripe public key is not properly configured");
+      }
+      
+      console.log(`Loading Stripe with public key: ${STRIPE_PUBLIC_KEY.substring(0, 8)}...`);
+      const stripe = await loadStripe(STRIPE_PUBLIC_KEY);
       if (!stripe) {
         console.error('Failed to initialize Stripe');
         throw new Error("Stripe not loaded");

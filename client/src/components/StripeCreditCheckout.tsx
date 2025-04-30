@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 // Load Stripe outside of component render cycle
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+if (!STRIPE_PUBLIC_KEY) {
   console.error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
 }
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+// Only initialize Stripe if we have a valid public key (must be a string)
+const stripePromise = STRIPE_PUBLIC_KEY ? loadStripe(STRIPE_PUBLIC_KEY) : null;
 
 interface CheckoutFormProps {
   onSuccess?: () => void;
@@ -165,6 +167,21 @@ export default function StripeCreditCheckout({ packageId, onSuccess, onCancel }:
     );
   }
 
+  // Check if Stripe is properly initialized
+  if (!stripePromise) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-destructive">Payment system is unavailable. Please try again later.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Missing Stripe configuration. Contact customer support if this issue persists.
+        </p>
+        <Button onClick={onCancel} className="mt-4">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+  
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
       <div className="p-4">
