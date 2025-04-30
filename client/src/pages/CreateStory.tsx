@@ -218,7 +218,7 @@ const CreateStory = () => {
         loveInterestDescription: loveInterestDescription,
         explicitLevel: explicitLevel
       },
-      maxTokens: settings.length * 500,
+      maxTokens: settings.length === 2 ? 1200 : settings.length === 3 ? 2400 : 4800, // Match server-side token calculation
       isPublic: isPremium ? isPublic : false,
       category: category
     });
@@ -437,19 +437,31 @@ const CreateStory = () => {
                     onClick={() => handleStoryLengthSelect(2)} 
                     className={`flex-1 ${settings.length === 2 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                   >
-                    Short
+                    <div className="flex flex-col items-center w-full">
+                      <span>Short</span>
+                      <span className="text-xs mt-1 opacity-70">2-3 min audio</span>
+                      <span className="text-xs opacity-70">1 credit</span>
+                    </div>
                   </Button>
                   <Button 
                     onClick={() => handleStoryLengthSelect(3)} 
                     className={`flex-1 ${settings.length === 3 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                   >
-                    Medium
+                    <div className="flex flex-col items-center w-full">
+                      <span>Medium</span>
+                      <span className="text-xs mt-1 opacity-70">4-5 min audio</span>
+                      <span className="text-xs opacity-70">2 credits</span>
+                    </div>
                   </Button>
                   <Button 
                     onClick={() => handleStoryLengthSelect(4)} 
                     className={`flex-1 ${settings.length === 4 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                   >
-                    Long
+                    <div className="flex flex-col items-center w-full">
+                      <span>Long</span>
+                      <span className="text-xs mt-1 opacity-70">8-9 min audio</span>
+                      <span className="text-xs opacity-70">4 credits</span>
+                    </div>
                   </Button>
                 </div>
               </div>
@@ -538,7 +550,7 @@ const CreateStory = () => {
                   {storyGenerationMutation.isPending 
                     ? "Generating..." 
                     : (isPremium || hasCredits) 
-                      ? "Generate Story (1 Credit)" 
+                      ? `Generate Story (${settings.length === 2 ? '1' : settings.length === 3 ? '2' : '4'} Credits)` 
                       : "No Credits Available"}
                 </Button>
               </div>

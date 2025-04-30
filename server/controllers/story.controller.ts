@@ -244,7 +244,7 @@ export const continueStory = async (req: Request, res: Response) => {
     // Track chapter generation for subscription limits
     await trackChapterGeneration(userId);
     
-    res.status(200).json(story);
+    res.status(200).json(continuedStory);
   } catch (error) {
     console.error("Error continuing story:", error);
     
