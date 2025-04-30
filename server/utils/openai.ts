@@ -44,9 +44,12 @@ export async function generateStory(options: StoryGenerationOptions): Promise<{
     explicitLevel,
   } = options;
 
-  // Calculate max tokens based on length setting (1-5) - stricter limits to ensure stories are not too long
-  // This ensures the story feels "incomplete" and can be continued
-  const maxTokens = 300 * length;
+  // Calculate max tokens based on length setting (1-5) with a more substantial increase
+  // This ensures longer stories when higher length values are selected
+  // For length 1: 800 tokens, length 3: 1800 tokens, length 5: 3000 tokens
+  const baseTokens = 800;
+  const maxTokens = Math.round(baseTokens + (length - 1) * 550);
+  console.log(`Story length setting: ${length}/5, calculated token limit: ${maxTokens}`);
 
   // Determine explicit content level based on the slider value
   const explicitLevelDescription = explicitLevel !== undefined 
@@ -350,7 +353,12 @@ export async function continueStory(existingContent: string, settings: StoryGene
       explicitLevel
     } = settings;
 
-    const maxTokens = 300 * length;
+    // Calculate max tokens based on length setting (1-5) with a more substantial increase
+    // This ensures longer story continuations when higher length values are selected
+    // For length 1: 800 tokens, length 3: 1800 tokens, length 5: 3000 tokens
+    const baseTokens = 800;
+    const maxTokens = Math.round(baseTokens + (length - 1) * 550);
+    console.log(`Story continuation length setting: ${length}/5, calculated token limit: ${maxTokens}`);
 
     // Determine explicit content level based on the slider value
     const explicitLevelDescription = explicitLevel !== undefined 

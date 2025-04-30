@@ -158,9 +158,10 @@ class ElevenLabsService {
         .replace(/"/g, '"')                             // Replace smart double quotes
         .trim();                                        // Remove leading/trailing whitespace
       
-      // Split text into chunks of 2500 characters, keeping sentences intact
-      const chunks = this.splitTextIntoChunks(sanitizedText, 2500);
-      console.log(`Split text into ${chunks.length} chunks for processing`);
+      // Split text into chunks of 5000 characters (increased from 2500), keeping sentences intact
+      // This allows for longer audio generation, approximately 5 minutes per chunk
+      const chunks = this.splitTextIntoChunks(sanitizedText, 5000);
+      console.log(`Split text into ${chunks.length} chunks for processing (max 5000 chars each)`);
       
       // Generate unique base filename
       const baseFilename = `story_${Date.now()}`;
