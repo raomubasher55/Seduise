@@ -55,7 +55,9 @@ export const createStory = async (req: Request, res: Response) => {
     }
     
     // Check subscription limits and credit balance
-    const actionCheck = await canPerformAction(userId, 'generateStory');
+    // Get the story length from settings to calculate the correct credit cost
+    const storyLength = settings.length;
+    const actionCheck = await canPerformAction(userId, 'generateStory', { storyLength });
     
     if (!actionCheck.canProceed) {
       return res.status(403).json({
@@ -203,8 +205,17 @@ export const continueStory = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "User not authenticated" });
     }
     
+    // First get the story to check its settings
+    const existingStory = await Story.findById(id);
+    if (!existingStory) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    // Extract length from story settings if available
+    const storyLength = existingStory.settings?.length || 3; // Default to medium if not specified
+    
     // Check subscription limits and credit balance for chapter generation
-    const actionCheck = await canPerformAction(userId, 'generateChapter');
+    const actionCheck = await canPerformAction(userId, 'generateChapter', { storyLength });
     
     if (!actionCheck.canProceed) {
       return res.status(403).json({
@@ -228,7 +239,7 @@ export const continueStory = async (req: Request, res: Response) => {
     }
     
     // Continue the story
-    const story = await continueStoryService(id);
+    const continuedStory = await continueStoryService(id);
     
     // Track chapter generation for subscription limits
     await trackChapterGeneration(userId);

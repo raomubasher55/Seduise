@@ -128,8 +128,34 @@ export const CREDIT_PACKAGES = {
 
 // Credit costs for different actions
 export const CREDIT_COSTS = {
-  generateStory: 2, // Cost per story generation
+  generateStory: {
+    short: 1,    // Short story (2-3 minutes audio)
+    medium: 2,   // Medium story (4-5 minutes audio)
+    long: 4      // Long story (8-9 minutes audio)
+  },
   audioMinute: 0.3  // Cost per minute of audio (€3 for 10 minutes → 0.3 per minute)
+};
+
+// Story length settings and their corresponding audio durations
+export const STORY_LENGTHS = {
+  short: {
+    id: 2,
+    name: "Short",
+    audioDurationMinutes: 3,  // 2-3 minutes
+    creditCost: 1
+  },
+  medium: {
+    id: 3,
+    name: "Medium",
+    audioDurationMinutes: 5,  // 4-5 minutes
+    creditCost: 2
+  },
+  long: {
+    id: 4,
+    name: "Long",
+    audioDurationMinutes: 9,  // 8-9 minutes
+    creditCost: 4
+  }
 };
 
 // Functions to determine user limits based on subscription plan
@@ -164,10 +190,21 @@ export function hasReachedLimit(
 // Calculate credit cost for an action
 export function getActionCreditCost(
   action: 'generateStory' | 'generateAudio',
-  params?: { minutes?: number }
+  params?: { minutes?: number, storyLength?: number }
 ): number {
   if (action === 'generateStory') {
-    return CREDIT_COSTS.generateStory;
+    // Determine story length tier based on params
+    if (params?.storyLength) {
+      if (params.storyLength === STORY_LENGTHS.short.id) {
+        return CREDIT_COSTS.generateStory.short;
+      } else if (params.storyLength === STORY_LENGTHS.medium.id) {
+        return CREDIT_COSTS.generateStory.medium;
+      } else if (params.storyLength === STORY_LENGTHS.long.id) {
+        return CREDIT_COSTS.generateStory.long;
+      }
+    }
+    // Default to medium if no length is specified
+    return CREDIT_COSTS.generateStory.medium;
   } else if (action === 'generateAudio' && params?.minutes) {
     return Math.ceil(params.minutes * CREDIT_COSTS.audioMinute);
   }

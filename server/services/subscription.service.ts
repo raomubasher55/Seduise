@@ -74,7 +74,7 @@ export async function trackAudioGeneration(userId: string, audioLengthMinutes: n
 export async function canPerformAction(
   userId: string,
   actionType: 'generateStory' | 'generateChapter' | 'generateAudio',
-  params?: { audioLengthMinutes?: number }
+  params?: { audioLengthMinutes?: number, storyLength?: number }
 ): Promise<{ 
   canProceed: boolean;
   message?: string;
@@ -159,12 +159,12 @@ export async function canPerformAction(
     let requiredCredits = 0;
     
     if (actionType === 'generateStory') {
-      requiredCredits = getActionCreditCost('generateStory');
+      requiredCredits = getActionCreditCost('generateStory', { storyLength: params?.storyLength });
     } else if (actionType === 'generateAudio' && params?.audioLengthMinutes) {
       requiredCredits = getActionCreditCost('generateAudio', { minutes: params.audioLengthMinutes });
     } else {
-      // For chapters, use the same cost as a story for now
-      requiredCredits = getActionCreditCost('generateStory');
+      // For chapters, use the same cost as a story for now, defaulting to medium length
+      requiredCredits = getActionCreditCost('generateStory', { storyLength: params?.storyLength });
     }
 
     if (user.credits < requiredCredits) {

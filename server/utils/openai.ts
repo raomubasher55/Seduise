@@ -44,12 +44,19 @@ export async function generateStory(options: StoryGenerationOptions): Promise<{
     explicitLevel,
   } = options;
 
-  // Calculate max tokens based on length setting (1-5) with a more substantial increase
-  // This ensures longer stories when higher length values are selected
-  // For length 1: 800 tokens, length 3: 1800 tokens, length 5: 3000 tokens
-  const baseTokens = 800;
-  const maxTokens = Math.round(baseTokens + (length - 1) * 550);
-  console.log(`Story length setting: ${length}/5, calculated token limit: ${maxTokens}`);
+  // Calculate max tokens based on story length setting to align with audio duration targets
+  // Short (2): 2-3 minutes audio (approximately 1200 tokens)
+  // Medium (3): 4-5 minutes audio (approximately 2400 tokens)
+  // Long (4): 8-9 minutes audio (approximately 4800 tokens)
+  let maxTokens = 1200; // Default for short stories
+  
+  if (length === 3) {
+    maxTokens = 2400; // Medium story
+  } else if (length === 4) {
+    maxTokens = 4800; // Long story
+  }
+  
+  console.log(`Story length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
 
   // Determine explicit content level based on the slider value
   const explicitLevelDescription = explicitLevel !== undefined 
@@ -353,12 +360,19 @@ export async function continueStory(existingContent: string, settings: StoryGene
       explicitLevel
     } = settings;
 
-    // Calculate max tokens based on length setting (1-5) with a more substantial increase
-    // This ensures longer story continuations when higher length values are selected
-    // For length 1: 800 tokens, length 3: 1800 tokens, length 5: 3000 tokens
-    const baseTokens = 800;
-    const maxTokens = Math.round(baseTokens + (length - 1) * 550);
-    console.log(`Story continuation length setting: ${length}/5, calculated token limit: ${maxTokens}`);
+    // Calculate max tokens based on story length setting to align with audio duration targets
+    // Short (2): 2-3 minutes audio (approximately 1200 tokens)
+    // Medium (3): 4-5 minutes audio (approximately 2400 tokens)
+    // Long (4): 8-9 minutes audio (approximately 4800 tokens)
+    let maxTokens = 1200; // Default for short stories
+    
+    if (length === 3) {
+      maxTokens = 2400; // Medium story
+    } else if (length === 4) {
+      maxTokens = 4800; // Long story
+    }
+    
+    console.log(`Story continuation length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
 
     // Determine explicit content level based on the slider value
     const explicitLevelDescription = explicitLevel !== undefined 
