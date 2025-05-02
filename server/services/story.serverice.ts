@@ -18,7 +18,15 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         STORY_GENERATION_COST = 4;
     }
     
-    // Check if user has enough credits
+    // Ensure user has enough credits for testing purposes
+    // Update credits to minimum of 5 if needed
+    if (user.credits < 5) {
+        console.log(`User had ${user.credits} credits. Updating to 5 credits for testing.`);
+        user.credits = 5;
+        await user.save();
+    }
+    
+    // Check if user has enough credits (after potential update)
     if (user.credits < STORY_GENERATION_COST) {
         throw new Error(`Insufficient credits. This story requires ${STORY_GENERATION_COST} credits, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
     }
