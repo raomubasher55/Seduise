@@ -412,7 +412,7 @@ router.post('/update-credits', async (req, res) => {
   }
 });
 
-// Also add a GET route for Stripe redirects 
+// Handle credit purchase success via GET route (for Stripe redirects)
 router.get('/credit-success', async (req, res) => {
   try {
     // Get parameters from query string
@@ -420,7 +420,6 @@ router.get('/credit-success', async (req, res) => {
     const credits = req.query.credits;
     const packageId = req.query.package;
     
-    // Log what we received for debugging
     console.log('GET Credit success handler received:', { 
       session_id, 
       credits, 
@@ -428,61 +427,139 @@ router.get('/credit-success', async (req, res) => {
       query: req.query
     });
     
-    // Either use the credits from the query or fallback to package-based lookup
-    let creditsToAdd = parseInt(credits as string) || 0;
-    
-    // If credits amount is 0 or invalid, try to get from package ID
-    if (creditsToAdd <= 0 && packageId) {
-      // Import credit packages
-      const { CREDIT_PACKAGES } = await import('../constants/plans');
-      const packageKey = packageId as keyof typeof CREDIT_PACKAGES;
-      
-      if (CREDIT_PACKAGES[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
-        console.log(`Using credits from package: ${packageKey} = ${creditsToAdd}`);
-      }
-    }
-    
-    // Fallback for testing - use a minimum default amount
-    if (creditsToAdd <= 0) {
-      // Use a minimum default amount for testing/demo purposes
-      creditsToAdd = 50;
-      console.log(`Using fallback credit amount: ${creditsToAdd}`);
-    }
-    
-    // Add credits to user if they're authenticated
-    const userId = req.session.userId;
-    if (userId) {
-      // Find and update the user
-      const user = await User.findById(userId);
-      
-      if (user) {
-        // Add the credits to the user's account
-        user.credits = (user.credits || 0) + creditsToAdd;
-        await user.save();
+    // Verify the session with Stripe first
+    if (session_id && typeof session_id === 'string') {
+      try {
+        // Retrieve the session from Stripe to verify it's legitimate
+        const session = await stripe.checkout.sessions.retrieve(session_id);
         
-        console.log(`GET route: Added ${creditsToAdd} credits to user ${userId}`);
-        return res.redirect('/payment/success?success=true&credits=' + creditsToAdd);
+        console.log('Retrieved Stripe session:', {
+          id: session.id,
+          status: session.status,
+          paymentStatus: session.payment_status,
+          metadata: session.metadata
+        });
+        
+        // Check if payment was successful (paid or complete status)
+        if (session.payment_status === 'paid' || session.payment_status === 'complete' || session.status === 'complete') {
+          console.log('Payment confirmed successful by Stripe');
+          
+          // Get user ID either from session metadata or from current session
+          let userId = session.metadata?.userId || req.session.userId;
+          
+          // If we don't have a user ID yet, try to extract it from client_reference_id
+          if (!userId && session.client_reference_id) {
+            const refParts = session.client_reference_id.split('_');
+            if (refParts.length >= 2 && refParts[0] === 'user') {
+              userId = refParts[1];
+              console.log(`Extracted userId from client_reference_id: ${userId}`);
+            }
+          }
+          
+          if (!userId) {
+            console.error('No user ID found in session or metadata');
+            return res.status(400).json({
+              success: false,
+              message: 'User identification failed. Please contact support.'
+            });
+          }
+          
+          // Get amount of credits from metadata, request params, or package ID
+          let creditsToAdd = 0;
+          
+          // First try to get from session metadata (most reliable)
+          if (session.metadata?.credits) {
+            creditsToAdd = parseInt(session.metadata.credits);
+          } 
+          // Then try from request parameters
+          else if (credits) {
+            creditsToAdd = parseInt(credits as string);
+          }
+          // Finally, try to derive from package ID
+          else if (packageId || session.metadata?.packageId) {
+            const pkgId = (packageId || session.metadata?.packageId) as string;
+            const { CREDIT_PACKAGES } = await import('../constants/plans');
+            const packageKey = pkgId as keyof typeof CREDIT_PACKAGES;
+            
+            if (CREDIT_PACKAGES[packageKey]) {
+              creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
+            }
+          }
+          
+          // If we still don't have any credits to add, use a minimum value
+          // This would be unusual but prevents a completely failed transaction
+          if (creditsToAdd <= 0) {
+            creditsToAdd = 20; // Minimum credit package size
+            console.warn('Using fallback credit amount due to missing information');
+          }
+          
+          // Find and update the user
+          const user = await User.findById(userId);
+          if (!user) {
+            console.error(`User ${userId} not found`);
+            return res.status(404).json({
+              success: false,
+              message: 'User not found. Please contact support.'
+            });
+          }
+          
+          // Add credits to the user's account
+          const previousCredits = user.credits || 0;
+          user.credits = previousCredits + creditsToAdd;
+          await user.save();
+          
+          console.log(`Added ${creditsToAdd} credits to user ${userId} (previous: ${previousCredits}, new: ${user.credits})`);
+          
+          // Return success with details
+          return res.status(200).json({
+            success: true,
+            message: 'Payment successful and credits added',
+            credits: creditsToAdd,
+            totalCredits: user.credits
+          });
+        } else {
+          console.warn(`Payment not completed: status=${session.status}, payment_status=${session.payment_status}`);
+          return res.status(402).json({
+            success: false,
+            message: 'Payment not completed. Please complete the payment and try again.'
+          });
+        }
+      } catch (stripeError) {
+        console.error('Error retrieving Stripe session:', stripeError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error verifying payment. Please contact support.'
+        });
       }
+    } else {
+      console.error('No valid session ID provided');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid session ID' 
+      });
     }
-    
-    // If we get here, we couldn't process the payment with a user session
-    // Redirect to success page anyway for better UX
-    res.redirect('/payment/success?demo=true&credits=' + creditsToAdd);
   } catch (error) {
-    console.error('Error in GET credit-success route:', error);
-    res.redirect('/payment/success?error=true');
+    console.error('Error processing credit success:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An unexpected error occurred. Please contact support.'
+    });
   }
 });
 
 // Webhook to handle Stripe events
 router.post('/webhook', async (req, res) => {
+  console.log(`Webhook received [${new Date().toISOString()}]`);
+  
   const signature = req.headers['stripe-signature'];
 
   if (!signature || typeof signature !== 'string') {
+    console.error('Webhook Error: No stripe-signature header provided');
     return res.status(400).send('Webhook Error: No signature provided');
   }
 
+  console.log(`Stripe signature received: ${signature.substring(0, 20)}...`);
+  
   let event;
   
   try {
@@ -490,16 +567,23 @@ router.post('/webhook', async (req, res) => {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
     if (!endpointSecret) {
-      console.warn('Webhook secret not configured');
+      console.warn('Webhook secret not configured - operating in development mode');
       // For development, we'll accept the webhook without verification
-      event = { type: 'checkout.session.completed', data: { object: req.body } };
+      event = { 
+        type: 'checkout.session.completed', 
+        data: { object: req.body },
+        id: 'dev_' + Date.now()
+      };
+      console.log('Created development webhook event:', event.id);
     } else {
       // In production, we'll verify the webhook signature
+      console.log('Constructing webhook event with signature verification');
       event = stripe.webhooks.constructEvent(
         req.body,
         signature,
         endpointSecret
       );
+      console.log(`Webhook verified: ${event.id} [${event.type}]`);
     }
   } catch (err: any) {
     console.error(`Webhook signature verification failed:`, err);

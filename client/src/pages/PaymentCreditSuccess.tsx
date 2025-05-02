@@ -21,36 +21,52 @@ const PaymentCreditSuccess = () => {
   
   useEffect(() => {
     const processPayment = async () => {
+      // First show processing state
+      setIsProcessing(true);
+      
       if (!sessionId) {
-        setError('Invalid session ID');
+        console.error('No session ID found in URL');
+        setError('Payment verification failed. Missing session information.');
         setIsProcessing(false);
         return;
       }
       
       try {
-        // Call the API to process the credit purchase
+        console.log('Verifying payment with session ID:', sessionId);
+        
+        // Call the API to verify and process the credit purchase
         const response = await fetch(`/api/payment/credit-success?session_id=${sessionId}&credits=${credits}`);
         const data = await response.json();
         
         if (!response.ok) {
-          throw new Error(data.message || 'Failed to process payment');
+          console.error('Payment verification API returned error:', data);
+          throw new Error(data.message || 'Failed to verify payment');
         }
         
-        // Update user data
+        console.log('Payment verified successfully:', data);
+        
+        // Update user data after successful payment
         await refreshUser();
         
-        // Update the credits added
-        setCreditsAdded(parseInt(credits || '0'));
+        // Update the credits added - either from response or from URL param
+        const addedCredits = data.credits || parseInt(credits || '0');
+        setCreditsAdded(addedCredits);
         setIsProcessing(false);
       } catch (err) {
         console.error('Error processing payment:', err);
-        setError('Failed to process payment. Please contact support.');
+        setError('Payment verification failed. Please contact support if credits were deducted from your account.');
         setIsProcessing(false);
       }
     };
     
-    processPayment();
-  }, [sessionId, credits]);
+    // Only run this effect if we have a session ID and it hasn't been processed yet
+    if (sessionId && isProcessing) {
+      processPayment();
+    } else if (!sessionId) {
+      setError('Invalid payment session. Please try again or contact support.');
+      setIsProcessing(false);
+    }
+  }, [sessionId, credits, refreshUser, isProcessing]);
   
   return (
     <div className="container max-w-2xl mx-auto py-16 px-4">
