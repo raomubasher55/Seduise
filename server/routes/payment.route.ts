@@ -440,8 +440,15 @@ router.get('/credit-success', async (req, res) => {
           metadata: session.metadata
         });
         
-        // Check if payment was successful (paid or complete status)
-        if (session.payment_status === 'paid' || session.payment_status === 'complete' || session.status === 'complete') {
+        // Check if payment was successful
+        // Valid payment_status values are 'paid', 'unpaid', or 'no_payment_required'
+        // Valid status values include 'complete', 'open', 'expired'
+        const isPaymentSuccessful = 
+          session.payment_status === 'paid' || 
+          // Special case: sometimes Stripe marks status as complete
+          (session.status === 'complete' && session.payment_status !== 'unpaid');
+        
+        if (isPaymentSuccessful) {
           console.log('Payment confirmed successful by Stripe');
           
           // Get user ID either from session metadata or from current session
@@ -594,12 +601,39 @@ router.post('/webhook', async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     
+    console.log('Processing completed checkout session:', {
+      id: session.id,
+      status: session.status,
+      payment_status: session.payment_status,
+      client_reference_id: session.client_reference_id,
+      metadata: session.metadata
+    });
+    
+    // Validate payment status
+    const isPaymentSuccessful = 
+      session.payment_status === 'paid' || 
+      (session.status === 'complete' && session.payment_status !== 'unpaid');
+    
+    if (!isPaymentSuccessful) {
+      console.warn(`Webhook received for incomplete payment: status=${session.status}, payment_status=${session.payment_status}`);
+      return res.status(400).send('Payment not completed');
+    }
+    
     // Get the user ID from metadata
-    const userId = session.metadata?.userId;
+    let userId = session.metadata?.userId;
+    
+    // If not in metadata, try to extract from client_reference_id
+    if (!userId && session.client_reference_id) {
+      const refParts = session.client_reference_id.split('_');
+      if (refParts.length >= 2 && refParts[0] === 'user') {
+        userId = refParts[1];
+        console.log(`Extracted userId from client_reference_id: ${userId}`);
+      }
+    }
     
     if (!userId) {
-      console.error('User ID not found in session metadata');
-      return res.status(400).send('User ID not found in session metadata');
+      console.error('User ID not found in session metadata or client reference');
+      return res.status(400).send('User ID not found in session data');
     }
 
     try {
@@ -607,7 +641,7 @@ router.post('/webhook', async (req, res) => {
       const user = await User.findById(userId);
       
       if (!user) {
-        console.error('User not found');
+        console.error(`User ${userId} not found`);
         return res.status(404).send('User not found');
       }
 
