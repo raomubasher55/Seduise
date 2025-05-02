@@ -473,10 +473,20 @@ class ElevenLabsService {
     // Normalize input for text-based matching
     const normalizedInput = voiceId.toLowerCase().trim();
 
-    // Check for direct mapping first
+    // Check for direct mapping first (case-sensitive check)
     if (directMappings[voiceId]) {
       console.log(`Found direct mapping for "${voiceId}": ${directMappings[voiceId]}`);
       return directMappings[voiceId];
+    }
+    
+    // Try case-insensitive match for voice names
+    const voiceKey = Object.keys(directMappings).find(
+      key => key.toLowerCase() === normalizedInput
+    );
+    
+    if (voiceKey) {
+      console.log(`Found case-insensitive mapping for "${voiceId}" → "${voiceKey}": ${directMappings[voiceKey]}`);
+      return directMappings[voiceKey];
     }
 
     // Check if it's a valid ElevenLabs voice ID in our known list
@@ -556,6 +566,20 @@ class ElevenLabsService {
         preview_url: "https://api.elevenlabs.io/v1/voices/IKne3meq5aSn9XLyUdCD/preview",
         category: "elevenlabs",
         labels: { gender: "male", style: "conversational" }
+      },
+      {
+        voice_id: "VR6AewLTigWG4xSOukaG", // Using Adam's voice ID for George
+        name: "George",
+        preview_url: "https://api.elevenlabs.io/v1/voices/VR6AewLTigWG4xSOukaG/preview",
+        category: "elevenlabs",
+        labels: { gender: "male", style: "deep" }
+      },
+      {
+        voice_id: "bIHbv24MWmeRgasZH58o",
+        name: "Will",
+        preview_url: "https://api.elevenlabs.io/v1/voices/bIHbv24MWmeRgasZH58o/preview",
+        category: "elevenlabs",
+        labels: { gender: "male", style: "casual" }
       }
     ];
   }

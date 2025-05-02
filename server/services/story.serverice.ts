@@ -10,16 +10,17 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         throw new Error("User not found");
     }
     
-    // Check if user has enough credits
-    const STORY_GENERATION_COST = 1; // Each story generation costs 1 credit
-    if (user.credits < STORY_GENERATION_COST) {
-        throw new Error("INSUFFICIENT_CREDITS");
+    // Calculate story generation cost based on length
+    let STORY_GENERATION_COST = 1; // Default cost
+    if (settings.length === 3) { // Medium story
+        STORY_GENERATION_COST = 2;
+    } else if (settings.length === 4) { // Long story
+        STORY_GENERATION_COST = 4;
     }
     
-    // Check if the user is a free user and has reached the story limit
-    const FREE_USER_STORY_LIMIT = 3;
-    if (!user.isPremium && user.stories.length >= FREE_USER_STORY_LIMIT) {
-        throw new Error("Free users can only create 3 stories. Please upgrade to premium for unlimited stories.");
+    // Check if user has enough credits
+    if (user.credits < STORY_GENERATION_COST) {
+        throw new Error(`Insufficient credits. This story requires ${STORY_GENERATION_COST} credits, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
     }
     
     // Deduct credits before generating story
@@ -30,11 +31,15 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
     // Handle case where we have been provided a narrationVoiceId directly
     if (settings.narrationVoiceId) {
         console.log(`Using provided voice ID: ${settings.narrationVoiceId}`);
-    } else {
+    } else if (settings.narrationVoice) {
         // Map the voice name to a valid ElevenLabs voice ID
         const voiceId = elevenlabs.getVoiceId(settings.narrationVoice);
         console.log(`Mapped voice name "${settings.narrationVoice}" to ID: ${voiceId}`);
         settings.narrationVoiceId = voiceId;
+    } else {
+        // Default to Adam (male voice) if no voice specified
+        console.log("No narration voice specified, defaulting to Adam (male voice)");
+        settings.narrationVoiceId = "VR6AewLTigWG4xSOukaG"; // Adam's voice ID
     }
     
     // Generate the story content
@@ -98,7 +103,7 @@ export const continueStoryService = async (id: string) => {
     // Check if user has enough credits
     const CONTINUATION_COST = 1; // Each continuation costs 1 credit
     if (user.credits < CONTINUATION_COST) {
-        throw new Error("INSUFFICIENT_CREDITS");
+        throw new Error(`Insufficient credits. Continuing this story requires ${CONTINUATION_COST} credit, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
     }
     
     // Deduct credits before generating continuation

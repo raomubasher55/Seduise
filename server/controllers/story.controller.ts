@@ -46,13 +46,13 @@ export const createStory = async (req: Request, res: Response) => {
     }
     
     // Check if non-premium user is trying to make public story
-    if (isPublic && !user.isPremium) {
-      return res.status(403).json({
-        message: "Only premium users can create public stories",
-        code: "PREMIUM_REQUIRED",
-        isPremiumRequired: true
-      });
-    }
+    // if (isPublic && !user.isPremium) {
+    //   return res.status(403).json({
+    //     message: "Only premium users can create public stories",
+    //     code: "PREMIUM_REQUIRED",
+    //     isPremiumRequired: true
+    //   });
+    // }
     
     // Check subscription limits and credit balance
     // Get the story length from settings to calculate the correct credit cost
@@ -109,12 +109,21 @@ export const createStory = async (req: Request, res: Response) => {
       });
     }
 
-    // Check for story limit error
+    // Check for credit insufficient error
+    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+      return res.status(402).json({
+        message: error.message,
+        code: "INSUFFICIENT_CREDITS",
+        isPremiumRequired: false
+      });
+    }
+    
+    // Check for old story limit error (fallback for backward compatibility)
     if (error instanceof Error && error.message.includes("Free users can only create 3 stories")) {
       return res.status(403).json({
-        message: error.message,
-        code: "STORY_LIMIT_REACHED",
-        isPremiumRequired: true
+        message: "You don't have enough credits to generate this story. Please purchase additional credits or upgrade to premium.",
+        code: "INSUFFICIENT_CREDITS",
+        isPremiumRequired: false
       });
     }
 
