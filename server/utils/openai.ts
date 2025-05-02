@@ -44,16 +44,27 @@ export async function generateStory(options: StoryGenerationOptions): Promise<{
     explicitLevel,
   } = options;
 
-  // Calculate max tokens based on story length setting to align with audio duration targets
-  // Short (2): 2-3 minutes audio (approximately 1200 tokens)
-  // Medium (3): 4-5 minutes audio (approximately 2400 tokens)
-  // Long (4): 8-9 minutes audio (approximately 4800 tokens)
-  let maxTokens = 1200; // Default for short stories
+  // Calculate max tokens and word count based on story length for more consistent audio duration
+  // Short (2): 2-3 minutes audio (approximately 1200 tokens, ~300-400 words)
+  // Medium (3): 4-5 minutes audio (approximately 2400 tokens, ~700-900 words)
+  // Long (4): 8-10 minutes audio (approximately 4800 tokens, ~1500-1800 words)
   
-  if (length === 3) {
-    maxTokens = 2400; // Medium story
-  } else if (length === 4) {
-    maxTokens = 4800; // Long story
+  let maxTokens = 0;
+  let targetWordCount = "";
+  
+  if (length === 2) { // Short
+    maxTokens = 1200;
+    targetWordCount = "Write a short story of approximately 300-400 words.";
+  } else if (length === 3) { // Medium
+    maxTokens = 2400;
+    targetWordCount = "Write a medium-length story of approximately 700-900 words.";
+  } else if (length === 4) { // Long
+    maxTokens = 4800;
+    targetWordCount = "Write a longer story of approximately 1500-1800 words.";
+  } else {
+    // Default to short if somehow an invalid length is provided
+    maxTokens = 1200;
+    targetWordCount = "Write a short story of approximately 300-400 words.";
   }
   
   console.log(`Story length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
@@ -89,7 +100,7 @@ Generate an erotic story with the following parameters:
 - Partner Gender: ${partnerGender}
 - Relationship: ${relationship}
 - Writing Tone: ${writingTone}
-- Length: ${length} out of 5 (adjust word count accordingly)
+${targetWordCount} This is critical for producing the correct audio duration.
 ${explicitLevelDescription}
 ${titlePrompt}
 
@@ -360,16 +371,27 @@ export async function continueStory(existingContent: string, settings: StoryGene
       explicitLevel
     } = settings;
 
-    // Calculate max tokens based on story length setting to align with audio duration targets
-    // Short (2): 2-3 minutes audio (approximately 1200 tokens)
-    // Medium (3): 4-5 minutes audio (approximately 2400 tokens)
-    // Long (4): 8-9 minutes audio (approximately 4800 tokens)
-    let maxTokens = 1200; // Default for short stories
+    // Calculate max tokens and word count based on story length for more consistent audio duration
+    // Short (2): 2-3 minutes audio (approximately 1200 tokens, ~300-400 words)
+    // Medium (3): 4-5 minutes audio (approximately 2400 tokens, ~700-900 words)
+    // Long (4): 8-10 minutes audio (approximately 4800 tokens, ~1500-1800 words)
     
-    if (length === 3) {
-      maxTokens = 2400; // Medium story
-    } else if (length === 4) {
-      maxTokens = 4800; // Long story
+    let maxTokens = 0;
+    let targetWordCount = "";
+    
+    if (length === 2) { // Short
+      maxTokens = 1200;
+      targetWordCount = "Write a short continuation of approximately 300-400 words.";
+    } else if (length === 3) { // Medium
+      maxTokens = 2400;
+      targetWordCount = "Write a medium-length continuation of approximately 700-900 words.";
+    } else if (length === 4) { // Long
+      maxTokens = 4800;
+      targetWordCount = "Write a longer continuation of approximately 1500-1800 words.";
+    } else {
+      // Default to short if somehow an invalid length is provided
+      maxTokens = 1200;
+      targetWordCount = "Write a short continuation of approximately 300-400 words.";
     }
     
     console.log(`Story continuation length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
@@ -401,6 +423,7 @@ export async function continueStory(existingContent: string, settings: StoryGene
     - Partner Gender: ${partnerGender}
     - Relationship: ${relationship}
     - Writing Tone: ${writingTone}
+    ${targetWordCount} This is critical for producing the correct audio duration.
     ${explicitLevelDescription}
     
     ${settingPrompt}
@@ -408,8 +431,7 @@ export async function continueStory(existingContent: string, settings: StoryGene
     ${loveInterestPrompt}
     
     Your continuation should be tasteful, sensual, and maintain the style, tone, and characters from the existing content.
-    Focus on advancing the plot while keeping the emotional and physical connection between characters.
-    Write approximately ${maxTokens / 2} words of continuation.`;
+    Focus on advancing the plot while keeping the emotional and physical connection between characters.`;
 
     const response = await novitaAI.chat.completions.create({
       model: "deepseek/deepseek_v3",
