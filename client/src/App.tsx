@@ -26,6 +26,7 @@ import CreditsPage from "@/pages/CreditsPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/PaymentCancelPage";
+import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
 
 function App() {
   return (
@@ -113,7 +114,9 @@ function App() {
               </Route>
 
               <Route path="/payment/credit-success">
-                <PaymentSuccessPage />
+                <ProtectedRoute>
+                  <PaymentCreditSuccess />
+                </ProtectedRoute>
               </Route>
               
               <Route path="/payment/cancel">

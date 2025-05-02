@@ -75,9 +75,9 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
       console.log(`Checkout session created with ID: ${responseData.id}`);
       const { id: sessionId } = responseData;
       
-      // Alternative flow for development environment 
-      // or for quick testing without Stripe
-      if (import.meta.env.DEV || window.location.hostname.includes('replit')) {
+      // We've disabled the development shortcut to ensure Stripe integration works properly
+      // This was causing payment processing to be skipped entirely
+      if (false) { // Disabled DEV mode shortcut
         console.log(`Development mode detected, using direct success URL navigation`);
         window.location.href = `/payment/success?success=true&package=${pkg.id}&credits=${pkg.credits}`;
         return;

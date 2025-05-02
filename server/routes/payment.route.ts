@@ -244,8 +244,8 @@ router.post('/create-credit-checkout', authMiddleware, async (req, res) => {
     // Get the origin for success and cancel URLs
     const origin = req.headers.origin || 'https://' + req.headers.host;
     
-    // Create a client reference ID that includes the user ID for security
-    const clientReferenceId = `user_${userId}_${Date.now()}`;
+    // Create a client reference ID that includes the user ID for security and tracking
+    const clientReferenceId = `seduise_app_${userId}_${Date.now()}`;
     
     // Create the checkout session with package information
     const session = await stripe.checkout.sessions.create({

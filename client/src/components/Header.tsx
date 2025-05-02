@@ -127,14 +127,14 @@ const Header = () => {
                       Credits: {user?.credits || 0}
                     </Link>
                   </DropdownMenuItem>
-                  {!isPremium && (
+                  {/* {!isPremium && (
                     <DropdownMenuItem className="hover:bg-[#282828]">
                       <Link href="/premium" className="w-full flex items-center">
                         <Crown size={16} className="mr-2 text-[#D9B08C]" />
                         Get Premium
                       </Link>
                     </DropdownMenuItem>
-                  )}
+                  )} */}
                   {user?.role === 'admin' && (
                     <DropdownMenuItem className="hover:bg-[#282828]">
                       <Link href="/admin" className="w-full">Admin Dashboard</Link>
@@ -188,7 +188,7 @@ const Header = () => {
               {/* <MobileNavLink href="#role-play" label="Role-Play" onClick={() => setMobileMenuOpen(false)} /> */}
               
               {/* Premium link for mobile */}
-              {!isPremium && (
+              {/* {!isPremium && (
                 <MobileNavLink 
                   href="/premium" 
                   label={
@@ -199,7 +199,7 @@ const Header = () => {
                   } 
                   onClick={() => setMobileMenuOpen(false)} 
                 />
-              )}
+              )} */}
               
               {/* Credits link for mobile when authenticated */}
               {isAuthenticated && (
