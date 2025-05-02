@@ -439,7 +439,7 @@ const CreateStory = () => {
                   >
                     <div className="flex flex-col items-center w-full">
                       <span>Short</span>
-                      <span className="text-xs mt-1 opacity-70">2-3 min audio</span>
+                      {/* <span className="text-xs mt-1 opacity-70">2-3 min audio</span> */}
                       <span className="text-xs opacity-70">1 credit</span>
                     </div>
                   </Button>
@@ -449,7 +449,7 @@ const CreateStory = () => {
                   >
                     <div className="flex flex-col items-center w-full">
                       <span>Medium</span>
-                      <span className="text-xs mt-1 opacity-70">4-5 min audio</span>
+                      {/* <span className="text-xs mt-1 opacity-70">4-5 min audio</span> */}
                       <span className="text-xs opacity-70">2 credits</span>
                     </div>
                   </Button>
@@ -459,7 +459,7 @@ const CreateStory = () => {
                   >
                     <div className="flex flex-col items-center w-full">
                       <span>Long</span>
-                      <span className="text-xs mt-1 opacity-70">8-9 min audio</span>
+                      {/* <span className="text-xs mt-1 opacity-70">8-9 min audio</span> */}
                       <span className="text-xs opacity-70">4 credits</span>
                     </div>
                   </Button>

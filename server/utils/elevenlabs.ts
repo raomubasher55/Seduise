@@ -437,7 +437,16 @@ class ElevenLabsService {
       'Josh': voiceMappings.male.authoritative,
       'Domi': voiceMappings.female.playful,
       'Charlie': 'IKne3meq5aSn9XLyUdCD',
-      'Will': 'bIHbv24MWmeRgasZH58o',  // Add Will's voice ID from logs
+      'Will': 'bIHbv24MWmeRgasZH58o',
+      'George': 'VR6AewLTigWG4xSOukaG',  // Map George to Adam's voice ID (male voice)
+      'Aria': 'EXAVITQu4vr4xnSDxMaL',   // Map to Rachel's voice ID
+      'Roger': 'TxGEqnHWrfWFTfGW9XjX',  // Map to Josh's voice ID
+      'Sarah': '21m00Tcm4TlvDq8ikWAM',  // Map to Domi's voice ID
+      'Laura': 'yoZ06aMxZJJ28mfd3POQ',  // Map to Bella's voice ID
+      'Callum': 'VR6AewLTigWG4xSOukaG', // Map to Adam's voice ID
+      'Liam': 'IKne3meq5aSn9XLyUdCD',   // Map to Charlie's voice ID
+      'River': 'yoZ06aMxZJJ28mfd3POQ',  // Map to Bella's voice ID
+      'Charlotte': '21m00Tcm4TlvDq8ikWAM', // Map to Domi's voice ID
       'Soft Female': voiceMappings.female.soft,
       'Deep Male': voiceMappings.male.deep,
       'Sensual Female': voiceMappings.female.sensual,

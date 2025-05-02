@@ -55,7 +55,7 @@ const Header = () => {
           <nav className="hidden md:flex space-x-6">
             <NavLink href="/discover" current={location} label="Discover" />
             <NavLink href="/create" current={location} label="Create" />
-            <NavLink href="/community" current={location} label="Community" />
+            {/* <NavLink href="/community" current={location} label="Community" /> */}
             {/* <NavLink href="#role-play" current={location} label="Role-Play" /> */}
           </nav>
           
@@ -184,7 +184,7 @@ const Header = () => {
             <nav className="flex flex-col space-y-4">
               <MobileNavLink href="/discover" label="Discover" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/create" label="Create" onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/community" label="Community" onClick={() => setMobileMenuOpen(false)} />
+              {/* <MobileNavLink href="/community" label="Community" onClick={() => setMobileMenuOpen(false)} /> */}
               {/* <MobileNavLink href="#role-play" label="Role-Play" onClick={() => setMobileMenuOpen(false)} /> */}
               
               {/* Premium link for mobile */}

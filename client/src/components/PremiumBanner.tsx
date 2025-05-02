@@ -31,12 +31,11 @@ const PremiumBanner = () => {
           </div>
         </div>
         <div className="flex items-center">
-          <span className="text-2xl font-bold mr-4">$9.99<span className="text-sm font-normal">/month</span></span>
           <Button 
             className="bg-[#D9B08C] hover:bg-[#E5C7AD] text-[#121212] font-bold px-6 py-3 rounded-lg transition-colors"
             onClick={handleUpgradeClick}
           >
-            Upgrade Now
+            Get Credits
           </Button>
         </div>
       </div>

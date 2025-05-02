@@ -56,7 +56,7 @@ function App() {
               </Route>
 
               <Route path="/discover" component={Discover} />
-              <Route path="/community" component={Community} />
+              {/* <Route path="/community" component={Community} /> */}
 
               <Route path="/dashboard">
                 <ProtectedRoute>
