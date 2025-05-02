@@ -158,8 +158,40 @@ export const createStory = async (req: Request, res: Response) => {
 
 export const getStory = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const story = await getStoryService(id);
-  res.status(200).json(story);
+  
+  try {
+    const story = await getStoryService(id);
+    
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    // Fix for existing stories with JSON formatting in content
+    if (story.content && typeof story.content === 'string') {
+      // Check if the content is a JSON string
+      if (story.content.trim().startsWith('{') && story.content.includes('"content"')) {
+        try {
+          const contentObj = JSON.parse(story.content);
+          if (contentObj.content) {
+            // Update the story content with the extracted value
+            story.content = contentObj.content;
+            console.log(`Cleaned JSON formatted content for story ${id}`);
+            
+            // Save the updated content back to the database
+            await Story.findByIdAndUpdate(id, { content: story.content });
+          }
+        } catch (e) {
+          // If parsing fails, don't modify the content
+          console.log(`Failed to parse JSON content for story ${id}`, e);
+        }
+      }
+    }
+    
+    res.status(200).json(story);
+  } catch (error) {
+    console.error("Error getting story:", error);
+    res.status(500).json({ message: "Failed to get story" });
+  }
 };
 
 export const getStoryAudio = async (req: Request, res: Response) => {

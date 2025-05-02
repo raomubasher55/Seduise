@@ -67,10 +67,26 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         explicitLevel: settings.explicitLevel
     });
 
+    // Clean the content in case it still has JSON formatting
+    let cleanedContent = content;
+    
+    // Check if content is a JSON string and extract the content field
+    if (typeof content === 'string' && content.trim().startsWith('{') && content.includes('"content"')) {
+        try {
+            const contentJson = JSON.parse(content);
+            if (contentJson.content) {
+                cleanedContent = contentJson.content;
+                console.log("Extracted content from JSON response");
+            }
+        } catch (e) {
+            console.log("Content is not valid JSON, using as-is");
+        }
+    }
+
     // Create the story in the database
     const story = new Story({
         title: title || generatedTitle,
-        content,
+        content: cleanedContent,
         userId,
         settings,
         isPublic,
