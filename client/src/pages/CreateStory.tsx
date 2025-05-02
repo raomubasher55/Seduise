@@ -125,35 +125,25 @@ const CreateStory = () => {
       navigate(`/story/${data._id}`);
     },
     onError: (error: any) => {
-      // Check if this is a story limit error
-      if (error.response?.data?.code === "STORY_LIMIT_REACHED") {
+      // Check if this is a credit-related error
+      if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
         toast({
-          title: "Story Limit Reached",
-          description: "Free users can only create 3 stories. Upgrade to premium for unlimited stories!",
+          title: "Not Enough Credits",
+          description: error.response?.data?.message || "You don't have enough credits to create this story. Purchase additional credits or upgrade to premium.",
           variant: "destructive",
           duration: 5000,
         });
         setShowUpgradeAlert(true);
       } 
-      // Check if this is insufficient credits error
-      else if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
+      // Still support the old story limit error code for backward compatibility
+      else if (error.response?.data?.code === "STORY_LIMIT_REACHED") {
         toast({
-          title: "Insufficient Credits",
-          description: (
-            <div className="flex flex-col space-y-2">
-              <p>You don't have enough credits to generate a story.</p>
-              <Button 
-                size="sm" 
-                onClick={() => navigate('/credits')}
-                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
-              >
-                Purchase Credits
-              </Button>
-            </div>
-          ),
+          title: "Not Enough Credits",
+          description: "You don't have enough credits to create this story. Purchase additional credits or upgrade to premium.",
           variant: "destructive",
           duration: 5000,
         });
+        setShowUpgradeAlert(true);
       } else {
         toast({
           title: "Error",

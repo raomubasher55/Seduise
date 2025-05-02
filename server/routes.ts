@@ -209,8 +209,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get the actual ElevenLabs voice ID from the input
-      const actualVoiceId = elevenlabs.getVoiceId(voiceId);
+      // Handle specific voice name cases before conversion
+      let processedVoiceId = voiceId;
+      
+      // Check if we're receiving a UI name like "George" and map it directly
+      if (voiceId === "George") {
+        console.log("Explicitly mapping George to Adam's deep male voice");
+        processedVoiceId = "VR6AewLTigWG4xSOukaG"; // Adam's voice ID
+      } else if (voiceId === "Charlie") {
+        console.log("Explicitly mapping Charlie to Charlie's male voice");
+        processedVoiceId = "IKne3meq5aSn9XLyUdCD"; // Charlie's voice ID
+      } else if (voiceId === "Will") {
+        console.log("Explicitly mapping Will to Will's male voice");
+        processedVoiceId = "bIHbv24MWmeRgasZH58o"; // Will's voice ID
+      }
+      
+      // Get the actual ElevenLabs voice ID from the processed input
+      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
       console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
 
       // Process the text for speech generation
@@ -379,8 +394,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Test speech generation - Voice: ${voiceId}, Text length: ${text.length} chars`);
       
-      // Get the actual ElevenLabs voice ID from the input
-      const actualVoiceId = elevenlabs.getVoiceId(voiceId);
+      // Handle specific voice name cases before conversion
+      let processedVoiceId = voiceId;
+      
+      // Check if we're receiving a UI name like "George" and map it directly
+      if (voiceId === "George") {
+        console.log("Explicitly mapping George to Adam's deep male voice");
+        processedVoiceId = "VR6AewLTigWG4xSOukaG"; // Adam's voice ID
+      } else if (voiceId === "Charlie") {
+        console.log("Explicitly mapping Charlie to Charlie's male voice");
+        processedVoiceId = "IKne3meq5aSn9XLyUdCD"; // Charlie's voice ID
+      } else if (voiceId === "Will") {
+        console.log("Explicitly mapping Will to Will's male voice");
+        processedVoiceId = "bIHbv24MWmeRgasZH58o"; // Will's voice ID
+      }
+      
+      // Get the actual ElevenLabs voice ID from the processed input
+      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
       console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
       
       // Process text (simplified for testing)
@@ -419,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: fileSizeInKB.toFixed(2) + " KB",
         success: true
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('ElevenLabs API error:', error);
       return res.status(500).json({
         message: "Speech generation failed",
