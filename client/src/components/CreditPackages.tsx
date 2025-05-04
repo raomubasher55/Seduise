@@ -83,6 +83,7 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
         return;
       }
       
+      console.log(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
       // Verify that Stripe public key is available
       if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
         console.error('Missing Stripe public key');

@@ -59,14 +59,14 @@ const PaymentCreditSuccess = () => {
       }
     };
     
-    // Only run this effect if we have a session ID and it hasn't been processed yet
-    if (sessionId && isProcessing) {
+    // Only process once on initial load if we have a session ID
+    if (sessionId) {
       processPayment();
-    } else if (!sessionId) {
+    } else {
       setError('Invalid payment session. Please try again or contact support.');
       setIsProcessing(false);
     }
-  }, [sessionId, credits, refreshUser, isProcessing]);
+  }, [sessionId, credits,]);
   
   return (
     <div className="container max-w-2xl mx-auto py-16 px-4">

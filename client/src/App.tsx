@@ -114,9 +114,9 @@ function App() {
               </Route>
 
               <Route path="/payment/credit-success">
-                <ProtectedRoute>
+                {/* <ProtectedRoute> */}
                   <PaymentCreditSuccess />
-                </ProtectedRoute>
+                {/* </ProtectedRoute> */}
               </Route>
               
               <Route path="/payment/cancel">

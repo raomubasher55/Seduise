@@ -4,6 +4,9 @@ import { apiRequest } from './queryClient';
 // Initialize Stripe with the publishable key from environment variables
 // This key is safe to be in client-side code
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+if (!stripePublishableKey) {
+  console.error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
+}
 console.log('Stripe publishable key available:', !!stripePublishableKey);
 
 /**
@@ -33,16 +36,21 @@ export async function redirectToCheckout(sessionId: string): Promise<void> {
     throw new Error('Stripe publishable key is not available');
   }
 
-  const stripe = await loadStripe(stripePublishableKey);
-  
-  if (!stripe) {
-    throw new Error('Stripe failed to load');
-  }
-  
-  const { error } = await stripe.redirectToCheckout({ sessionId });
-  
-  if (error) {
-    throw new Error(error.message);
+  try {
+    const stripe = await loadStripe(stripePublishableKey);
+    
+    if (!stripe) {
+      throw new Error('Stripe failed to load');
+    }
+    
+    const { error } = await stripe.redirectToCheckout({ sessionId });
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+  } catch (error: any) {
+    console.error('Stripe redirect error:', error);
+    throw new Error(error.message || 'Failed to redirect to checkout');
   }
 }
 

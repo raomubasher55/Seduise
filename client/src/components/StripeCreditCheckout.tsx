@@ -12,7 +12,14 @@ if (!STRIPE_PUBLIC_KEY) {
   console.error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
 }
 // Only initialize Stripe if we have a valid public key (must be a string)
-const stripePromise = STRIPE_PUBLIC_KEY ? loadStripe(STRIPE_PUBLIC_KEY) : null;
+let stripePromise = null;
+try {
+  if (STRIPE_PUBLIC_KEY && typeof STRIPE_PUBLIC_KEY === 'string') {
+    stripePromise = loadStripe(STRIPE_PUBLIC_KEY);
+  }
+} catch (error) {
+  console.error('Failed to initialize Stripe:', error);
+}
 
 interface CheckoutFormProps {
   onSuccess?: () => void;
