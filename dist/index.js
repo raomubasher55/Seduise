@@ -1193,7 +1193,13 @@ var authMiddleware = (req, res, next) => {
     console.log("Decoded JWT:", decoded);
     req.session.userId = decoded.id;
     req.session.token = token;
-    next();
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      next();
+    });
   } catch (error) {
     console.error("Token verification error:", error);
     return res.status(401).json({ message: "Invalid token" });
@@ -3740,8 +3746,19 @@ import dotenv6 from "dotenv";
 dotenv6.config();
 var connectDB = async () => {
   try {
-    await mongoose2.connect("mongodb+srv://seduisestory:Story123@cluster0.ueu7cqi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
-    console.log("MongoDB connected");
+    try {
+      await mongoose2.connect("mongodb://localhost:27017/story");
+      console.log("MongoDB connected to local instance");
+      return;
+    } catch (localError) {
+      console.log("Could not connect to local MongoDB, trying remote...");
+    }
+    try {
+      await mongoose2.connect("mongodb+srv://seduisestory:Story123@cluster0.ueu7cqi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+      console.log("MongoDB connected to Atlas");
+    } catch (remoteError) {
+      throw remoteError;
+    }
   } catch (error) {
     console.error("MongoDB connection error:", error);
     process.exit(1);

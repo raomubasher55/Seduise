@@ -5,12 +5,22 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-
-  
-    // await mongoose.connect(process.env.MONGO_URI as string);
-    // await mongoose.connect("mongodb://82.25.118.148:27017/story");
-    await mongoose.connect("mongodb+srv://seduisestory:Story123@cluster0.ueu7cqi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
-    console.log('MongoDB connected');
+    // Try connecting to a local MongoDB instance first
+    try {
+      await mongoose.connect("mongodb://localhost:27017/story");
+      console.log('MongoDB connected to local instance');
+      return;
+    } catch (localError) {
+      console.log('Could not connect to local MongoDB, trying remote...');
+    }
+    
+    // If local fails, try remote
+    try {
+      await mongoose.connect("mongodb+srv://seduisestory:Story123@cluster0.ueu7cqi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+      console.log('MongoDB connected to Atlas');
+    } catch (remoteError) {
+      throw remoteError;
+    }
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);

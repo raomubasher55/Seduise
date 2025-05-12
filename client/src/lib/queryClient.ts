@@ -72,11 +72,13 @@ export const getQueryFn: <T>(options: {
       }
     }
     
-    // Debug token
-    if (token) {
-      console.log(`Fetching data for key: ${apiUrl} with token: ${token.substring(0, 10)}...`);
-    } else {
-      console.log(`Fetching data for key: ${apiUrl} without token`);
+    // Debug token - only in development
+    if (process.env.NODE_ENV === 'development') {
+      if (token) {
+        console.log(`Fetching data for key: ${apiUrl} with token: ${token.substring(0, 10)}...`);
+      } else {
+        console.log(`Fetching data for key: ${apiUrl} without token`);
+      }
     }
     
     const res = await fetch(apiUrl, {
@@ -87,7 +89,9 @@ export const getQueryFn: <T>(options: {
       }
     });
 
-    console.log(`Response status for ${apiUrl}: ${res.status}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Response status for ${apiUrl}: ${res.status}`);
+    }
     
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
@@ -95,7 +99,10 @@ export const getQueryFn: <T>(options: {
 
     await throwIfResNotOk(res);
     const data = await res.json();
-    console.log(`Response data for ${apiUrl}:`, data);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Response data for ${apiUrl}:`, data);
+    }
     return data;
   };
 
@@ -105,7 +112,9 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      refetchOnMount: false,
+      staleTime: 300000, // 5 minutes
+      gcTime: 600000, // 10 minutes
       retry: false,
     },
     mutations: {

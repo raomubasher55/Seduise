@@ -20,27 +20,27 @@ const Footer = () => {
                 <li><FooterLink href="/" label="Home" /></li>
                 <li><FooterLink href="/discover" label="Discover" /></li>
                 <li><FooterLink href="/create" label="Create" /></li>
-                <li><FooterLink href="/community" label="Community" /></li>
+                {/* <li><FooterLink href="/community" label="Community" /></li> */}
               </ul>
             </div>
             
             <div>
               <h3 className="text-white font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><FooterLink href="/terms" label="Terms of Service" /></li>
-                <li><FooterLink href="/privacy" label="Privacy Policy" /></li>
-                <li><FooterLink href="/guidelines" label="Content Guidelines" /></li>
-                <li><FooterLink href="/cookies" label="Cookie Policy" /></li>
+                {/* <li><FooterLink href="/terms" label="Terms of Service" /></li>
+                <li><FooterLink href="/privacy" label="Privacy Policy" /></li> */}
+                {/* <li><FooterLink href="/guidelines" label="Content Guidelines" /></li> */}
+                <li><FooterLink href="/cookie-policy" label="Cookie Policy" /></li>
               </ul>
             </div>
             
             <div>
               <h3 className="text-white font-semibold mb-4">Support</h3>
               <ul className="space-y-2">
-                <li><FooterLink href="/contact" label="Contact Us" /></li>
+                {/* <li><FooterLink href="/contact" label="Contact Us" /></li> */}
                 <li><FooterLink href="/faq" label="FAQ" /></li>
-                <li><FooterLink href="/help" label="Help Center" /></li>
-                <li><FooterLink href="/report" label="Report Issues" /></li>
+                {/* <li><FooterLink href="/help" label="Help Center" /></li> */}
+                {/* <li><FooterLink href="/report" label="Report Issues" /></li> */}
               </ul>
             </div>
           </div>

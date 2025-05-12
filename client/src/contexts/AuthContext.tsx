@@ -45,10 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: currentUser, isLoading, refetch } = useQuery({
     queryKey: ["/api/auth/me"],
     enabled: hasCheckedToken && !!localStorage.getItem('token'),
-    staleTime: 300000, // 5 minutes
+    staleTime: Infinity, // Don't refetch automatically
     refetchInterval: false,
     refetchOnWindowFocus: false,
-    retry: false
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: false,
+    gcTime: 600000, // 10 minutes
   });
 
 

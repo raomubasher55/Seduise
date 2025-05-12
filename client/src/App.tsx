@@ -19,6 +19,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AgeVerification from "@/components/AgeVerification";
+import CookieConsent from "@/components/CookieConsent";
+import FAQ from "@/pages/FAQ";
+import CookiePolicy from "@/pages/CookiePolicy";
 
 // Subscription and Payment Pages
 import SubscriptionPage from "@/pages/SubscriptionPage";
@@ -123,12 +127,20 @@ function App() {
                 <PaymentCancelPage />
               </Route>
 
+              {/* New routes for FAQ and Cookie Policy */}
+              <Route path="/faq" component={FAQ} />
+              <Route path="/cookie-policy" component={CookiePolicy} />
+
               <Route component={NotFound} />
             </Switch>
           </main>
           <PremiumBanner />
           <Footer />
         </div>
+        
+        {/* Age verification and cookie consent components */}
+        <AgeVerification />
+        <CookieConsent />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

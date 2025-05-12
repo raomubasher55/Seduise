@@ -44,7 +44,14 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     req.session.userId = decoded.id;
     req.session.token = token;
     
-    next();
+    // Save the session data before proceeding
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      next();
+    });
   } catch (error) {
     console.error("Token verification error:", error);
     return res.status(401).json({ message: "Invalid token" });

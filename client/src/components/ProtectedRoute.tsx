@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     }, 1000);
     refreshUser();
     return () => clearTimeout(timeout);
-  }, [refreshUser])
+  }, [])
   
   return isLoading ? <div className="flex flex-col justify-center items-center h-screen">
     {/* <Logo className="animate-spin h-16 w-16" /> */}

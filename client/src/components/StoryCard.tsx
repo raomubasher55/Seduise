@@ -37,13 +37,13 @@ const StoryCard = ({ story }: StoryCardProps) => {
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <div className="w-6 h-6 rounded-full bg-[#574873] flex items-center justify-center text-xs">
-                {story.userId ? "U" + story.userId : "SG"}
+                {/* {story.userId ? "U" + story.userId : "SG"} */}
               </div>
-              <span className="ml-2 text-xs text-gray-400">by Author</span>
+              {/* <span className="ml-2 text-xs text-gray-400">by Author</span> */}
             </div>
             <div className="flex items-center">
-              <Heart className="h-4 w-4 text-[#A93B5B] mr-1" />
-              <span className="text-xs text-gray-400">{story.likes}</span>
+              {/* <Heart className="h-4 w-4 text-[#A93B5B] mr-1" /> */}
+              {/* <span className="text-xs text-gray-400">{story.likes}</span> */}
             </div>
           </div>
         </div>
