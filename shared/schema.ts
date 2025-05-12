@@ -25,6 +25,7 @@ export const userSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
+  phone: z.string().optional(),
   role: z.enum(["admin", "user"]),
   isPremium: z.boolean().default(false),
   credits: z.number().default(10),

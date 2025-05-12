@@ -13,6 +13,7 @@ const userSchema = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: false }, // Made optional for Google auth
   name: { type: String, required: true },
+  phone: { type: String, required: false }, // Added phone field
   role: { type: String, enum: ["admin", "user"], default: "user" },
   subscription: { 
     type: String, 

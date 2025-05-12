@@ -44,12 +44,27 @@ if (process.env.GOOGLE_CLIENT_ID) {
       
       // Create a new user
       if (profile.emails && profile.emails.length > 0) {
+        // Check if phone was provided through the state parameter or other means
+        let phone = undefined;
+        if (req.query && req.query.state) {
+          try {
+            // State may contain JSON data with user information
+            const state = JSON.parse(decodeURIComponent(req.query.state as string));
+            if (state && state.phone) {
+              phone = state.phone;
+            }
+          } catch (e) {
+            // Ignore parsing errors, phone will remain undefined
+          }
+        }
+        
         const newUser = new User({
           email: profile.emails[0].value,
           name: profile.displayName || 'Google User',
           googleId: profile.id,
           authProvider: 'google',
           profilePicture: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : '',
+          phone: phone,
         });
         
         await newUser.save();

@@ -28,12 +28,12 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const signup = async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, phone } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ message: "Email, password, and name are required" });
   }
   try {
-    const { user, token } = await signupService(email, password, name);
+    const { user, token } = await signupService(email, password, name, phone);
     
     // Set session data
     req.session.userId = user._id.toString();

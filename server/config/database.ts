@@ -7,7 +7,7 @@ const connectDB = async () => {
   try {
     // Try connecting to a local MongoDB instance first
     try {
-      await mongoose.connect("mongodb://localhost:27017/story");
+      await mongoose.connect(process.env.MONGODB_URI as string);
       console.log('MongoDB connected to local instance');
       return;
     } catch (localError) {

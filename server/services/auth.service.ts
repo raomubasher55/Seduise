@@ -13,7 +13,7 @@ export const login = async (email: string, password: string) => {
   return { user, token };
 };
 
-export const signup = async (email: string, password: string, name: string) => {
+export const signup = async (email: string, password: string, name: string, phone?: string) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -25,6 +25,7 @@ export const signup = async (email: string, password: string, name: string) => {
     email,
     password,
     name,
+    phone,
     role: "user"
   });
 

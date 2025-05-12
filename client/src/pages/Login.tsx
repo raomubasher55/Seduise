@@ -84,7 +84,8 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    // Redirect to Google OAuth route
+    // Redirect to Google OAuth route - we don't need phone for login, but we use 
+    // the same OAuth endpoint as signup
     window.location.href = "/api/auth/google";
   };
 
