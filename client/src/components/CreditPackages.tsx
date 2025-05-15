@@ -51,6 +51,7 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
+  
   const getDiscountedPrice = (originalPrice: number): number => {
     if (!isPremium) return originalPrice;
     // 15% discount for premium users
@@ -82,8 +83,8 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
         window.location.href = `/payment/success?success=true&package=${pkg.id}&credits=${pkg.credits}`;
         return;
       }
-      
-      console.log(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+
+          
       // Verify that Stripe public key is available
       if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
         console.error('Missing Stripe public key');

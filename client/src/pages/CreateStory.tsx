@@ -1,4 +1,4 @@
-import React , { useState, useEffect , useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -77,20 +77,20 @@ const CreateStory = () => {
   const [activeTab, setActiveTab] = useState<"setting" | "characters" | "style" | "voice">("setting");
   const [explicitLevel, setExplicitLevel] = useState(50);
   const [creditsWarningShown, setCreditsWarningShown] = useState(false);
-  
+
   // For additional inputs in the Setting tab
   const [settingDescription, setSettingDescription] = useState<string>("");
-  
+
   // For additional inputs in the Characters tab
   const [protagonistDescription, setProtagonistDescription] = useState<string>("");
   const [loveInterestDescription, setLoveInterestDescription] = useState<string>("");
-  
+
   // State for voice options
   const [voices, setVoices] = useState<VoiceOption[]>([]);
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = useState(false);
   const [audioPreviewSrc, setAudioPreviewSrc] = useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  
+
   // Fetch voice options when component mounts
   useEffect(() => {
     const fetchVoiceOptions = async () => {
@@ -99,7 +99,7 @@ const CreateStory = () => {
         const data = await response.json();
         console.log("Fetched voice options:", data);
         setVoices(data);
-        
+
         // Set a default voice if one hasn't been selected already
         if (!settings.narrationVoiceId && data.length > 0) {
           const defaultVoice = data.find((v: VoiceOption) => v.category === 'premade') || data[0];
@@ -111,7 +111,7 @@ const CreateStory = () => {
         console.error("Failed to fetch voice options:", error);
       }
     };
-    
+
     fetchVoiceOptions();
   }, []);
 
@@ -134,7 +134,7 @@ const CreateStory = () => {
           duration: 5000,
         });
         setShowUpgradeAlert(true);
-      } 
+      }
       // Still support the old story limit error code for backward compatibility
       else if (error.response?.data?.code === "STORY_LIMIT_REACHED") {
         toast({
@@ -153,7 +153,7 @@ const CreateStory = () => {
       }
     },
   });
-  
+
   const handleGenerateStory = () => {
     if (!storyTitle.trim()) {
       setTitleError("Story title is required");
@@ -164,7 +164,7 @@ const CreateStory = () => {
       });
       return;
     }
-    
+
     if (!settings.narrationVoiceId) {
       toast({
         title: "Missing Voice",
@@ -180,8 +180,8 @@ const CreateStory = () => {
         description: (
           <div className="flex flex-col space-y-2">
             <p>You don't have enough credits to generate a story.</p>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={() => navigate('/credits')}
               className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
             >
@@ -195,7 +195,7 @@ const CreateStory = () => {
       setCreditsWarningShown(true);
       return;
     }
-    
+
     // Include all the additional descriptive fields in the settings
     storyGenerationMutation.mutate({
       title: storyTitle,
@@ -251,7 +251,7 @@ const CreateStory = () => {
                   onChange={(e) => updateSetting("location", e.target.value)}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-white mb-2">Time Period</label>
                 <Input
@@ -261,7 +261,7 @@ const CreateStory = () => {
                   onChange={(e) => updateSetting("timePeriod", e.target.value)}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-white mb-2">Setting Description</label>
                 <Textarea
@@ -271,9 +271,9 @@ const CreateStory = () => {
                   onChange={(e) => setSettingDescription(e.target.value)}
                 />
               </div>
-              
+
               <div className="flex justify-end mt-4">
-                <Button 
+                <Button
                   className="bg-[#8B1E3F] hover:bg-[#a82b4f] text-white px-8"
                   onClick={() => setActiveTab("characters")}
                 >
@@ -283,7 +283,7 @@ const CreateStory = () => {
             </div>
           </div>
         );
-        
+
       case "characters":
         return (
           <div className="p-6">
@@ -293,27 +293,27 @@ const CreateStory = () => {
                 <div className="mb-3">
                   <label className="block text-white mb-2">Gender</label>
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={() => handleGenderSelect("protagonistGender", "Female")} 
+                    <Button
+                      onClick={() => handleGenderSelect("protagonistGender", "Female")}
                       className={`flex-1 ${settings.protagonistGender === "Female" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Female
                     </Button>
-                    <Button 
-                      onClick={() => handleGenderSelect("protagonistGender", "Male")} 
+                    <Button
+                      onClick={() => handleGenderSelect("protagonistGender", "Male")}
                       className={`flex-1 ${settings.protagonistGender === "Male" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Male
                     </Button>
-                    <Button 
-                      onClick={() => handleGenderSelect("protagonistGender", "Non-binary")} 
+                    <Button
+                      onClick={() => handleGenderSelect("protagonistGender", "Non-binary")}
                       className={`flex-1 ${settings.protagonistGender === "Non-binary" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Non-binary
                     </Button>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-white mb-2">Description</label>
                   <Textarea
@@ -324,33 +324,33 @@ const CreateStory = () => {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-medium text-white mb-3">Love Interest</h3>
                 <div className="mb-3">
                   <label className="block text-white mb-2">Gender</label>
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={() => handleGenderSelect("partnerGender", "Female")} 
+                    <Button
+                      onClick={() => handleGenderSelect("partnerGender", "Female")}
                       className={`flex-1 ${settings.partnerGender === "Female" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Female
                     </Button>
-                    <Button 
-                      onClick={() => handleGenderSelect("partnerGender", "Male")} 
+                    <Button
+                      onClick={() => handleGenderSelect("partnerGender", "Male")}
                       className={`flex-1 ${settings.partnerGender === "Male" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Male
                     </Button>
-                    <Button 
-                      onClick={() => handleGenderSelect("partnerGender", "Non-binary")} 
+                    <Button
+                      onClick={() => handleGenderSelect("partnerGender", "Non-binary")}
                       className={`flex-1 ${settings.partnerGender === "Non-binary" ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       Non-binary
                     </Button>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-white mb-2">Description</label>
                   <Textarea
@@ -361,16 +361,16 @@ const CreateStory = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-between mt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"
                   onClick={() => setActiveTab("setting")}
                 >
                   Previous
                 </Button>
-                <Button 
+                <Button
                   className="bg-[#8B1E3F] hover:bg-[#a82b4f] text-white px-8"
                   onClick={() => setActiveTab("style")}
                 >
@@ -380,7 +380,7 @@ const CreateStory = () => {
             </div>
           </div>
         );
-        
+
       case "style":
         return (
           <div className="p-6">
@@ -389,9 +389,9 @@ const CreateStory = () => {
                 <h3 className="text-lg font-medium text-white mb-3">Writing Style</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {WRITING_STYLES.map((style) => (
-                    <Button 
+                    <Button
                       key={style}
-                      onClick={() => handleStyleSelect(style)} 
+                      onClick={() => handleStyleSelect(style)}
                       className={`${settings.writingTone === style ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
                     >
                       {style}
@@ -399,7 +399,7 @@ const CreateStory = () => {
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-medium text-white mb-3">Explicit Level</h3>
                 <div className="mt-2">
@@ -419,52 +419,60 @@ const CreateStory = () => {
                   <span>Explicit</span>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-lg font-medium text-white mb-3">Story Length</h3>
-                <div className="flex justify-between gap-3">
-                  <Button 
-                    onClick={() => handleStoryLengthSelect(2)} 
-                    className={`flex-1 ${settings.length === 2 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
-                  >
-                    <div className="flex flex-col items-center w-full">
-                      <span>Short</span>
-                      <span className="text-xs mt-1 opacity-70">2-3 min audio</span>
-                      <span className="text-xs opacity-70">1 credit</span>
-                    </div>
-                  </Button>
-                  <Button 
-                    onClick={() => handleStoryLengthSelect(3)} 
-                    className={`flex-1 ${settings.length === 3 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
-                  >
-                    <div className="flex flex-col items-center w-full">
-                      <span>Medium</span>
-                      <span className="text-xs mt-1 opacity-70">4-5 min audio</span>
-                      <span className="text-xs opacity-70">2 credits</span>
-                    </div>
-                  </Button>
-                  <Button 
-                    onClick={() => handleStoryLengthSelect(4)} 
-                    className={`flex-1 ${settings.length === 4 ? "bg-[#8B1E3F] text-white" : "bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"}`}
-                  >
-                    <div className="flex flex-col items-center w-full">
-                      <span>Long</span>
-                      <span className="text-xs mt-1 opacity-70">8-10 min audio</span>
-                      <span className="text-xs opacity-70">4 credits</span>
-                    </div>
-                  </Button>
-                </div>
-              </div>
-              
+
+            <div className="w-full max-w-xs md:max-w-full mx-auto">
+  <h3 className="text-lg font-medium text-white mb-3">Story Length</h3>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div
+      onClick={() => handleStoryLengthSelect(2)}
+      className={`w-full relative py-3 px-4 rounded cursor-pointer ${settings.length === 2 ? "bg-[#8B1E3F]" : "bg-[#121212]"}`}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="text-sm">2-3 min audio</div>
+          <div className="text-xs text-amber-300">1 credit</div>
+        </div>
+        <div className="text-sm">Short</div>
+      </div>
+    </div>
+
+    <div
+      onClick={() => handleStoryLengthSelect(3)}
+      className={`w-full relative py-3 px-4 rounded cursor-pointer ${settings.length === 3 ? "bg-[#8B1E3F]" : "bg-[#121212]"}`}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="text-sm">4-5 min audio</div>
+          <div className="text-xs text-amber-300">2 credits</div>
+        </div>
+        <div className="text-sm">Medium</div>
+      </div>
+    </div>
+
+    <div
+      onClick={() => handleStoryLengthSelect(4)}
+      className={`w-full relative py-3 px-4 rounded cursor-pointer ${settings.length === 4 ? "bg-[#8B1E3F]" : "bg-[#121212]"}`}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="text-sm">8-10 min audio</div>
+          <div className="text-xs text-amber-300">4 credits</div>
+        </div>
+        <div className="text-sm">Long</div>
+      </div>
+    </div>
+  </div>
+</div>
+
               <div className="flex justify-between mt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"
                   onClick={() => setActiveTab("characters")}
                 >
                   Previous
                 </Button>
-                <Button 
+                <Button
                   className="bg-[#8B1E3F] hover:bg-[#a82b4f] text-white px-8"
                   onClick={() => setActiveTab("voice")}
                 >
@@ -474,7 +482,7 @@ const CreateStory = () => {
             </div>
           </div>
         );
-        
+
       case "voice":
         return (
           <div className="p-6">
@@ -487,7 +495,7 @@ const CreateStory = () => {
                     // Find the selected voice in the list to get its name
                     const selectedVoice = voices.find((v: VoiceOption) => v.id === voiceId);
                     updateSetting("narrationVoiceId", voiceId);
-                    
+
                     // Also update narrationVoice with the name if we have it
                     if (selectedVoice) {
                       updateSetting("narrationVoice", selectedVoice.name);
@@ -507,7 +515,7 @@ const CreateStory = () => {
                 <div className="mt-6 p-4 bg-[#1E1E1E] border border-gray-700 rounded-lg">
                   <h3 className="text-lg font-medium mb-2">Story Visibility</h3>
                   <div className="flex items-center space-x-2 mb-1">
-                    <Switch 
+                    <Switch
                       id="story-visibility"
                       checked={isPublic}
                       onCheckedChange={setIsPublic}
@@ -517,37 +525,37 @@ const CreateStory = () => {
                     </Label>
                   </div>
                   <p className="text-sm text-gray-400 mt-1">
-                    {isPublic 
-                      ? 'Your story will be visible in the community section for others to enjoy.' 
+                    {isPublic
+                      ? 'Your story will be visible in the community section for others to enjoy.'
                       : 'Your story will only be visible to you in your dashboard.'}
                   </p>
                 </div>
               )}
 
               <div className="flex justify-between mt-8">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="bg-[#121212] border border-gray-700 text-white hover:bg-[#1E1E1E]"
                   onClick={() => setActiveTab("style")}
                 >
                   Previous
                 </Button>
-                <Button 
+                <Button
                   className="bg-[#8B1E3F] hover:bg-[#a82b4f] text-white px-8"
                   onClick={handleGenerateStory}
                   disabled={storyGenerationMutation.isPending || (!isPremium && (creditsWarningShown || !hasCredits))}
                 >
-                  {storyGenerationMutation.isPending 
-                    ? "Generating..." 
-                    : (isPremium || hasCredits) 
-                      ? `Generate Story (${settings.length === 2 ? '1' : settings.length === 3 ? '2' : '4'} Credits)` 
+                  {storyGenerationMutation.isPending
+                    ? "Generating..."
+                    : (isPremium || hasCredits)
+                      ? `Generate Story (${settings.length === 2 ? '1' : settings.length === 3 ? '2' : '4'} Credits)`
                       : "No Credits Available"}
                 </Button>
               </div>
             </div>
           </div>
         );
-        
+
       default:
         return null;
     }
@@ -567,7 +575,7 @@ const CreateStory = () => {
                 <p className="text-gray-200">Free users can create only 3 stories. Upgrade to premium for unlimited stories!</p>
               </div>
             </div>
-            <Button 
+            <Button
               className="bg-amber-400 hover:bg-amber-500 text-black font-semibold"
               onClick={() => navigate('/premium')}
             >
@@ -576,12 +584,12 @@ const CreateStory = () => {
           </div>
         </div>
       )}
-      
+
       <section className="mb-16">
         <div className="bg-gradient-to-br from-[#1E1E1E] to-[#3D315B] rounded-2xl p-8">
           <h2 className="text-2xl font-['Playfair_Display'] font-semibold mb-6">Create Your Perfect Story</h2>
           <p className="text-gray-300 mb-8">Customize every aspect of your narrative for a truly personalized experience.</p>
-          
+
           {/* Story Title Input */}
           <div className="mb-6">
             <label htmlFor="story-title" className="block text-lg font-medium text-white mb-2">Story Title <span className="text-red-500">*</span></label>
@@ -623,16 +631,16 @@ const CreateStory = () => {
               </SelectContent>
             </Select>
           </div>
-          
+
           {/* Public/Private Toggle (Premium users only) */}
           {isPremium && (
             <div className="mb-8 p-4 bg-[#121212] border border-gray-700 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="public-toggle" 
-                    checked={isPublic} 
-                    onCheckedChange={setIsPublic} 
+                  <Switch
+                    id="public-toggle"
+                    checked={isPublic}
+                    onCheckedChange={setIsPublic}
                   />
                   <Label htmlFor="public-toggle" className="text-white">
                     Make story public
