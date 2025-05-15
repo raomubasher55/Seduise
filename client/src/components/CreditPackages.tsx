@@ -86,17 +86,17 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
 
           
       // Verify that Stripe public key is available
-      if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-        console.error('Missing Stripe public key');
-        throw new Error("Stripe public key is not configured");
-      }
+      // if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+      //   console.error('Missing Stripe public key');
+      //   throw new Error("Stripe public key is not configured");
+      // }
       
       // In production, redirect to Stripe checkout
       const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-      if (!STRIPE_PUBLIC_KEY || typeof STRIPE_PUBLIC_KEY !== 'string') {
-        console.error('Invalid or missing Stripe public key');
-        throw new Error("Stripe public key is not properly configured");
-      }
+      // if (!STRIPE_PUBLIC_KEY || typeof STRIPE_PUBLIC_KEY !== 'string') {
+      //   console.error('Invalid or missing Stripe public key');
+      //   throw new Error("Stripe public key is not properly configured");
+      // }
       
       console.log(`Loading Stripe with public key: ${STRIPE_PUBLIC_KEY.substring(0, 8)}...`);
       const stripe = await loadStripe(STRIPE_PUBLIC_KEY);
