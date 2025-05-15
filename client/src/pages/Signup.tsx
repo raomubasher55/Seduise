@@ -1,3 +1,4 @@
+// new 
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -153,7 +154,7 @@ export default function Signup() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Emaillllllllll</FormLabel>
+                    <FormLabel className="text-gray-300">Emailll   lllllll</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
