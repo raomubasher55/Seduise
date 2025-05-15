@@ -93,6 +93,7 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
       
       // In production, redirect to Stripe checkout
       const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+      console.log(process.env.VITE_STRIPE_PUBLIC_KEY);
       // if (!STRIPE_PUBLIC_KEY || typeof STRIPE_PUBLIC_KEY !== 'string') {
       //   console.error('Invalid or missing Stripe public key');
       //   throw new Error("Stripe public key is not properly configured");
