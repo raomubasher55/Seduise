@@ -153,7 +153,7 @@ export default function Signup() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Email</FormLabel>
+                    <FormLabel className="text-gray-300">Emaillllllllll</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -170,7 +170,7 @@ export default function Signup() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Phone</FormLabel>
+                    <FormLabel className="text-gray-300">PhonEeee</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
