@@ -92,7 +92,7 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
       // }
       
       // In production, redirect to Stripe checkout
-      const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_51RBam7CIAxhZIlG2COHivgVCsVndRvu2mA2pU0C0On3FmLNLTMTi6UFYC56eyToJitDwJUsRX4JQdmiEtsyWkFTu006bWpCVhu";
+      const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_live_51PgOMoJgyEyHyHBaM0BbudKVysyoGGk0GfJPkADVoq1qSa2huk2IR6HbWFpRWRHURYJMx3qceMhI0m2owOZwZ5eQ00n1jAjfsh";
       if (!STRIPE_PUBLIC_KEY || typeof STRIPE_PUBLIC_KEY !== 'string') {
         console.error('Invalid or missing Stripe public key');
         throw new Error("Stripe public key is not properly configured");
