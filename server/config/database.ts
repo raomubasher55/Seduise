@@ -18,7 +18,7 @@ const connectDB = async () => {
     try {
       await mongoose.connect("mongodb+srv://seduisestory:Story123@cluster0.ueu7cqi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
       console.log('MongoDB connected to Atlas');
-    } catch (remoteError) {
+    } catch (remoteError) { 
       throw remoteError;
     }
   } catch (error) {
