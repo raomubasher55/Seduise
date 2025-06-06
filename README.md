@@ -1,4 +1,5 @@
 ### sudo cp -r /root/mern-app/dist /var/www/mern-app/
+### sudo cp -r /root/mern-app/index.html /var/www/mern-app/
 
 
 make dist/public/assets/audio
