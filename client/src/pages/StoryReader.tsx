@@ -3,13 +3,17 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import AudioPlayer from "@/components/AudioPlayer";
-import { Sparkles, Heart, Share2 } from "lucide-react";
+import { Sparkles, Heart, Share2, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 import { continueStory } from "@/lib/ai";
 import { generateSpeech } from "@/lib/audio";
 import { queryClient } from "@/lib/queryClient";
 import { formatTime } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Chapter } from "@shared/schema";
 
 interface StoryReaderProps {
   params: {
@@ -20,14 +24,31 @@ interface StoryReaderProps {
 const StoryReader = ({ params }: StoryReaderProps) => {
   const [, navigate] = useLocation();
   const storyId = params.id;
-  // console.log(`The received storyId is ${storyId}`);
   const [hasAudio, setHasAudio] = useState(false);
-  // const [duration , setDuration  ] = useState(0)
+  const [currentChapterNum, setCurrentChapterNum] = useState(1);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [showCreditDialog, setShowCreditDialog] = useState(false);
 
   // Fetch story data
   const { data: story, isLoading, error } = useQuery({
     queryKey: [`/api/stories/${storyId}`],
   });
+
+  // Fetch chapters data
+  const { data: chaptersData, isLoading: isLoadingChapters } = useQuery({
+    queryKey: [`/api/stories/${storyId}/chapters`],
+    enabled: !!story,
+  });
+
+  // Update chapters when data loads
+  useEffect(() => {
+    if (chaptersData?.chapters) {
+      setChapters(chaptersData.chapters);
+      if (story?.currentChapter) {
+        setCurrentChapterNum(story.currentChapter);
+      }
+    }
+  }, [chaptersData, story]);
 
   // Fetch audio URL if available
   const { 
@@ -48,8 +69,12 @@ const StoryReader = ({ params }: StoryReaderProps) => {
 
   // Update hasAudio state when audioData changes
   useEffect(() => {
+    const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
+    if (currentChapter && currentChapter.audioUrl) {
+      setHasAudio(true);
+    }
     // Check if the story has an audio URL directly in the story object
-    if (story && story.audioUrl) {
+    else if (story && story.audioUrl) {
       setHasAudio(true);
     }
     // Check audio data from the API
@@ -58,7 +83,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     } else {
       setHasAudio(false);
     }
-  }, [audioData, story]);
+  }, [audioData, story, chapters, currentChapterNum]);
 
   // Generate speech mutation
   const generateSpeechMutation = useMutation({
@@ -102,6 +127,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
         description: "Your story has been extended.",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
     },
     onError: (error: any) => {
       // Check if this is insufficient credits error
@@ -136,6 +162,9 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const handleGenerateAudio = () => {
     if (!story) return;
     
+    const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
+    if (!currentChapter) return;
+    
     // Get the narration voice from settings
     const narrationVoice = (story.settings as any).narrationVoice || 'Soft Female';
     
@@ -150,7 +179,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     console.log(`Using voice: ${narrationVoice}, mapped to ElevenLabs ID: ${voiceId}`);
     
     generateSpeechMutation.mutate({
-      text: story.content,
+      text: currentChapter.content,
       voiceId: voiceId,
       storyId: storyId
     });
@@ -159,8 +188,19 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   console.log(`Story is ${story} `);
 
   const handleContinueStory = () => {
-    continueStoryMutation.mutate(storyId);
+    setShowCreditDialog(true);
   };
+
+  const navigateToChapter = (chapterNumber: number) => {
+    if (chapterNumber >= 1 && chapterNumber <= chapters.length) {
+      setCurrentChapterNum(chapterNumber);
+    }
+  };
+
+  const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
+  const canGoNext = currentChapterNum < chapters.length;
+  const canGoPrevious = currentChapterNum > 1;
+  const progress = chapters.length > 0 ? (currentChapterNum / chapters.length) * 100 : 0;
 
   if (isLoading) {
     return (
@@ -203,7 +243,18 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 /> */}
                 <div className="p-5">
                   <h3 className="font-['Playfair_Display'] text-xl font-semibold mb-1">{story.title}</h3>
-                  <p className="text-gray-400 text-sm mb-4">{story.content.substring(0, 100)}...</p>
+                  <p className="text-gray-400 text-sm mb-4">
+                    {currentChapter ? currentChapter.content.substring(0, 100) : story.content?.substring(0, 100)}...
+                  </p>
+                  {chapters.length > 1 && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-400">Chapter {currentChapterNum} of {chapters.length}</span>
+                        <span className="text-xs text-gray-400">{Math.round(progress)}%</span>
+                      </div>
+                      <Progress value={progress} className="h-1" />
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <div className="flex items-center">
                       <div className="w-6 h-6 rounded-full bg-[#574873] flex items-center justify-center text-xs">
@@ -238,21 +289,70 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                     <span className="text-gray-400">Style</span>
                     <span className="text-white">{settings.writingTone}, {settings.atmosphere}</span>
                   </div>
-                  {/* <div className="flex justify-between">
-                    <span className="text-gray-400">Length</span>
-                    
-                    <span className="text-white">{Math.floor((story.content.length / 25) / 60)} minutes</span>
-                    
-                  </div> */}
+                  {chapters.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Chapters</span>
+                      <span className="text-white">{chapters.length} chapter{chapters.length > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
                 </div>
               </Card>
+
+              {/* Chapter Navigation */}
+              {chapters.length > 1 && (
+                <Card className="bg-[#2D2D2D] rounded-xl p-5 border-0 mt-4">
+                  <h4 className="font-['Playfair_Display'] text-lg mb-4">Chapter Navigation</h4>
+                  <Select value={currentChapterNum.toString()} onValueChange={(value) => navigateToChapter(parseInt(value))}>
+                    <SelectTrigger className="bg-[#121212] border-gray-700">
+                      <SelectValue placeholder="Select chapter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {chapters.map((chapter) => (
+                        <SelectItem key={chapter.number} value={chapter.number.toString()}>
+                          Chapter {chapter.number}: {chapter.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Card>
+              )}
             </div>
 
             <div className="md:w-2/3 bg-[#2D2D2D] rounded-xl p-6">
+              {/* Chapter Header */}
+              {currentChapter && chapters.length > 1 && (
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateToChapter(currentChapterNum - 1)}
+                      disabled={!canGoPrevious}
+                      className="bg-[#121212] border-gray-700"
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <div className="text-center">
+                      <h3 className="font-['Playfair_Display'] text-lg">{currentChapter.title}</h3>
+                      <p className="text-sm text-gray-400">Chapter {currentChapterNum} of {chapters.length}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateToChapter(currentChapterNum + 1)}
+                      disabled={!canGoNext}
+                      className="bg-[#121212] border-gray-700"
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {hasAudio ? (
                 <AudioPlayer 
-                  audioUrl={story.audioUrl || audioData?.audioUrl || null}
-                  title={story.title}
+                  audioUrl={(currentChapter?.audioUrl) || story.audioUrl || audioData?.audioUrl || null}
+                  title={currentChapter ? currentChapter.title : story.title}
                   narrator={settings.narrationVoice || settings.narrationVoiceId || "Narrator"}
                   isFallback={audioData?.fallback || false}
                   fallbackMessage={audioData?.message}
@@ -261,8 +361,10 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 <div className="mb-6 bg-[#121212] p-4 rounded-lg">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 className="font-['Playfair_Display'] text-lg">{story.title}</h4>
-                      <p className="text-sm text-gray-400">Generate audio to listen to this story</p>
+                      <h4 className="font-['Playfair_Display'] text-lg">
+                        {currentChapter ? currentChapter.title : story.title}
+                      </h4>
+                      <p className="text-sm text-gray-400">Generate audio to listen to this chapter</p>
                     </div>
                     <Button 
                       onClick={handleGenerateAudio}
@@ -276,8 +378,10 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               )}
 
               <div className="overflow-y-auto h-80 pr-4 story-text">
-                <h2 className="text-2xl font-['Playfair_Display'] font-semibold mb-4">{story.title}</h2>
-                {story.content.split('\n').map((paragraph, index) => (
+                <h2 className="text-2xl font-['Playfair_Display'] font-semibold mb-4">
+                  {currentChapter ? currentChapter.title : story.title}
+                </h2>
+                {(currentChapter ? currentChapter.content : story.content || '').split('\n').map((paragraph, index) => (
                   <p key={index} className="mb-4 leading-relaxed">
                     {paragraph}
                   </p>
@@ -293,22 +397,66 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                   >
                     Back to Stories
                   </Button>
+                  {chapters.length > 1 && canGoPrevious && (
+                    <Button 
+                      variant="outline" 
+                      className="bg-[#121212] text-gray-400 hover:text-white border-gray-700"
+                      onClick={() => navigateToChapter(currentChapterNum - 1)}
+                    >
+                      <ChevronLeft size={16} className="mr-1" />
+                      Previous Chapter
+                    </Button>
+                  )}
                 </div>
-                <div>
-                  {/* <Button 
+                <div className="flex space-x-3">
+                  {chapters.length > 1 && canGoNext && (
+                    <Button 
+                      variant="outline" 
+                      className="bg-[#121212] text-gray-400 hover:text-white border-gray-700"
+                      onClick={() => navigateToChapter(currentChapterNum + 1)}
+                    >
+                      Next Chapter
+                      <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  )}
+                  <Button 
                     className="bg-[#8B1E3F] hover:bg-[#A93B5B] transition-colors px-4 py-2 rounded-lg text-white flex items-center"
                     onClick={handleContinueStory}
                     disabled={continueStoryMutation.isPending}
                   >
                     <Sparkles className="mr-2" size={16} />
                     {continueStoryMutation.isPending ? "Continuing..." : "Continue Story"}
-                  </Button> */}
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Credit Confirmation Dialog */}
+      <AlertDialog open={showCreditDialog} onOpenChange={setShowCreditDialog}>
+        <AlertDialogContent className="bg-[#1E1E1E] border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Continue Story</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Continuing this story will cost 1 credit. You will get a new chapter added to your story.
+              Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-[#2D2D2D] border-gray-700 text-gray-400 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-[#8B1E3F] hover:bg-[#A93B5B] text-white"
+              onClick={() => continueStoryMutation.mutate(storyId)}
+            >
+              Continue Story (1 Credit)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

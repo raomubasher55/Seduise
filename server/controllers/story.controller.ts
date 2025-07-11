@@ -335,4 +335,77 @@ export const titleSuggestions = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Failed to generate title suggestions" });
   }
-}
+};
+
+// Get all chapters for a story
+export const getStoryChapters = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const story = await Story.findById(id);
+    
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    // Return chapters if story is chapter-based, otherwise convert legacy content
+    if (story.isChapterBased && story.chapters.length > 0) {
+      res.status(200).json({ chapters: story.chapters });
+    } else if (story.content) {
+      // Convert legacy story to chapter format
+      const chapter = {
+        number: 1,
+        title: "Chapter 1",
+        content: story.content,
+        audioUrl: story.audioUrl,
+        createdAt: story.createdAt,
+        wordCount: story.content.split(' ').length,
+        creditsCost: story.creditsCost
+      };
+      res.status(200).json({ chapters: [chapter] });
+    } else {
+      res.status(200).json({ chapters: [] });
+    }
+  } catch (error) {
+    console.error("Error getting story chapters:", error);
+    res.status(500).json({ message: "Failed to get story chapters" });
+  }
+};
+
+// Get specific chapter
+export const getStoryChapter = async (req: Request, res: Response) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const story = await Story.findById(id);
+    
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    const chapterNum = parseInt(chapterNumber);
+    
+    if (story.isChapterBased && story.chapters.length > 0) {
+      const chapter = story.chapters.find(ch => ch.number === chapterNum);
+      if (!chapter) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      res.status(200).json({ chapter });
+    } else if (chapterNum === 1 && story.content) {
+      // Return legacy content as chapter 1
+      const chapter = {
+        number: 1,
+        title: "Chapter 1",
+        content: story.content,
+        audioUrl: story.audioUrl,
+        createdAt: story.createdAt,
+        wordCount: story.content.split(' ').length,
+        creditsCost: story.creditsCost
+      };
+      res.status(200).json({ chapter });
+    } else {
+      res.status(404).json({ message: "Chapter not found" });
+    }
+  } catch (error) {
+    console.error("Error getting story chapter:", error);
+    res.status(500).json({ message: "Failed to get story chapter" });
+  }
+};

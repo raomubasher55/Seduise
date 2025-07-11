@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions } from "../controllers/story.controller";
+import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter } from "../controllers/story.controller";
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
@@ -300,6 +300,8 @@ router.route("/:id").put(authMiddleware, updateStory);
 router.route("/:id").delete(authMiddleware, deleteStory);
 router.route("/:id/continue").post(authMiddleware, continueStory);
 router.route("/:id/audio").get(getStoryAudio);
+router.route("/:id/chapters").get(getStoryChapters);
+router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 
 // Toggle story visibility
 router.patch("/:id/visibility", authMiddleware, async (req, res) => {

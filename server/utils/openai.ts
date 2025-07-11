@@ -108,7 +108,7 @@ ${settingPrompt}
 ${protagonistPrompt}
 ${loveInterestPrompt}
 
-IMPORTANT: Make the story incomplete/unfinished, ending with a cliffhanger or in the middle of a scene. It should feel like it needs continuation.
+IMPORTANT: Make the story incomplete/unfinished, ending with a cliffhanger at the end of a complete sentence or scene. End at a natural pause point that creates anticipation for the next chapter. DO NOT end mid-sentence or mid-word.
 
 Your story should be tasteful, sensual, and focus on the emotional and physical connection between characters.
 Include vivid descriptions and engaging dialogue. Start with setting the scene and gradually build tension.
@@ -223,6 +223,21 @@ Format your response as JSON with the following structure:
               .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
               .trim();
           }
+
+          // Validate that the story doesn't end mid-sentence
+          const lastChar = finalContent.slice(-1);
+          const lastFewChars = finalContent.slice(-3);
+          
+          // If it ends abruptly, try to clean it up
+          if (!['."', '!"', '?"', '"'].some(ending => lastFewChars.includes(ending))) {
+            // Find the last complete sentence
+            const sentences = finalContent.split(/[.!?]+/);
+            if (sentences.length > 1) {
+              // Remove the incomplete last sentence and reconstruct
+              sentences.pop(); // Remove last incomplete part
+              finalContent = sentences.join('.') + '.';
+            }
+          }
           
           return { 
             title: title || result.title || "Untitled Story", 
@@ -248,6 +263,56 @@ Format your response as JSON with the following structure:
   } catch (error) {
     console.error("All story generation attempts failed:", error);
     throw new Error("Failed to generate story. Please try again later or check your API keys.");
+  }
+}
+
+export async function generateChapterSummary(content: string, chapterNumber: number): Promise<string> {
+  try {
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: `Generate a brief, tasteful summary (1-2 sentences) for Chapter ${chapterNumber} of an erotic story. Focus on the key events and emotional developments without being overly explicit.` },
+        { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 800)}...` },
+      ],
+      max_tokens: 100,
+      temperature: 0.7,
+    });
+
+    let summary = response.choices[0].message.content?.replace(/"/g, "").trim() || `Summary for Chapter ${chapterNumber}`;
+    
+    // Clean the summary
+    summary = summary.replace(/^Chapter \d+:?\s*/i, '').trim();
+    if (!summary) summary = `Chapter ${chapterNumber} summary`;
+    
+    return summary;
+  } catch (error) {
+    console.error("Error generating chapter summary:", error);
+    return `Chapter ${chapterNumber} summary`;
+  }
+}
+
+export async function generateChapterTitle(content: string, chapterNumber: number): Promise<string> {
+  try {
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: `Generate a captivating, descriptive title for Chapter ${chapterNumber} of an erotic story. The title should be 2-6 words and capture the essence of what happens in this chapter. Focus on the key action, emotion, or scene.` },
+        { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 500)}...` },
+      ],
+      max_tokens: 30,
+      temperature: 0.7,
+    });
+
+    let title = response.choices[0].message.content?.replace(/"/g, "").trim() || `Chapter ${chapterNumber}`;
+    
+    // Clean the title
+    title = title.replace(/^Chapter \d+:?\s*/i, '').trim();
+    if (!title) title = `Chapter ${chapterNumber}`;
+    
+    return title;
+  } catch (error) {
+    console.error("Error generating chapter title:", error);
+    return `Chapter ${chapterNumber}`;
   }
 }
 
@@ -414,7 +479,19 @@ export async function continueStory(existingContent: string, settings: StoryGene
       ? `Love interest description: ${loveInterestDescription}` 
       : "";
 
-    const systemPrompt = `You are an expert erotic fiction writer. Continue this story based on the existing content and settings.
+    const systemPrompt = `You are an expert erotic fiction writer. Continue this story seamlessly from where it left off.
+    
+    CRITICAL INSTRUCTIONS:
+    1. Read the existing content carefully and continue EXACTLY where it ended
+    2. DO NOT repeat any dialogue, actions, or scenes from the existing content
+    3. DO NOT use phrases like "And if I choose to stay?" or similar dialogue that appeared before
+    4. Maintain the same characters, setting, and tone throughout
+    5. Continue the story's natural progression without resetting or restarting
+    6. Advance the plot - do NOT repeat similar situations or conversations
+    7. DO NOT include "Chapter X" headers - provide only the story content
+    8. End at a natural stopping point with a cliffhanger for the next chapter
+    9. Ensure each chapter moves the story forward with new developments
+    
     Story settings:
     - Time Period: ${timePeriod}
     - Location: ${location}
@@ -430,14 +507,13 @@ export async function continueStory(existingContent: string, settings: StoryGene
     ${protagonistPrompt}
     ${loveInterestPrompt}
     
-    Your continuation should be tasteful, sensual, and maintain the style, tone, and characters from the existing content.
-    Focus on advancing the plot while keeping the emotional and physical connection between characters.`;
+    Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
 
     const response = await novitaAI.chat.completions.create({
       model: "deepseek/deepseek_v3",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Here's the existing story content: \n\n${existingContent.substring(0, 2000)}...\n\nContinue the story from where it left off.` }
+        { role: "user", content: `Here's the existing story content:\n\n${existingContent}\n\nIMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from the last sentence. DO NOT repeat any dialogue, actions, or scenarios that already happened. Move the story forward with new developments, locations, or conversation topics.` }
       ],
       max_tokens: maxTokens,
       temperature: 0.8,
@@ -453,6 +529,24 @@ export async function continueStory(existingContent: string, settings: StoryGene
         .replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, '') // Remove arrays of strings
         .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
         .trim();
+    }
+
+    // Remove any chapter headers that might have been added
+    responseText = responseText.replace(/^Chapter \d+:?\s*/i, '').trim();
+    
+    // Validate that the response doesn't end mid-sentence
+    const lastChar = responseText.slice(-1);
+    const lastFewChars = responseText.slice(-3);
+    
+    // If it ends abruptly, try to clean it up
+    if (!['."', '!"', '?"', '"'].some(ending => lastFewChars.includes(ending))) {
+      // Find the last complete sentence
+      const sentences = responseText.split(/[.!?]+/);
+      if (sentences.length > 1) {
+        // Remove the incomplete last sentence and reconstruct
+        sentences.pop(); // Remove last incomplete part
+        responseText = sentences.join('.') + '.';
+      }
     }
     
     return responseText;

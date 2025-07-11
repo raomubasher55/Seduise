@@ -1,8 +1,19 @@
 import { Schema, model } from "mongoose";
 
-const storySchema = new Schema({
+const chapterSchema = new Schema({
+  number: { type: Number, required: true },
   title: { type: String, required: true },
   content: { type: String, required: true },
+  summary: { type: String },
+  audioUrl: { type: String },
+  createdAt: { type: Date, default: Date.now },
+  wordCount: { type: Number },
+  creditsCost: { type: Number, default: 1 }
+});
+
+const storySchema = new Schema({
+  title: { type: String, required: true },
+  content: { type: String }, // Keep for backward compatibility
   audioUrl: { type: String },
   userId: { type: String, required: true },
   settings: { type: Object, required: true },
@@ -13,7 +24,11 @@ const storySchema = new Schema({
   likes: { type: Number, default: 0 },
   plays: { type: Number, default: 0 },
   category: { type: String, default: "romance" },
-  creditsCost: { type: Number, default: 1 }  // Cost in credits to generate this story
+  creditsCost: { type: Number, default: 1 },
+  chapters: { type: [chapterSchema], default: [] },
+  currentChapter: { type: Number, default: 1 },
+  totalChapters: { type: Number, default: 1 },
+  isChapterBased: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Remove any existing indexes on the id field

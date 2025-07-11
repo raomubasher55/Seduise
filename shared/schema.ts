@@ -40,11 +40,25 @@ export type User = z.infer<typeof userSchema>;
 export const insertUserSchema = userSchema.omit({ id: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+// Chapter Schema
+export const chapterSchema = z.object({
+  number: z.number(),
+  title: z.string(),
+  content: z.string(),
+  summary: z.string().optional(),
+  audioUrl: z.string().optional(),
+  createdAt: z.date().optional(),
+  wordCount: z.number().optional(),
+  creditsCost: z.number().default(1)
+});
+
+export type Chapter = z.infer<typeof chapterSchema>;
+
 // Story Schema
 export const storySchema = z.object({
   _id: z.string(),
   title: z.string(),
-  content: z.string(),
+  content: z.string().optional(), // Keep for backward compatibility
   audioUrl: z.string().optional(),
   userId: z.string(),
   settings: z.object(storySettingsSchema.shape).optional(),
@@ -55,7 +69,11 @@ export const storySchema = z.object({
   likes: z.number().default(0),
   plays: z.number().default(0),
   category: z.string().default("romance"),
-  creditsCost: z.number().default(1)
+  creditsCost: z.number().default(1),
+  chapters: z.array(chapterSchema).default([]),
+  currentChapter: z.number().default(1),
+  totalChapters: z.number().default(1),
+  isChapterBased: z.boolean().default(false)
 });
 
 export type Story = z.infer<typeof storySchema>;

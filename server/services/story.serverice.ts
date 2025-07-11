@@ -1,6 +1,6 @@
 import { Story } from "../models/story.model";
 import { StorySettings } from "@shared/schema";
-import { continueStory, generateStory } from "../utils/openai";
+import { continueStory, generateStory, generateChapterTitle, generateChapterSummary } from "../utils/openai";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 
@@ -83,14 +83,39 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         }
     }
 
-    // Create the story in the database
+    // Generate a descriptive title and summary for the first chapter
+    let chapterTitle = "The Beginning";
+    let chapterSummary = "";
+    try {
+        chapterTitle = await generateChapterTitle(cleanedContent, 1);
+        chapterSummary = await generateChapterSummary(cleanedContent, 1);
+    } catch (error) {
+        console.error("Failed to generate chapter metadata, using defaults:", error);
+    }
+
+    // Create the first chapter
+    const firstChapter = {
+        number: 1,
+        title: chapterTitle,
+        content: cleanedContent,
+        summary: chapterSummary,
+        createdAt: new Date(),
+        wordCount: cleanedContent.split(' ').length,
+        creditsCost: STORY_GENERATION_COST
+    };
+
+    // Create the story in the database with chapter structure
     const story = new Story({
         title: title || generatedTitle,
-        content: cleanedContent,
+        content: cleanedContent, // Keep for backward compatibility
         userId,
         settings,
         isPublic,
-        category
+        category,
+        chapters: [firstChapter],
+        currentChapter: 1,
+        totalChapters: 1,
+        isChapterBased: true
     });
     
     await story.save();
@@ -137,20 +162,86 @@ export const continueStoryService = async (id: string) => {
     try {
         // Log before continuation
         console.log(`Continuing story ${id}`);
-        console.log(`Original content length: ${story.content.length} characters`);
+        
+        // Get the current content for continuation
+        let currentContent = "";
+        if (story.isChapterBased && story.chapters.length > 0) {
+            // Use all chapters' content for context
+            currentContent = story.chapters.map(ch => ch.content).join("\n\n");
+        } else {
+            // Use legacy content
+            currentContent = story.content || "";
+        }
+        
+        console.log(`Current content length: ${currentContent.length} characters`);
         
         // Continue the story with the original settings
         const continuation = await continueStory(
-            story.content,
+            currentContent,
             story.settings as any
         );
         
-        // Add a clear separator and then the continuation
-        story.content = story.content + "\n\n" + continuation;
+        // Generate a descriptive title and summary for the new chapter
+        const nextChapterNumber = story.isChapterBased ? story.chapters.length + 1 : 2;
+        let chapterTitle = `Chapter ${nextChapterNumber}`;
+        let chapterSummary = "";
+        try {
+            chapterTitle = await generateChapterTitle(continuation, nextChapterNumber);
+            chapterSummary = await generateChapterSummary(continuation, nextChapterNumber);
+        } catch (error) {
+            console.error("Failed to generate chapter metadata, using defaults:", error);
+        }
+
+        // Create new chapter
+        const newChapter = {
+            number: nextChapterNumber,
+            title: chapterTitle,
+            content: continuation,
+            summary: chapterSummary,
+            createdAt: new Date(),
+            wordCount: continuation.split(' ').length,
+            creditsCost: CONTINUATION_COST
+        };
+        
+        // Update story with new chapter
+        if (story.isChapterBased) {
+            story.chapters.push(newChapter);
+        } else {
+            // Convert legacy story to chapter-based
+            let firstChapterTitle = "The Beginning";
+            let firstChapterSummary = "";
+            try {
+                if (story.content) {
+                    firstChapterTitle = await generateChapterTitle(story.content, 1);
+                    firstChapterSummary = await generateChapterSummary(story.content, 1);
+                }
+            } catch (error) {
+                console.error("Failed to generate metadata for legacy chapter:", error);
+            }
+
+            const firstChapter = {
+                number: 1,
+                title: firstChapterTitle,
+                content: story.content || "",
+                summary: firstChapterSummary,
+                createdAt: story.createdAt,
+                wordCount: story.content ? story.content.split(' ').length : 0,
+                creditsCost: story.creditsCost
+            };
+            story.chapters = [firstChapter, newChapter];
+            story.isChapterBased = true;
+        }
+        
+        // Update story metadata
+        story.currentChapter = nextChapterNumber;
+        story.totalChapters = story.chapters.length;
+        
+        // Update legacy content for backward compatibility
+        story.content = story.chapters.map(ch => ch.content).join("\n\n");
         
         // Log after continuation
-        console.log(`Continuation added: ${continuation.length} characters`);
-        console.log(`New total content length: ${story.content.length} characters`);
+        console.log(`New chapter added: ${continuation.length} characters`);
+        console.log(`Total chapters: ${story.chapters.length}`);
         
         // Save the updated story
         await story.save();
