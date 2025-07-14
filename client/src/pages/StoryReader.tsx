@@ -388,47 +388,47 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 ))}
               </div>
 
-              <div className="mt-6 flex justify-between">
-                <div className="flex space-x-3">
-                  <Button 
-                    variant="outline" 
-                    className="bg-[#121212] text-gray-400 hover:text-white border-gray-700"
-                    onClick={() => navigate("/discover")}
-                  >
-                    Back to Stories
-                  </Button>
-                  {chapters.length > 1 && canGoPrevious && (
-                    <Button 
-                      variant="outline" 
-                      className="bg-[#121212] text-gray-400 hover:text-white border-gray-700"
-                      onClick={() => navigateToChapter(currentChapterNum - 1)}
-                    >
-                      <ChevronLeft size={16} className="mr-1" />
-                      Previous Chapter
-                    </Button>
-                  )}
-                </div>
-                <div className="flex space-x-3">
-                  {chapters.length > 1 && canGoNext && (
-                    <Button 
-                      variant="outline" 
-                      className="bg-[#121212] text-gray-400 hover:text-white border-gray-700"
-                      onClick={() => navigateToChapter(currentChapterNum + 1)}
-                    >
-                      Next Chapter
-                      <ChevronRight size={16} className="ml-1" />
-                    </Button>
-                  )}
-                  <Button 
-                    className="bg-[#8B1E3F] hover:bg-[#A93B5B] transition-colors px-4 py-2 rounded-lg text-white flex items-center"
-                    onClick={handleContinueStory}
-                    disabled={continueStoryMutation.isPending}
-                  >
-                    <Sparkles className="mr-2" size={16} />
-                    {continueStoryMutation.isPending ? "Continuing..." : "Continue Story"}
-                  </Button>
-                </div>
-              </div>
+              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center sm:items-start space-y-4 sm:space-y-0">
+  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+    <Button
+      variant="outline"
+      className="bg-[#121212] text-gray-400 hover:text-white border-gray-700 w-full sm:w-auto"
+      onClick={() => navigate("/discover")}
+    >
+      Back to Stories
+    </Button>
+    {chapters.length > 1 && canGoPrevious && (
+      <Button
+        variant="outline"
+        className="bg-[#121212] text-gray-400 hover:text-white border-gray-700 w-full sm:w-auto"
+        onClick={() => navigateToChapter(currentChapterNum - 1)}
+      >
+        <ChevronLeft size={16} className="mr-1" />
+        Previous Chapter
+      </Button>
+    )}
+  </div>
+  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+    {chapters.length > 1 && canGoNext && (
+      <Button
+        variant="outline"
+        className="bg-[#121212] text-gray-400 hover:text-white border-gray-700 w-full sm:w-auto"
+        onClick={() => navigateToChapter(currentChapterNum + 1)}
+      >
+        Next Chapter
+        <ChevronRight size={16} className="ml-1" />
+      </Button>
+    )}
+    <Button
+      className="bg-[#8B1E3F] hover:bg-[#A93B5B] transition-colors px-4 py-2 rounded-lg text-white flex items-center justify-center w-full sm:w-auto"
+      onClick={handleContinueStory}
+      disabled={continueStoryMutation.isPending}
+    >
+      <Sparkles className="mr-2" size={16} />
+      {continueStoryMutation.isPending ? "Continuing..." : "Continue Story"}
+    </Button>
+  </div>
+</div>
             </div>
           </div>
         </div>

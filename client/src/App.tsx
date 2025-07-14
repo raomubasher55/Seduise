@@ -23,6 +23,7 @@ import AgeVerification from "@/components/AgeVerification";
 import CookieConsent from "@/components/CookieConsent";
 import FAQ from "@/pages/FAQ";
 import CookiePolicy from "@/pages/CookiePolicy";
+import TermsOfUse from "@/pages/TermsOfUse";
 
 // Subscription and Payment Pages
 import SubscriptionPage from "@/pages/SubscriptionPage";
@@ -130,6 +131,7 @@ function App() {
               {/* New routes for FAQ and Cookie Policy */}
               <Route path="/faq" component={FAQ} />
               <Route path="/cookie-policy" component={CookiePolicy} />
+              <Route path="/terms-of-use" component={TermsOfUse} />
 
               <Route component={NotFound} />
             </Switch>

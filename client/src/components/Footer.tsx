@@ -31,6 +31,7 @@ const Footer = () => {
                 <li><FooterLink href="/privacy" label="Privacy Policy" /></li> */}
                 {/* <li><FooterLink href="/guidelines" label="Content Guidelines" /></li> */}
                 <li><FooterLink href="/cookie-policy" label="Cookie Policy" /></li>
+                <li><FooterLink href="/terms-of-use" label="Terms of Use" /></li>
               </ul>
             </div>
             
