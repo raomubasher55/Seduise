@@ -10,6 +10,17 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  .reading-mode {
+    --reading-mode-background: 20 14.3% 4.1%; /* A soft, dark background */
+    --reading-mode-foreground: 60 9.1% 92.2%; /* A soft, light text color */
+  }
+
+  .reading-mode-content {
+    @apply bg-[hsl(var(--reading-mode-background))] text-[hsl(var(--reading-mode-foreground))] p-4 md:p-8;
+    max-width: 800px; /* Optimal reading width */
+    margin: 0 auto; /* Center the content */
+  }
 }
 
 @layer utilities {

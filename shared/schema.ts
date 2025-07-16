@@ -40,6 +40,14 @@ export type User = z.infer<typeof userSchema>;
 export const insertUserSchema = userSchema.omit({ id: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+// Choice Schema
+export const choiceSchema = z.object({
+  text: z.string(),
+  outcome: z.string().optional(), // Outcome can be a prompt for the next chapter or a reference
+});
+
+export type Choice = z.infer<typeof choiceSchema>;
+
 // Chapter Schema
 export const chapterSchema = z.object({
   number: z.number(),
@@ -49,7 +57,8 @@ export const chapterSchema = z.object({
   audioUrl: z.string().optional(),
   createdAt: z.date().optional(),
   wordCount: z.number().optional(),
-  creditsCost: z.number().default(1)
+  creditsCost: z.number().default(1),
+  choices: z.array(choiceSchema).optional() // Add choices to chapter schema
 });
 
 export type Chapter = z.infer<typeof chapterSchema>;

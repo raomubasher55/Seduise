@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
-import { getStory as getStoryService } from "../services/story.serverice";
-import { getStoryAudio as getStoryAudioService } from "../services/story.serverice";
-import { createStory as createStoryService } from "../services/story.serverice";
-import { continueStoryService, deleteStory as deleteStoryService } from "../services/story.serverice";
+import { getStory as getStoryService } from "../services/story.service";
+import { getStoryAudio as getStoryAudioService } from "../services/story.service";
+import { createStory as createStoryService } from "../services/story.service";
+import { continueStoryService, deleteStory as deleteStoryService } from "../services/story.service";
 import { storySettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateTitleSuggestions } from "server/utils/openai";
@@ -240,6 +240,7 @@ export const getStoryAudio = async (req: Request, res: Response) => {
 export const continueStory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { selectedChoice } = req.body; // Get selectedChoice from request body
     const userId = req.session.userId;
     
     if (!userId) {
@@ -279,8 +280,8 @@ export const continueStory = async (req: Request, res: Response) => {
       }
     }
     
-    // Continue the story
-    const continuedStory = await continueStoryService(id);
+    // Continue the story, passing the selectedChoice
+    const continuedStory = await continueStoryService(id, selectedChoice);
     
     // Track chapter generation for subscription limits
     await trackChapterGeneration(userId);
@@ -407,5 +408,28 @@ export const getStoryChapter = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error getting story chapter:", error);
     res.status(500).json({ message: "Failed to get story chapter" });
+  }
+};
+
+export const getChapterChoices = async (req: Request, res: Response) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const story = await Story.findById(id);
+
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    const chapterNum = parseInt(chapterNumber);
+    const chapter = story.chapters.find(ch => ch.number === chapterNum);
+
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    res.status(200).json({ choices: chapter.choices || [] });
+  } catch (error) {
+    console.error("Error getting chapter choices:", error);
+    res.status(500).json({ message: "Failed to get chapter choices" });
   }
 };

@@ -1,0 +1,10 @@
+[plugin:runtime-error-plugin] Cannot access 'story' before initialization
+D:/Seduise/client/src/pages/StoryReader.tsx:38:16
+36 |    const { data: choicesData, isLoading: isLoadingChoices } = useQuery({
+37 |      queryKey: [`/api/stories/${storyId}/chapters/${currentChapterNum}/choices`],
+38 |      enabled: !!story && !!currentChapterNum, // Only fetch if story and currentChapterNum are available
+   |                 ^
+39 |    });
+40 |
+    at StoryReader D:/Seduise/client/src/pages/StoryReader.tsx:38:16
+Click outside, press Esc key, or fix the code to dismiss.

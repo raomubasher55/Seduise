@@ -61,6 +61,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        readingMode: {
+          background: "hsl(var(--reading-mode-background))",
+          foreground: "hsl(var(--reading-mode-foreground))",
+        },
       },
       keyframes: {
         "accordion-down": {
@@ -83,6 +87,16 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        serif: ["Playfair Display", "serif"],
+        mono: ["monospace"],
+      },
+      fontSize: {
+        sm: "0.9rem",
+        md: "1.1rem",
+        lg: "1.3rem",
       },
     },
   },

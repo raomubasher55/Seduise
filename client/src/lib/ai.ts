@@ -13,6 +13,11 @@ export async function continueStory(storyId: number, continuationPrompt?: string
   return response.json();
 }
 
+export async function makeChoice(storyId: string, chapterNumber: number, choice: string): Promise<StoryWithAudio> {
+    const response = await apiRequest("POST", `/api/stories/${storyId}/chapters/${chapterNumber}/choice`, { choice });
+    return response.json();
+  }
+
 export async function getStorySuggestionsBySettings(settings: Partial<StoryGenerationParams["settings"]>): Promise<string[]> {
   const response = await apiRequest("POST", "/api/stories/suggestions", { settings });
   return response.json();
@@ -22,4 +27,3 @@ export async function getStoryTitleSuggestions(content: string): Promise<string[
   const response = await apiRequest("POST", "/api/stories/title-suggestions", { content });
   return response.json();
 }
- 

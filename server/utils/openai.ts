@@ -419,7 +419,38 @@ export async function generateTitleSuggestions(content: string): Promise<string[
   }
 }
 
-export async function continueStory(existingContent: string, settings: StoryGenerationOptions): Promise<string> {
+export async function generateChoices(chapterContent: string): Promise<{ text: string; outcome?: string }[]> {
+  try {
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.` },
+        { role: "user", content: `Current chapter ends with: ${chapterContent.slice(-500)}` },
+      ],
+      max_tokens: 150,
+      temperature: 0.7,
+    });
+
+    let responseText = response.choices[0].message.content || '[]';
+    responseText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '');
+
+    try {
+      const choices = JSON.parse(responseText);
+      if (Array.isArray(choices) && choices.every(c => typeof c.text === 'string')) {
+        return choices.slice(0, 3); // Ensure max 3 choices
+      }
+      return [];
+    } catch (jsonError) {
+      console.error("Error parsing choices JSON:", jsonError);
+      return [];
+    }
+  } catch (error) {
+    console.error("Error generating choices:", error);
+    return [];
+  }
+}
+
+export async function continueStory(existingContent: string, settings: StoryGenerationOptions, selectedChoice?: string): Promise<string> {
   try {
     const {
       timePeriod,
@@ -479,6 +510,8 @@ export async function continueStory(existingContent: string, settings: StoryGene
       ? `Love interest description: ${loveInterestDescription}` 
       : "";
 
+    const choicePrompt = selectedChoice ? `The user chose: "${selectedChoice}". Continue the story based on this choice.` : '';
+
     const systemPrompt = `You are an expert erotic fiction writer. Continue this story seamlessly from where it left off.
     
     CRITICAL INSTRUCTIONS:
@@ -506,6 +539,8 @@ export async function continueStory(existingContent: string, settings: StoryGene
     ${settingPrompt}
     ${protagonistPrompt}
     ${loveInterestPrompt}
+    
+    ${choicePrompt}
     
     Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
 

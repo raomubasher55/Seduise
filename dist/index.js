@@ -1641,7 +1641,35 @@ async function generateTitleSuggestions(content) {
     return ["Untitled Story", "Passionate Encounter", "Desire Awakened", "Night's Embrace", "Secret Liaison"];
   }
 }
-async function continueStory(existingContent, settings) {
+async function generateChoices(chapterContent) {
+  try {
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.` },
+        { role: "user", content: `Current chapter ends with: ${chapterContent.slice(-500)}` }
+      ],
+      max_tokens: 150,
+      temperature: 0.7
+    });
+    let responseText = response.choices[0].message.content || "[]";
+    responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
+    try {
+      const choices = JSON.parse(responseText);
+      if (Array.isArray(choices) && choices.every((c) => typeof c.text === "string")) {
+        return choices.slice(0, 3);
+      }
+      return [];
+    } catch (jsonError) {
+      console.error("Error parsing choices JSON:", jsonError);
+      return [];
+    }
+  } catch (error) {
+    console.error("Error generating choices:", error);
+    return [];
+  }
+}
+async function continueStory(existingContent, settings, selectedChoice) {
   try {
     const {
       timePeriod,
@@ -1677,6 +1705,7 @@ async function continueStory(existingContent, settings) {
     const settingPrompt = settingDescription ? `Setting description: ${settingDescription}` : "";
     const protagonistPrompt = protagonistDescription ? `Protagonist description: ${protagonistDescription}` : "";
     const loveInterestPrompt = loveInterestDescription ? `Love interest description: ${loveInterestDescription}` : "";
+    const choicePrompt = selectedChoice ? `The user chose: "${selectedChoice}". Continue the story based on this choice.` : "";
     const systemPrompt = `You are an expert erotic fiction writer. Continue this story seamlessly from where it left off.
     
     CRITICAL INSTRUCTIONS:
@@ -1704,6 +1733,8 @@ async function continueStory(existingContent, settings) {
     ${settingPrompt}
     ${protagonistPrompt}
     ${loveInterestPrompt}
+    
+    ${choicePrompt}
     
     Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
     const response = await novitaAI.chat.completions.create({
@@ -1740,7 +1771,7 @@ IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from
   }
 }
 
-// server/services/story.serverice.ts
+// server/services/story.service.ts
 var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance") => {
   const user = await User.findById(userId);
   if (!user) {
@@ -1839,7 +1870,7 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
   }
   return story;
 };
-var continueStoryService = async (id) => {
+var continueStoryService = async (id, selectedChoice) => {
   const story = await Story.findById(id);
   if (!story) {
     throw new Error("Story not found");
@@ -1865,7 +1896,8 @@ var continueStoryService = async (id) => {
     console.log(`Current content length: ${currentContent.length} characters`);
     const continuation = await continueStory(
       currentContent,
-      story.settings
+      story.settings,
+      selectedChoice
     );
     const nextChapterNumber = story.isChapterBased ? story.chapters.length + 1 : 2;
     let chapterTitle = `Chapter ${nextChapterNumber}`;
@@ -1876,6 +1908,12 @@ var continueStoryService = async (id) => {
     } catch (error) {
       console.error("Failed to generate chapter metadata, using defaults:", error);
     }
+    let choices = [];
+    try {
+      choices = await generateChoices(continuation);
+    } catch (error) {
+      console.error("Failed to generate choices for new chapter:", error);
+    }
     const newChapter = {
       number: nextChapterNumber,
       title: chapterTitle,
@@ -1883,7 +1921,9 @@ var continueStoryService = async (id) => {
       summary: chapterSummary,
       createdAt: /* @__PURE__ */ new Date(),
       wordCount: continuation.split(" ").length,
-      creditsCost: CONTINUATION_COST
+      creditsCost: CONTINUATION_COST,
+      choices
+      // Add generated choices to the new chapter
     };
     if (story.isChapterBased) {
       story.chapters.push(newChapter);
@@ -1974,6 +2014,11 @@ var userSchema2 = z.object({
   authProvider: z.enum(["local", "google"]).default("local")
 });
 var insertUserSchema = userSchema2.omit({ id: true });
+var choiceSchema = z.object({
+  text: z.string(),
+  outcome: z.string().optional()
+  // Outcome can be a prompt for the next chapter or a reference
+});
 var chapterSchema2 = z.object({
   number: z.number(),
   title: z.string(),
@@ -1982,7 +2027,9 @@ var chapterSchema2 = z.object({
   audioUrl: z.string().optional(),
   createdAt: z.date().optional(),
   wordCount: z.number().optional(),
-  creditsCost: z.number().default(1)
+  creditsCost: z.number().default(1),
+  choices: z.array(choiceSchema).optional()
+  // Add choices to chapter schema
 });
 var storySchema2 = z.object({
   _id: z.string(),
@@ -2340,6 +2387,7 @@ var getStoryAudio = async (req, res) => {
 var continueStory2 = async (req, res) => {
   try {
     const { id } = req.params;
+    const { selectedChoice } = req.body;
     const userId = req.session.userId;
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
@@ -2368,7 +2416,7 @@ var continueStory2 = async (req, res) => {
         });
       }
     }
-    const continuedStory = await continueStoryService(id);
+    const continuedStory = await continueStoryService(id, selectedChoice);
     await trackChapterGeneration(userId);
     res.status(200).json(continuedStory);
   } catch (error) {
@@ -2468,6 +2516,24 @@ var getStoryChapter = async (req, res) => {
   } catch (error) {
     console.error("Error getting story chapter:", error);
     res.status(500).json({ message: "Failed to get story chapter" });
+  }
+};
+var getChapterChoices = async (req, res) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    const chapterNum = parseInt(chapterNumber);
+    const chapter = story.chapters.find((ch) => ch.number === chapterNum);
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+    res.status(200).json({ choices: chapter.choices || [] });
+  } catch (error) {
+    console.error("Error getting chapter choices:", error);
+    res.status(500).json({ message: "Failed to get chapter choices" });
   }
 };
 
@@ -2751,6 +2817,8 @@ router2.route("/:id/continue").post(authMiddleware, continueStory2);
 router2.route("/:id/audio").get(getStoryAudio);
 router2.route("/:id/chapters").get(getStoryChapters);
 router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
+router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
+router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
 router2.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
