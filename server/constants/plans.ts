@@ -76,26 +76,6 @@ export const SUBSCRIPTION_PLANS = {
       "Access to beta features"
     ],
     supportsCredits: true
-  },
-  pro: {
-    name: "Pro",
-    description: "Professional storytelling experience",
-    price: 1499, // €14.99/month (in cents)
-    monthlyLimits: {
-      stories: 30,
-      chapters: 150,
-      audioMinutes: 18
-    },
-    features: [
-      "Create up to 30 stories per month",
-      "Generate up to 150 chapters",
-      "18-minute audio narration maximum",
-      "All premium voices",
-      "Premium gallery access",
-      "Priority support",
-      "Early access to new features"
-    ],
-    supportsCredits: true
   }
 };
 

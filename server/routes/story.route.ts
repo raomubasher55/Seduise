@@ -305,6 +305,52 @@ router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory);
 
+// Get all premium stories (only for premium users)
+router.get("/premium-stories", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const user = await User.findById(userId);
+
+    if (!user || !user.isPremium) {
+      return res.status(403).json({ message: "Access denied. Premium subscription required." });
+    }
+
+    const premiumStories = await Story.find({ isPremiumContent: true })
+      .sort({ createdAt: -1 })
+      .limit(20); // Limit to 20 premium stories
+
+    // Populate user names for each story
+    const storiesWithUserNames = await Promise.all(
+      premiumStories.map(async (story) => {
+        try {
+          if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+            const author = await User.findById(story.userId);
+            return {
+              ...story.toObject(),
+              userName: author ? author.name : "Anonymous"
+            };
+          } else {
+            return {
+              ...story.toObject(),
+              userName: "Anonymous"
+            };
+          }
+        } catch (err) {
+          return {
+            ...story.toObject(),
+            userName: "Anonymous"
+          };
+        }
+      })
+    );
+
+    res.json(storiesWithUserNames);
+  } catch (error) {
+    console.error("Error fetching premium stories:", error);
+    res.status(500).json({ message: "Failed to fetch premium stories" });
+  }
+});
+
 // Toggle story visibility
 router.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {

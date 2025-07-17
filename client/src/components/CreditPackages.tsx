@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CoinsIcon, TrendingUpIcon, SparklesIcon } from 'lucide-react';
+import { CoinsIcon, TrendingUpIcon, SparklesIcon, Check } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 
 interface CreditPackage {
@@ -15,6 +15,7 @@ interface CreditPackage {
   popular?: boolean;
   bestValue?: boolean;
   description: string;
+  features: string[];
 }
 
 interface CreditPackagesProps {
@@ -27,7 +28,12 @@ const packages: CreditPackage[] = [
     name: 'Starter',
     credits: 20,
     price: 4.99,
-    description: 'Ideal for casual users who want to create a few stories'
+    description: 'Ideal for casual users who want to create a few stories',
+    features: [
+      'Access to basic story generation',
+      'Standard audio narration',
+      'Limited story customization',
+    ]
   },
   {
     id: 'popular',
@@ -35,15 +41,28 @@ const packages: CreditPackage[] = [
     credits: 50,
     price: 9.99,
     popular: true,
-    description: 'Our most popular option for regular storytellers'
+    description: 'Our most popular option for regular storytellers',
+    features: [
+      'All Starter features',
+      'Enhanced story generation',
+      'Improved audio quality',
+      'More customization options',
+    ]
   },
   {
     id: 'premium',
     name: 'Premium',
-    credits: 100,
+        credits: 100,
     price: 21.99,
     bestValue: true,
-    description: 'Best value for dedicated story creators'
+    description: 'Best value for dedicated story creators',
+    features: [
+      'All Popular features',
+      'Priority story generation',
+      'Premium voice selection',
+      'Advanced customization tools',
+      'Early access to new features',
+    ]
   }
 ];
 
@@ -184,18 +203,12 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
               </div>
               
               <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
-                  <span>Create new stories</span>
-                </li>
-                {/* <li className="flex items-center gap-2">
-                  <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
-                  <span>Generate chapters</span>
-                </li> */}
-                <li className="flex items-center gap-2">
-                  <span className="bg-primary/20 text-primary rounded-full p-1 text-xs">✓</span>
-                  <span>Create audio narrations</span>
-                </li>
+                {pkg.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
             </CardContent>
             
@@ -215,6 +228,34 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
           </Card>
         );
       })}
+      {isPremium && (
+        <Card className="md:col-span-3 bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-6 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold">Premium Benefits Unlocked!</CardTitle>
+            <CardDescription className="text-purple-200">As a premium subscriber, you enjoy exclusive advantages:</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-lg">
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-300" />
+                <span>Access to Exclusive Premium Content</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-300" />
+                <span>Entry to the Premium Story Gallery</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-300" />
+                <span>Priority Support & Early Feature Access</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-300" />
+                <span>Discounted Rates on All Credit Packages</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

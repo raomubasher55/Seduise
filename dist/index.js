@@ -137,27 +137,6 @@ var init_plans = __esm({
           "Access to beta features"
         ],
         supportsCredits: true
-      },
-      pro: {
-        name: "Pro",
-        description: "Professional storytelling experience",
-        price: 1499,
-        // €14.99/month (in cents)
-        monthlyLimits: {
-          stories: 30,
-          chapters: 150,
-          audioMinutes: 18
-        },
-        features: [
-          "Create up to 30 stories per month",
-          "Generate up to 150 chapters",
-          "18-minute audio narration maximum",
-          "All premium voices",
-          "Premium gallery access",
-          "Priority support",
-          "Early access to new features"
-        ],
-        supportsCredits: true
       }
     };
     CREDIT_PACKAGES = {
@@ -990,8 +969,9 @@ var elevenlabs = new ElevenLabsService();
 import path3 from "path";
 import fs3 from "fs";
 
-// server/routes/auth.route.ts
-import { Router } from "express";
+// server/middlewares/auth.middleware.ts
+import jwt2 from "jsonwebtoken";
+import dotenv3 from "dotenv";
 
 // server/models/user.model.ts
 import { Schema, model } from "mongoose";
@@ -1054,6 +1034,84 @@ userSchema.methods.toJSON = function() {
   return user;
 };
 var User = model("User", userSchema);
+
+// server/middlewares/auth.middleware.ts
+dotenv3.config();
+var JWT_SECRET2 = process.env.JWT_SECRET || "story_app_super_secret_key_for_tokens_2025";
+var authMiddleware = (req, res, next) => {
+  if (req.session.userId) {
+    return next();
+  }
+  const token = req.headers.authorization?.split(" ")[1];
+  console.log("Token from header:", token);
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  try {
+    const jwtSecret = JWT_SECRET2;
+    const decoded = jwt2.verify(token, jwtSecret);
+    if (!decoded) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    console.log("Decoded JWT:", decoded);
+    req.session.userId = decoded.id;
+    req.session.token = token;
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      next();
+    });
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+var isAuthenticated = (req, res, next) => {
+  if (req.session.userId) {
+    return next();
+  }
+  res.status(401).json({ message: "Not authenticated" });
+};
+var isAdmin = async (req, res, next) => {
+  try {
+    let userId;
+    let role;
+    if (req.session?.userId) {
+      userId = req.session.userId;
+      role = req.session.role;
+    } else if (req.headers.authorization?.startsWith("Bearer ")) {
+      const token = req.headers.authorization.split(" ")[1];
+      const jwtSecret = JWT_SECRET2;
+      const decoded = jwt2.verify(token, jwtSecret);
+      userId = decoded.id || decoded.userId;
+      role = decoded.role;
+    } else {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    if (role === "admin") {
+      return next();
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    if (req.session && !req.session.role) {
+      req.session.role = user.role;
+    }
+    if (user.role === "admin") {
+      return next();
+    }
+    return res.status(403).json({ message: "Forbidden - Admin access required" });
+  } catch (error) {
+    console.error("Error in isAdmin middleware:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// server/routes/auth.route.ts
+import { Router } from "express";
 
 // server/services/auth.service.ts
 var login = async (email, password) => {
@@ -1170,77 +1228,6 @@ var googleCallback = (req, res) => {
   } catch (error) {
     console.error("Google auth callback error:", error);
     res.redirect("/?error=google-auth-failed");
-  }
-};
-
-// server/middlewares/auth.middleware.ts
-import jwt2 from "jsonwebtoken";
-import dotenv3 from "dotenv";
-dotenv3.config();
-var JWT_SECRET2 = process.env.JWT_SECRET || "story_app_super_secret_key_for_tokens_2025";
-var authMiddleware = (req, res, next) => {
-  if (req.session.userId) {
-    return next();
-  }
-  const token = req.headers.authorization?.split(" ")[1];
-  console.log("Token from header:", token);
-  if (!token) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  try {
-    const jwtSecret = JWT_SECRET2;
-    const decoded = jwt2.verify(token, jwtSecret);
-    if (!decoded) {
-      return res.status(401).json({ message: "Invalid token" });
-    }
-    console.log("Decoded JWT:", decoded);
-    req.session.userId = decoded.id;
-    req.session.token = token;
-    req.session.save((err) => {
-      if (err) {
-        console.error("Error saving session:", err);
-        return res.status(500).json({ message: "Error saving session" });
-      }
-      next();
-    });
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return res.status(401).json({ message: "Invalid token" });
-  }
-};
-var isAdmin = async (req, res, next) => {
-  try {
-    let userId;
-    let role;
-    if (req.session?.userId) {
-      userId = req.session.userId;
-      role = req.session.role;
-    } else if (req.headers.authorization?.startsWith("Bearer ")) {
-      const token = req.headers.authorization.split(" ")[1];
-      const jwtSecret = JWT_SECRET2;
-      const decoded = jwt2.verify(token, jwtSecret);
-      userId = decoded.id || decoded.userId;
-      role = decoded.role;
-    } else {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    if (role === "admin") {
-      return next();
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
-    if (req.session && !req.session.role) {
-      req.session.role = user.role;
-    }
-    if (user.role === "admin") {
-      return next();
-    }
-    return res.status(403).json({ message: "Forbidden - Admin access required" });
-  } catch (error) {
-    console.error("Error in isAdmin middleware:", error);
-    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -1371,7 +1358,8 @@ var storySchema = new Schema2({
   chapters: { type: [chapterSchema], default: [] },
   currentChapter: { type: Number, default: 1 },
   totalChapters: { type: Number, default: 1 },
-  isChapterBased: { type: Boolean, default: false }
+  isChapterBased: { type: Boolean, default: false },
+  isPremiumContent: { type: Boolean, default: false }
 }, { timestamps: true });
 storySchema.index({ id: 1 }, { unique: false });
 var Story = model2("Story", storySchema);
@@ -2110,6 +2098,21 @@ async function trackChapterGeneration(userId) {
   }
   await user.save();
 }
+async function trackAudioGeneration(userId, audioLengthMinutes) {
+  const user = await User.findById(userId);
+  if (!user) return;
+  if (!user.usageThisMonth) {
+    user.usageThisMonth = {
+      storiesGenerated: 0,
+      chaptersGenerated: 0,
+      audioMinutesUsed: audioLengthMinutes,
+      lastResetDate: /* @__PURE__ */ new Date()
+    };
+  } else {
+    user.usageThisMonth.audioMinutesUsed += audioLengthMinutes;
+  }
+  await user.save();
+}
 async function canPerformAction(userId, actionType, params) {
   const user = await User.findById(userId);
   if (!user) {
@@ -2819,6 +2822,43 @@ router2.route("/:id/chapters").get(getStoryChapters);
 router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
+router2.get("/premium-stories", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const user = await User.findById(userId);
+    if (!user || !user.isPremium) {
+      return res.status(403).json({ message: "Access denied. Premium subscription required." });
+    }
+    const premiumStories = await Story.find({ isPremiumContent: true }).sort({ createdAt: -1 }).limit(20);
+    const storiesWithUserNames = await Promise.all(
+      premiumStories.map(async (story) => {
+        try {
+          if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+            const author = await User.findById(story.userId);
+            return {
+              ...story.toObject(),
+              userName: author ? author.name : "Anonymous"
+            };
+          } else {
+            return {
+              ...story.toObject(),
+              userName: "Anonymous"
+            };
+          }
+        } catch (err) {
+          return {
+            ...story.toObject(),
+            userName: "Anonymous"
+          };
+        }
+      })
+    );
+    res.json(storiesWithUserNames);
+  } catch (error) {
+    console.error("Error fetching premium stories:", error);
+    res.status(500).json({ message: "Failed to fetch premium stories" });
+  }
+});
 router2.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -3728,7 +3768,12 @@ async function registerRoutes(app2) {
       </html>
     `);
   });
-  app2.post("/api/speech/generate", async (req, res) => {
+  app2.post("/api/speech/generate", isAuthenticated, async (req, res) => {
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+    let creditsDeducted = 0;
     try {
       const { text, voiceId, storyId } = z4.object({
         text: z4.string(),
@@ -3743,35 +3788,51 @@ async function registerRoutes(app2) {
           error: "Invalid text content"
         });
       }
-      let processedVoiceId = voiceId;
-      if (voiceId === "George") {
-        console.log("Explicitly mapping George to Adam's deep male voice");
-        processedVoiceId = "VR6AewLTigWG4xSOukaG";
-      } else if (voiceId === "Charlie") {
-        console.log("Explicitly mapping Charlie to Charlie's male voice");
-        processedVoiceId = "IKne3meq5aSn9XLyUdCD";
-      } else if (voiceId === "Will") {
-        console.log("Explicitly mapping Will to Will's male voice");
-        processedVoiceId = "bIHbv24MWmeRgasZH58o";
-      }
-      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
-      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
       let processedText = text;
       if (text.match(/^\s*title:\s*[^,\n]+,\s*content:/i)) {
         const contentMatch = text.match(/content:\s*([\s\S]+)$/i);
         if (contentMatch && contentMatch[1]) {
           processedText = contentMatch[1].trim();
-          console.log("Extracted content from metadata format");
         }
       }
       processedText = processedText.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\n{3,}/g, "\n\n").replace(/\s{3,}/g, " ").trim();
+      const estimatedAudioLengthMinutes = Math.ceil(processedText.length / 750);
+      const actionCheck = await canPerformAction(userId, "generateAudio", { audioLengthMinutes: estimatedAudioLengthMinutes });
+      if (!actionCheck.canProceed) {
+        return res.status(actionCheck.subscriptionLimitReached ? 403 : 402).json({
+          message: actionCheck.message || "You've reached your audio generation limit",
+          code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
+          requiredCredits: actionCheck.requiredCredits,
+          currentCredits: actionCheck.currentCredits,
+          isPremiumRequired: actionCheck.subscriptionLimitReached
+        });
+      }
+      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+        const deducted = await deductCredits(userId, actionCheck.requiredCredits);
+        if (!deducted) {
+          return res.status(402).json({
+            message: "Failed to deduct credits for audio generation",
+            code: "PAYMENT_REQUIRED"
+          });
+        }
+        creditsDeducted = actionCheck.requiredCredits;
+      }
+      let processedVoiceId = voiceId;
+      if (voiceId === "George") {
+        processedVoiceId = "VR6AewLTigWG4xSOukaG";
+      } else if (voiceId === "Charlie") {
+        processedVoiceId = "IKne3meq5aSn9XLyUdCD";
+      } else if (voiceId === "Will") {
+        processedVoiceId = "bIHbv24MWmeRgasZH58o";
+      }
+      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
+      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
       console.log(`Processed text length: ${processedText.length} characters`);
       if (processedText.length > 4800) {
         console.log(`Warning: Text is very long (${processedText.length} chars), may be truncated by ElevenLabs API`);
       }
       try {
         if (!process.env.ELEVENLABS_API_KEY) {
-          console.warn("No ElevenLabs API key provided. Will attempt to generate speech but may fail.");
           return res.status(401).json({
             message: "ElevenLabs API key is required for voice generation",
             error: "No API key configured",
@@ -3788,52 +3849,36 @@ async function registerRoutes(app2) {
         console.log(`Generated audio URL: ${audioUrl}`);
         const filePath = path3.join(process.cwd(), "dist", "public", audioUrl.replace(/^\//, ""));
         if (!fs3.existsSync(filePath)) {
-          console.error(`Generated audio file not found at path: ${filePath}`);
-          return res.status(500).json({
-            message: "Generated audio file not found",
-            error: "File generation failed"
-          });
+          throw new Error("Generated audio file not found");
         }
         const fileStats = fs3.statSync(filePath);
         const fileSize = fileStats.size;
-        console.log(`Generated audio file size: ${fileSize} bytes`);
         const fileSizeInKB = fileSize / 1024;
         const isFallback = fileSizeInKB < 1;
-        console.log(`The file size is ${fileSizeInKB} KB`);
-        console.log(`The isFallback is ${isFallback}`);
         if (storyId && !isFallback) {
-          try {
-            if (mongoose.Types.ObjectId.isValid(storyId)) {
-              const story = await Story.findById(storyId);
-              if (story) {
-                story.audioUrl = audioUrl;
-                await story.save();
-                console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
-              } else {
-                console.log(`Story with ID ${storyId} not found in MongoDB`);
-              }
-              try {
-                await storage.saveStoryAudio(storyId, audioUrl);
-                console.log(`Saved audio URL to story ${storyId} in storage: ${audioUrl}`);
-              } catch (storageError) {
-                console.error(`Failed to save audio URL to storage: ${storageError}`);
-              }
+          if (mongoose.Types.ObjectId.isValid(storyId)) {
+            const story = await Story.findById(storyId);
+            if (story) {
+              story.audioUrl = audioUrl;
+              await story.save();
+              console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
             } else {
-              console.warn(`Invalid MongoDB ObjectId: "${storyId}". Not updating database.`);
+              console.log(`Story with ID ${storyId} not found in MongoDB`);
             }
-          } catch (dbError) {
-            console.error(`Error updating story in database: ${dbError}`);
           }
-        } else if (isFallback) {
-          console.log(`Fallback audio file generated for story ${storyId}`);
         }
+        await trackAudioGeneration(userId, estimatedAudioLengthMinutes);
         res.json({
           audioUrl,
           fallback: isFallback,
           message: isFallback ? "Generated a fallback audio file. The text may be too complex or long for the TTS service." : void 0
         });
       } catch (error) {
-        console.error("ElevenLabs API error:", error);
+        console.error("ElevenLabs API error during generation:", error);
+        if (creditsDeducted > 0) {
+          await deductCredits(userId, -creditsDeducted);
+          console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to audio generation failure.`);
+        }
         if (error instanceof Error && (error.message.includes("401") || error.message.includes("Unauthorized") || error.message.includes("api-key") || error.message.includes("authentication"))) {
           return res.status(401).json({
             message: "Speech generation failed due to API authentication issues",
@@ -3843,12 +3888,16 @@ async function registerRoutes(app2) {
         }
         res.status(500).json({
           message: "Speech generation failed",
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: error.message || "Unknown error",
           fallback: true
         });
       }
     } catch (error) {
-      console.error("Error generating speech:", error);
+      console.error("Error in speech generation request parsing/initial checks:", error);
+      if (creditsDeducted > 0) {
+        await deductCredits(userId, -creditsDeducted);
+        console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to pre-API generation failure.`);
+      }
       if (error instanceof Error) {
         res.status(500).json({
           message: "Failed to generate speech",

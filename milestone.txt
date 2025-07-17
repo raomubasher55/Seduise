@@ -24,7 +24,7 @@ Budget: $30
 Time: Week 4
 
 Milestone 4: Credits and Subscription Plans Management
-•	• Implement a credit system to generate chapters or enable audio
+•	• Implemente audio
 •	• Allow users to buy additional credits once their monthly quota is used up
 •	• Tiered subscription plans:
 •	•   - Free: up to 3 chapters / no audio

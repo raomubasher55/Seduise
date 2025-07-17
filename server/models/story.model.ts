@@ -28,7 +28,8 @@ const storySchema = new Schema({
   chapters: { type: [chapterSchema], default: [] },
   currentChapter: { type: Number, default: 1 },
   totalChapters: { type: Number, default: 1 },
-  isChapterBased: { type: Boolean, default: false }
+  isChapterBased: { type: Boolean, default: false },
+  isPremiumContent: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Remove any existing indexes on the id field

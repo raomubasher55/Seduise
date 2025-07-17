@@ -1,10 +1,47 @@
-[plugin:runtime-error-plugin] Cannot access 'story' before initialization
-D:/Seduise/client/src/pages/StoryReader.tsx:38:16
-36 |    const { data: choicesData, isLoading: isLoadingChoices } = useQuery({
-37 |      queryKey: [`/api/stories/${storyId}/chapters/${currentChapterNum}/choices`],
-38 |      enabled: !!story && !!currentChapterNum, // Only fetch if story and currentChapterNum are available
-   |                 ^
-39 |    });
-40 |
-    at StoryReader D:/Seduise/client/src/pages/StoryReader.tsx:38:16
-Click outside, press Esc key, or fix the code to dismiss.
+Starter
+Ideal for casual users who want to create a few stories
+
+20
+credits
+$4.24$4.99
+15% Premium discount applied
+
+~$0.21 per credit
+
+✓
+Create new stories
+✓
+Create audio narrations
+Purchase Credits
+Most Popular
+Popular
+Our most popular option for regular storytellers
+
+50
+credits
+$8.49$9.99
+15% Premium discount applied
+
+~$0.17 per credit
+
+✓
+Create new stories
+✓
+Create audio narrations
+Purchase Credits
+Best Value
+Premium
+Best value for dedicated story creators
+
+100
+credits
+$18.69$21.99
+15% Premium discount applied
+
+~$0.19 per credit
+
+✓
+Create new stories
+✓
+Create audio narrations
+Purchase Credits
