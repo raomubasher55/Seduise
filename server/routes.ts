@@ -197,6 +197,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
+    // Fetch user to check subscription plan
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Explicitly block audio generation for free users
+    if (user.subscription === 'free') {
+      return res.status(403).json({
+        message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
+        code: "PREMIUM_REQUIRED"
+      });
+    }
+
     let creditsDeducted = 0; // Track credits deducted for potential refund
 
     try {

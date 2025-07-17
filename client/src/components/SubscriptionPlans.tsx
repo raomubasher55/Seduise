@@ -33,92 +33,66 @@ const plans: SubscriptionPlan[] = [
     id: 'free',
     name: 'Free',
     price: 0,
-    description: 'Basic access to our story generation platform',
+    description: 'Basic access with limited features',
     features: {
       included: [
-        'Generate up to 4 stories per month',
-        'Basic voice narration',
-        'Standard story customization',
+        'Up to 3 chapters',
+        'Basic story customization',
       ],
       excluded: [
+        'Audio narration',
         'Premium voices',
-        'Priority generation',
-        'Advanced customization options'
+        'Exclusive content',
       ]
     },
     limits: {
-      storiesPerMonth: 4,
-      chaptersPerMonth: 12,
-      audioMinutes: 3
+      storiesPerMonth: 0, // Free tier doesn't generate stories directly
+      chaptersPerMonth: 3,
+      audioMinutes: 0
     }
   },
   {
-    id: 'essential',
-    name: 'Essential',
-    price: 4.99,
-    description: 'Enhanced story experience with more options',
+    id: 'standard',
+    name: 'Standard',
+    price: 4.00,
+    description: 'Enhanced storytelling experience',
     features: {
       included: [
-        'Generate up to 10 stories per month',
-        'Improved voice narration',
+        'Up to 5 chapters',
+        'Limited audio narration',
         'Enhanced story customization',
-        'Priority generation queue'
       ],
       excluded: [
         'Premium voices',
-        'Exclusive themes'
+        'Exclusive content',
       ]
     },
     limits: {
-      storiesPerMonth: 10,
-      chaptersPerMonth: 50,
-      audioMinutes: 10
+      storiesPerMonth: 0, // Standard tier doesn't generate stories directly
+      chaptersPerMonth: 5,
+      audioMinutes: 5 // Example: 5 minutes of audio
     }
   },
   {
-    id: 'passion',
-    name: 'Passion',
-    price: 9.99,
+    id: 'premium',
+    name: 'Premium',
+    price: 22.00,
     popular: true,
-    description: 'Our most popular plan with premium features',
+    description: 'Ultimate storytelling experience',
     features: {
       included: [
-        'Generate up to 20 stories per month',
-        'Premium voice selection',
-        'Advanced story customization',
-        'Exclusive story themes',
-        'Priority support'
-      ],
-      excluded: [
-        'Unlimited audio narration'
-      ]
-    },
-    limits: {
-      storiesPerMonth: 20,
-      chaptersPerMonth: 100,
-      audioMinutes: 15
-    }
-  },
-  {
-    id: 'escape',
-    name: 'Escape',
-    price: 19.99,
-    description: 'Unlimited access to all premium features',
-    features: {
-      included: [
-        'Generate up to 40 stories per month',
+        'Up to 10 chapters',
+        'Full audio narration',
+        'Exclusive content access',
         'All premium voices',
-        'Complete customization options',
-        'VIP support',
-        'Early access to new features',
-        'Exclusive content'
+        'Priority support',
       ],
       excluded: []
     },
     limits: {
-      storiesPerMonth: 40,
-      chaptersPerMonth: 200,
-      audioMinutes: 20
+      storiesPerMonth: 0, // Premium tier doesn't generate stories directly
+      chaptersPerMonth: 10,
+      audioMinutes: 20 // Example: 20 minutes of audio
     }
   }
 ];

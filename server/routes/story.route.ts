@@ -124,7 +124,13 @@ router.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 // Get all public stories
 router.get("/public", async (req, res) => {
   try {
-    const publicStories = await Story.find({ isPublic: true })
+    const currentDate = new Date();
+    const publicStories = await Story.find({
+      $or: [
+        { accessType: 'public' },
+        { accessType: 'premium_early_access', publicReleaseDate: { $lte: currentDate } }
+      ]
+    })
       .sort({ createdAt: -1 })
       .limit(12);
       
@@ -315,7 +321,11 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Access denied. Premium subscription required." });
     }
 
-    const premiumStories = await Story.find({ isPremiumContent: true })
+    const currentDate = new Date();
+    const premiumStories = await Story.find({
+      accessType: { $in: ['premium_early_access', 'premium_exclusive'] },
+      premiumAccessDate: { $lte: currentDate }
+    })
       .sort({ createdAt: -1 })
       .limit(20); // Limit to 20 premium stories
 

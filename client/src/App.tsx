@@ -82,6 +82,12 @@ function App() {
                 </ProtectedRoute>
               </Route>
 
+              <Route path="/premium-gallery">
+                <ProtectedRoute premiumOnly={true}>
+                  <PremiumGallery />
+                </ProtectedRoute>
+              </Route>
+
               <Route path="/edit/:id">
                 {(params) => (
                   <ProtectedRoute>

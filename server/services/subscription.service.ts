@@ -106,6 +106,15 @@ export async function canPerformAction(
 
   // Get subscription limits
   const subscriptionType = user.subscription as keyof typeof SUBSCRIPTION_PLANS;
+
+  // Explicitly prevent audio generation for free users
+  if (actionType === 'generateAudio' && subscriptionType === 'free') {
+    return {
+      canProceed: false,
+      message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
+      subscriptionLimitReached: true
+    };
+  }
   
   // Check if the user has reached their subscription limits
   let limitReached = false;

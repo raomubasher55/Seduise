@@ -17,7 +17,7 @@ const userSchema = new Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   subscription: { 
     type: String, 
-    enum: ["free", "essential", "passion", "escape", "pro"], 
+    enum: ["free", "standard", "premium"], 
     default: "free" 
   },
   isPremium: { type: Boolean, default: false }, // True for any paid plan

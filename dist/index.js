@@ -63,78 +63,56 @@ var init_plans = __esm({
         price: 0,
         // Free tier
         monthlyLimits: {
-          stories: 4,
-          chapters: 12,
-          audioMinutes: 3
+          stories: 0,
+          // Free tier doesn't generate stories directly
+          chapters: 3,
+          audioMinutes: 0
         },
         features: [
-          "Create up to 4 stories per month",
-          "Generate up to 12 chapters",
-          "3-minute audio narration maximum",
-          "Basic voices selection",
-          "Standard response time"
+          "Up to 3 chapters",
+          "No Audio Generation",
+          "Basic story customization"
         ],
         supportsCredits: true
       },
-      essential: {
-        name: "Essential",
+      standard: {
+        name: "Standard",
         description: "Enhanced storytelling experience",
-        price: 499,
-        // €4.99/month (in cents)
+        price: 400,
+        // $4.00/month (in cents)
         monthlyLimits: {
-          stories: 10,
-          chapters: 50,
-          audioMinutes: 10
+          stories: 0,
+          // Standard tier doesn't generate stories directly
+          chapters: 5,
+          audioMinutes: 5
+          // Limited audio (e.g., 5 minutes) 
         },
         features: [
-          "Create up to 10 stories per month",
-          "Generate up to 50 chapters",
-          "10-minute audio narration maximum",
-          "Enhanced voice selection",
-          "Faster response time",
-          "Ad-free experience"
+          "Up to 5 chapters",
+          "Limited audio narration",
+          "Enhanced story customization"
         ],
         supportsCredits: true
       },
-      passion: {
-        name: "Passion",
-        description: "Premium storytelling for enthusiasts",
-        price: 999,
-        // €9.99/month (in cents)
+      premium: {
+        name: "Premium",
+        description: "Ultimate storytelling experience",
+        price: 2200,
+        // $22.00/month (in cents)
         monthlyLimits: {
-          stories: 20,
-          chapters: 100,
-          audioMinutes: 15
+          stories: 0,
+          // Premium tier doesn't generate stories directly
+          chapters: 10,
+          audioMinutes: 20
+          // Full audio (e.g., 20 minutes)
         },
         features: [
-          "Create up to 20 stories per month",
-          "Generate up to 100 chapters",
-          "15-minute audio narration maximum",
-          "Premium voices access",
-          "Premium gallery access",
+          "Up to 10 chapters",
+          "Full audio narration",
+          "Exclusive content access",
+          "All premium voices",
           "Priority support",
           "Early access to new features"
-        ],
-        supportsCredits: true
-      },
-      escape: {
-        name: "Escape",
-        description: "Ultimate storytelling experience",
-        price: 1999,
-        // €19.99/month (in cents)
-        monthlyLimits: {
-          stories: 40,
-          chapters: 200,
-          audioMinutes: 20
-        },
-        features: [
-          "Create up to 40 stories per month",
-          "Generate up to 200 chapters",
-          "20-minute audio narration maximum",
-          "All premium voices",
-          "Exclusive premium content",
-          "VIP support",
-          "Access to beta features"
         ],
         supportsCredits: true
       }
@@ -990,7 +968,7 @@ var userSchema = new Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   subscription: {
     type: String,
-    enum: ["free", "essential", "passion", "escape", "pro"],
+    enum: ["free", "standard", "premium"],
     default: "free"
   },
   isPremium: { type: Boolean, default: false },
@@ -1359,7 +1337,14 @@ var storySchema = new Schema2({
   currentChapter: { type: Number, default: 1 },
   totalChapters: { type: Number, default: 1 },
   isChapterBased: { type: Boolean, default: false },
-  isPremiumContent: { type: Boolean, default: false }
+  isPremiumContent: { type: Boolean, default: false },
+  accessType: {
+    type: String,
+    enum: ["public", "premium_early_access", "premium_exclusive"],
+    default: "public"
+  },
+  premiumAccessDate: { type: Date },
+  publicReleaseDate: { type: Date }
 }, { timestamps: true });
 storySchema.index({ id: 1 }, { unique: false });
 var Story = model2("Story", storySchema);
@@ -2038,7 +2023,11 @@ var storySchema2 = z.object({
   chapters: z.array(chapterSchema2).default([]),
   currentChapter: z.number().default(1),
   totalChapters: z.number().default(1),
-  isChapterBased: z.boolean().default(false)
+  isChapterBased: z.boolean().default(false),
+  isPremiumContent: z.boolean().default(false),
+  accessType: z.enum(["public", "premium_early_access", "premium_exclusive"]).default("public"),
+  premiumAccessDate: z.date().optional(),
+  publicReleaseDate: z.date().optional()
 });
 var insertStorySchema = storySchema2.omit({ _id: true });
 var commentSchema = z.object({
@@ -2132,6 +2121,13 @@ async function canPerformAction(userId, actionType, params) {
   }
   await checkAndResetMonthlyUsage(user);
   const subscriptionType = user.subscription;
+  if (actionType === "generateAudio" && subscriptionType === "free") {
+    return {
+      canProceed: false,
+      message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
+      subscriptionLimitReached: true
+    };
+  }
   let limitReached = false;
   let limitType = "";
   const usage = user.usageThisMonth || {
@@ -2668,7 +2664,13 @@ router2.route("/generate").post(authMiddleware, createStory2);
 router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 router2.get("/public", async (req, res) => {
   try {
-    const publicStories = await Story.find({ isPublic: true }).sort({ createdAt: -1 }).limit(12);
+    const currentDate = /* @__PURE__ */ new Date();
+    const publicStories = await Story.find({
+      $or: [
+        { accessType: "public" },
+        { accessType: "premium_early_access", publicReleaseDate: { $lte: currentDate } }
+      ]
+    }).sort({ createdAt: -1 }).limit(12);
     const storiesWithUserNames = await Promise.all(
       publicStories.map(async (story) => {
         try {
@@ -2829,7 +2831,11 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
     if (!user || !user.isPremium) {
       return res.status(403).json({ message: "Access denied. Premium subscription required." });
     }
-    const premiumStories = await Story.find({ isPremiumContent: true }).sort({ createdAt: -1 }).limit(20);
+    const currentDate = /* @__PURE__ */ new Date();
+    const premiumStories = await Story.find({
+      accessType: { $in: ["premium_early_access", "premium_exclusive"] },
+      premiumAccessDate: { $lte: currentDate }
+    }).sort({ createdAt: -1 }).limit(20);
     const storiesWithUserNames = await Promise.all(
       premiumStories.map(async (story) => {
         try {
@@ -3120,7 +3126,7 @@ router5.post("/create-checkout-session", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     const schema = z3.object({
-      plan: z3.enum(["essential", "passion", "escape"]).default("passion")
+      plan: z3.enum(["standard", "premium"]).default("standard")
     });
     const { plan } = schema.parse(req.body);
     const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS3 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
@@ -3165,9 +3171,9 @@ router5.get("/success", async (req, res) => {
     if (!session_id || typeof session_id !== "string") {
       return res.status(400).json({ success: false, message: "Invalid session ID" });
     }
-    const subscriptionPlan = typeof plan === "string" ? plan : "passion";
+    const subscriptionPlan = typeof plan === "string" ? plan : "standard";
     const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS3 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    if (!["essential", "passion", "escape"].includes(subscriptionPlan)) {
+    if (!["standard", "premium"].includes(subscriptionPlan)) {
       return res.status(400).json({ success: false, message: "Invalid subscription plan" });
     }
     try {
@@ -3182,17 +3188,14 @@ router5.get("/success", async (req, res) => {
             user.subscription = purchasedPlan;
             let creditsToAdd = 0;
             switch (purchasedPlan) {
-              case "essential":
-                creditsToAdd = 100;
+              case "standard":
+                creditsToAdd = 50;
                 break;
-              case "passion":
+              case "premium":
                 creditsToAdd = 200;
                 break;
-              case "escape":
-                creditsToAdd = 400;
-                break;
               default:
-                creditsToAdd = 100;
+                creditsToAdd = 0;
             }
             user.credits = (user.credits || 0) + creditsToAdd;
             user.usageThisMonth = {
@@ -3222,17 +3225,14 @@ router5.get("/success", async (req, res) => {
         user.subscription = subscriptionPlan;
         let creditsToAdd = 0;
         switch (subscriptionPlan) {
-          case "essential":
-            creditsToAdd = 100;
+          case "standard":
+            creditsToAdd = 50;
             break;
-          case "passion":
+          case "premium":
             creditsToAdd = 200;
             break;
-          case "escape":
-            creditsToAdd = 400;
-            break;
           default:
-            creditsToAdd = 100;
+            creditsToAdd = 0;
         }
         user.credits = (user.credits || 0) + creditsToAdd;
         user.usageThisMonth = {
@@ -3591,17 +3591,14 @@ router5.post("/webhook", async (req, res) => {
         user.subscription = plan;
         let creditsToAdd = 0;
         switch (plan) {
-          case "essential":
-            creditsToAdd = 100;
+          case "standard":
+            creditsToAdd = 50;
             break;
-          case "passion":
+          case "premium":
             creditsToAdd = 200;
             break;
-          case "escape":
-            creditsToAdd = 400;
-            break;
           default:
-            creditsToAdd = 100;
+            creditsToAdd = 0;
         }
         user.credits = (user.credits || 0) + creditsToAdd;
         user.usageThisMonth = {
@@ -3772,6 +3769,16 @@ async function registerRoutes(app2) {
     const userId = req.session.userId;
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (user.subscription === "free") {
+      return res.status(403).json({
+        message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
+        code: "PREMIUM_REQUIRED"
+      });
     }
     let creditsDeducted = 0;
     try {

@@ -29,7 +29,14 @@ const storySchema = new Schema({
   currentChapter: { type: Number, default: 1 },
   totalChapters: { type: Number, default: 1 },
   isChapterBased: { type: Boolean, default: false },
-  isPremiumContent: { type: Boolean, default: false }
+  isPremiumContent: { type: Boolean, default: false },
+  accessType: {
+    type: String,
+    enum: ['public', 'premium_early_access', 'premium_exclusive'],
+    default: 'public'
+  },
+  premiumAccessDate: { type: Date },
+  publicReleaseDate: { type: Date }
 }, { timestamps: true });
 
 // Remove any existing indexes on the id field

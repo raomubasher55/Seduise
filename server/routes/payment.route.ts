@@ -22,7 +22,7 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
     
     // Validate request body
     const schema = z.object({
-      plan: z.enum(['essential', 'passion', 'escape']).default('passion')
+      plan: z.enum(['standard', 'premium']).default('standard')
     });
     
     const { plan } = schema.parse(req.body);
@@ -79,13 +79,13 @@ router.get('/success', async (req, res) => {
     }
 
     // Default to passion plan if not provided
-    const subscriptionPlan = typeof plan === 'string' ? plan : 'passion';
+    const subscriptionPlan = typeof plan === 'string' ? plan : 'standard';
     
     // Import subscription plans from constants
     const { SUBSCRIPTION_PLANS } = await import('../constants/plans');
     
     // Validate plan
-    if (!['essential', 'passion', 'escape'].includes(subscriptionPlan)) {
+    if (!['standard', 'premium'].includes(subscriptionPlan)) {
       return res.status(400).json({ success: false, message: 'Invalid subscription plan' });
     }
 
@@ -105,22 +105,19 @@ router.get('/success', async (req, res) => {
           if (user) {
             // Update user with subscription details
             user.isPremium = true;
-            user.subscription = purchasedPlan as "essential" | "passion" | "escape";
+            user.subscription = purchasedPlan as "standard" | "premium";
             
             // Add bonus credits based on the plan
             let creditsToAdd = 0;
             switch (purchasedPlan) {
-              case 'essential':
-                creditsToAdd = 100;
+              case 'standard':
+                creditsToAdd = 50;
                 break;
-              case 'passion':
+              case 'premium':
                 creditsToAdd = 200;
                 break;
-              case 'escape':
-                creditsToAdd = 400;
-                break;
               default:
-                creditsToAdd = 100;
+                creditsToAdd = 0;
             }
             
             user.credits = (user.credits || 0) + creditsToAdd;
@@ -158,22 +155,19 @@ router.get('/success', async (req, res) => {
       if (user) {
         // Update user with subscription details
         user.isPremium = true;
-        user.subscription = subscriptionPlan as "essential" | "passion" | "escape";
+        user.subscription = subscriptionPlan as "standard" | "premium";
         
         // Add bonus credits based on the plan
         let creditsToAdd = 0;
         switch (subscriptionPlan) {
-          case 'essential':
-            creditsToAdd = 100;
+          case 'standard':
+            creditsToAdd = 50;
             break;
-          case 'passion':
+          case 'premium':
             creditsToAdd = 200;
             break;
-          case 'escape':
-            creditsToAdd = 400;
-            break;
           default:
-            creditsToAdd = 100;
+            creditsToAdd = 0;
         }
         
         user.credits = (user.credits || 0) + creditsToAdd;
@@ -670,23 +664,21 @@ router.post('/webhook', async (req, res) => {
         }
         
         // Update user with subscription details
+        // Update user with subscription details
         user.isPremium = true;
-        user.subscription = plan as "essential" | "passion" | "escape";
+        user.subscription = plan as "standard" | "premium";
         
         // Add bonus credits based on the plan
         let creditsToAdd = 0;
         switch (plan) {
-          case 'essential':
-            creditsToAdd = 100;
+          case 'standard':
+            creditsToAdd = 50;
             break;
-          case 'passion':
+          case 'premium':
             creditsToAdd = 200;
             break;
-          case 'escape':
-            creditsToAdd = 400;
-            break;
           default:
-            creditsToAdd = 100;
+            creditsToAdd = 0;
         }
         
         user.credits = (user.credits || 0) + creditsToAdd;

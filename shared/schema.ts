@@ -82,7 +82,11 @@ export const storySchema = z.object({
   chapters: z.array(chapterSchema).default([]),
   currentChapter: z.number().default(1),
   totalChapters: z.number().default(1),
-  isChapterBased: z.boolean().default(false)
+  isChapterBased: z.boolean().default(false),
+  isPremiumContent: z.boolean().default(false),
+  accessType: z.enum(['public', 'premium_early_access', 'premium_exclusive']).default('public'),
+  premiumAccessDate: z.date().optional(),
+  publicReleaseDate: z.date().optional()
 });
 
 export type Story = z.infer<typeof storySchema>;

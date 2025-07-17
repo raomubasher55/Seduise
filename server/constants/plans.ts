@@ -5,75 +5,49 @@ export const SUBSCRIPTION_PLANS = {
     description: "Basic access with limited features",
     price: 0, // Free tier
     monthlyLimits: {
-      stories: 4,
-      chapters: 12,
-      audioMinutes: 3
+      stories: 0, // Free tier doesn't generate stories directly
+      chapters: 3,
+      audioMinutes: 0
     },
     features: [
-      "Create up to 4 stories per month",
-      "Generate up to 12 chapters",
-      "3-minute audio narration maximum",
-      "Basic voices selection",
-      "Standard response time"
+      "Up to 3 chapters",
+      "No Audio Generation",
+      "Basic story customization"
     ],
     supportsCredits: true
   },
-  essential: {
-    name: "Essential",
+  standard: {
+    name: "Standard",
     description: "Enhanced storytelling experience",
-    price: 499, // €4.99/month (in cents)
+    price: 400, // $4.00/month (in cents)
     monthlyLimits: {
-      stories: 10,
-      chapters: 50,
-      audioMinutes: 10
+      stories: 0, // Standard tier doesn't generate stories directly
+      chapters: 5,
+      audioMinutes: 5 // Limited audio (e.g., 5 minutes) 
     },
     features: [
-      "Create up to 10 stories per month",
-      "Generate up to 50 chapters",
-      "10-minute audio narration maximum",
-      "Enhanced voice selection",
-      "Faster response time",
-      "Ad-free experience"
+      "Up to 5 chapters",
+      "Limited audio narration",
+      "Enhanced story customization"
     ],
     supportsCredits: true
   },
-  passion: {
-    name: "Passion",
-    description: "Premium storytelling for enthusiasts",
-    price: 999, // €9.99/month (in cents)
+  premium: {
+    name: "Premium",
+    description: "Ultimate storytelling experience",
+    price: 2200, // $22.00/month (in cents)
     monthlyLimits: {
-      stories: 20,
-      chapters: 100,
-      audioMinutes: 15
+      stories: 0, // Premium tier doesn't generate stories directly
+      chapters: 10,
+      audioMinutes: 20 // Full audio (e.g., 20 minutes)
     },
     features: [
-      "Create up to 20 stories per month",
-      "Generate up to 100 chapters",
-      "15-minute audio narration maximum",
-      "Premium voices access",
-      "Premium gallery access",
+      "Up to 10 chapters",
+      "Full audio narration",
+      "Exclusive content access",
+      "All premium voices",
       "Priority support",
       "Early access to new features"
-    ],
-    supportsCredits: true
-  },
-  escape: {
-    name: "Escape",
-    description: "Ultimate storytelling experience",
-    price: 1999, // €19.99/month (in cents)
-    monthlyLimits: {
-      stories: 40,
-      chapters: 200,
-      audioMinutes: 20
-    },
-    features: [
-      "Create up to 40 stories per month",
-      "Generate up to 200 chapters",
-      "20-minute audio narration maximum",
-      "All premium voices",
-      "Exclusive premium content",
-      "VIP support",
-      "Access to beta features"
     ],
     supportsCredits: true
   }
