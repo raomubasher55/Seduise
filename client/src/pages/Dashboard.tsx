@@ -311,7 +311,6 @@ const StoryCard = ({ story, onToggleVisibility, onDelete }: StoryCardProps) => {
                     id={`visibility-${story._id}`} 
                     checked={story.isPublic}
                     onCheckedChange={() => onToggleVisibility(story._id, story.isPublic)}
-                    disabled={!isPremium && !story.isPublic}
                   />
                   <Label 
                     htmlFor={`visibility-${story._id}`} 

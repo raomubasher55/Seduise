@@ -20,17 +20,15 @@ __export(plans_exports, {
   hasReachedLimit: () => hasReachedLimit
 });
 function getUserLimits(subscriptionType) {
-  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.free.monthlyLimits;
+  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.discovery.monthlyLimits;
 }
 function hasReachedLimit(usageThisMonth, subscriptionType, checkType) {
   const limits = getUserLimits(subscriptionType);
   switch (checkType) {
     case "stories":
       return usageThisMonth.storiesGenerated >= limits.stories;
-    case "chapters":
-      return usageThisMonth.chaptersGenerated >= limits.chapters;
-    case "audioMinutes":
-      return usageThisMonth.audioMinutesUsed >= limits.audioMinutes;
+    case "audioCredits":
+      return usageThisMonth.audioCreditsUsed >= limits.audioCredits;
     default:
       return false;
   }
@@ -57,62 +55,73 @@ var init_plans = __esm({
   "server/constants/plans.ts"() {
     "use strict";
     SUBSCRIPTION_PLANS = {
-      free: {
-        name: "Free",
-        description: "Basic access with limited features",
+      discovery: {
+        name: "Discovery",
+        description: "Explore Without Commitment",
         price: 0,
         // Free tier
         monthlyLimits: {
-          stories: 0,
-          // Free tier doesn't generate stories directly
-          chapters: 3,
-          audioMinutes: 0
+          stories: 2,
+          audioCredits: 1
         },
         features: [
-          "Up to 3 chapters",
-          "No Audio Generation",
-          "Basic story customization"
+          "Create up to 2 personalized stories (text)",
+          "1 free audio (\u2248 1 to 2 min)",
+          "Standard voice",
+          "No access to the premium library"
         ],
         supportsCredits: true
       },
-      standard: {
-        name: "Standard",
-        description: "Enhanced storytelling experience",
-        price: 400,
-        // $4.00/month (in cents)
+      essentiel: {
+        name: "Essentiel",
+        description: "Pleasure at Your Own Pace",
+        price: 599,
+        // €5.99/month (in cents)
         monthlyLimits: {
-          stories: 0,
-          // Standard tier doesn't generate stories directly
-          chapters: 5,
-          audioMinutes: 5
-          // Limited audio (e.g., 5 minutes) 
+          stories: 5,
+          audioCredits: 6
         },
         features: [
-          "Up to 5 chapters",
-          "Limited audio narration",
-          "Enhanced story customization"
+          "Create up to 5 personalized stories (text)",
+          "6 audio credits (\u2248 15 minutes total)",
+          "Natural-sounding voices",
+          "No access to the premium library"
         ],
         supportsCredits: true
       },
-      premium: {
-        name: "Premium",
-        description: "Ultimate storytelling experience",
-        price: 2200,
-        // $22.00/month (in cents)
+      seduction: {
+        name: "Seduction",
+        description: "Your Pleasure Rendezvous",
+        price: 1199,
+        // €11.99/month (in cents)
         monthlyLimits: {
-          stories: 0,
-          // Premium tier doesn't generate stories directly
-          chapters: 10,
-          audioMinutes: 20
-          // Full audio (e.g., 20 minutes)
+          stories: 12,
+          audioCredits: 12
         },
         features: [
-          "Up to 10 chapters",
-          "Full audio narration",
-          "Exclusive content access",
-          "All premium voices",
-          "Priority support",
-          "Early access to new features"
+          "Create up to 12 personalized stories (text)",
+          "12 audio credits (\u2248 30 minutes)",
+          "Expressive & realistic voices",
+          "Partial access to the premium audio library",
+          "New stories added monthly"
+        ],
+        supportsCredits: true
+      },
+      intimacy: {
+        name: "Intimacy",
+        description: "The Ultimate Experience Without Limits",
+        price: 2499,
+        // €24.99/month (in cents)
+        monthlyLimits: {
+          stories: 25,
+          audioCredits: 24
+        },
+        features: [
+          "Create up to 25 personalized stories (text)",
+          "24 audio credits (\u2248 60 minutes)",
+          "Expressive & immersive voices",
+          "Full access to the premium audio library",
+          "Tailored suggestions and exclusive stories"
         ],
         supportsCredits: true
       }
@@ -991,7 +1000,9 @@ var userSchema = new Schema({
   // Google OAuth Fields
   googleId: { type: String, sparse: true, unique: true },
   profilePicture: { type: String },
-  authProvider: { type: String, enum: ["local", "google"], default: "local" }
+  authProvider: { type: String, enum: ["local", "google"], default: "local" },
+  badges: [{ type: String }]
+  // Array of strings to store badge names/IDs
 });
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.pre("save", async function(next) {
@@ -1331,6 +1342,8 @@ var storySchema = new Schema2({
   imageUrl: { type: String },
   likes: { type: Number, default: 0 },
   plays: { type: Number, default: 0 },
+  upvotes: { type: Number, default: 0 },
+  downvotes: { type: Number, default: 0 },
   category: { type: String, default: "romance" },
   creditsCost: { type: Number, default: 1 },
   chapters: { type: [chapterSchema], default: [] },
@@ -1744,6 +1757,94 @@ IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from
   }
 }
 
+// server/services/reward.service.ts
+async function awardBadge(userId, badgeName) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.warn(`User ${userId} not found for badge award.`);
+      return false;
+    }
+    if (!user.badges.includes(badgeName)) {
+      user.badges.push(badgeName);
+      await user.save();
+      console.log(`Awarded badge "${badgeName}" to user ${userId}.`);
+      return true;
+    } else {
+      console.log(`User ${userId} already has badge "${badgeName}".`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error awarding badge "${badgeName}" to user ${userId}:`, error);
+    return false;
+  }
+}
+async function awardReward(userId, rewardName) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.warn(`User ${userId} not found for reward award.`);
+      return false;
+    }
+    if (!user.badges.includes(rewardName)) {
+      user.badges.push(rewardName);
+      await user.save();
+      console.log(`Awarded reward "${rewardName}" to user ${userId}.`);
+      return true;
+    } else {
+      console.log(`User ${userId} already has reward "${rewardName}".`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error awarding reward "${rewardName}" to user ${userId}:`, error);
+    return false;
+  }
+}
+async function checkAndAwardTopAuthor() {
+  try {
+    const topAuthor = await User.aggregate([
+      {
+        $lookup: {
+          from: "stories",
+          localField: "stories",
+          foreignField: "_id",
+          as: "userStories"
+        }
+      },
+      {
+        $unwind: "$userStories"
+      },
+      {
+        $match: {
+          "userStories.isPublic": true
+          // Only consider public stories
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          totalLikes: { $sum: "$userStories.likes" },
+          user: { $first: "$ROOT" }
+        }
+      },
+      {
+        $sort: { totalLikes: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]);
+    if (topAuthor.length > 0) {
+      const authorId = topAuthor[0].user._id;
+      await awardReward(authorId, "Top Author");
+    } else {
+      console.log("No stories found to determine top author.");
+    }
+  } catch (error) {
+    console.error("Error checking and awarding top author:", error);
+  }
+}
+
 // server/services/story.service.ts
 var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance") => {
   const user = await User.findById(userId);
@@ -1836,6 +1937,9 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
   await story.save();
   user.stories.push(story._id);
   await user.save();
+  if (user.stories.length === 1) {
+    await awardBadge(userId, "First Story");
+  }
   try {
     console.log(`Will generate audio for story ${story._id} with voice ${settings.narrationVoice} (ID: ${settings.narrationVoiceId})`);
   } catch (audioError) {
@@ -2063,8 +2167,7 @@ async function trackStoryGeneration(userId) {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 1,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
   } else {
@@ -2072,33 +2175,17 @@ async function trackStoryGeneration(userId) {
   }
   await user.save();
 }
-async function trackChapterGeneration(userId) {
+async function trackAudioGeneration(userId, audioCredits) {
   const user = await User.findById(userId);
   if (!user) return;
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 1,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: audioCredits,
       lastResetDate: /* @__PURE__ */ new Date()
     };
   } else {
-    user.usageThisMonth.chaptersGenerated += 1;
-  }
-  await user.save();
-}
-async function trackAudioGeneration(userId, audioLengthMinutes) {
-  const user = await User.findById(userId);
-  if (!user) return;
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: audioLengthMinutes,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-  } else {
-    user.usageThisMonth.audioMinutesUsed += audioLengthMinutes;
+    user.usageThisMonth.audioCreditsUsed += audioCredits;
   }
   await user.save();
 }
@@ -2113,54 +2200,31 @@ async function canPerformAction(userId, actionType, params) {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
     await user.save();
   }
   await checkAndResetMonthlyUsage(user);
   const subscriptionType = user.subscription;
-  if (actionType === "generateAudio" && subscriptionType === "free") {
-    return {
-      canProceed: false,
-      message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
-      subscriptionLimitReached: true
-    };
-  }
   let limitReached = false;
   let limitType = "";
   const usage = user.usageThisMonth || {
     storiesGenerated: 0,
-    chaptersGenerated: 0,
-    audioMinutesUsed: 0,
+    audioCreditsUsed: 0,
     lastResetDate: /* @__PURE__ */ new Date()
   };
   if (actionType === "generateStory") {
     limitReached = hasReachedLimit({
       storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated,
-      audioMinutesUsed: usage.audioMinutesUsed
+      audioCreditsUsed: usage.audioCreditsUsed
     }, subscriptionType, "stories");
     limitType = "story generation";
-  } else if (actionType === "generateChapter") {
-    limitReached = hasReachedLimit({
-      storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated,
-      audioMinutesUsed: usage.audioMinutesUsed
-    }, subscriptionType, "chapters");
-    limitType = "chapter generation";
   } else if (actionType === "generateAudio") {
-    const audioMinutes = params?.audioLengthMinutes || 0;
+    const audioCredits = params?.audioCredits || 0;
     const limits = getUserLimits(subscriptionType);
-    if (audioMinutes > limits.audioMinutes) {
-      return {
-        canProceed: false,
-        message: `Your subscription allows a maximum of ${limits.audioMinutes} minutes of audio per narration. Please upgrade your plan for longer narrations.`
-      };
-    }
-    const remainingMinutes = limits.audioMinutes - usage.audioMinutesUsed;
-    if (audioMinutes > remainingMinutes) {
+    const remainingCredits = limits.audioCredits - usage.audioCreditsUsed;
+    if (audioCredits > remainingCredits) {
       limitReached = true;
       limitType = "audio generation";
     }
@@ -2169,10 +2233,8 @@ async function canPerformAction(userId, actionType, params) {
     let requiredCredits = 0;
     if (actionType === "generateStory") {
       requiredCredits = getActionCreditCost("generateStory", { storyLength: params?.storyLength });
-    } else if (actionType === "generateAudio" && params?.audioLengthMinutes) {
-      requiredCredits = getActionCreditCost("generateAudio", { minutes: params.audioLengthMinutes });
-    } else {
-      requiredCredits = getActionCreditCost("generateStory", { storyLength: params?.storyLength });
+    } else if (actionType === "generateAudio" && params?.audioCredits) {
+      requiredCredits = getActionCreditCost("generateAudio", { minutes: params.audioCredits });
     }
     if (user.credits < requiredCredits) {
       return {
@@ -2206,8 +2268,7 @@ async function checkAndResetMonthlyUsage(user) {
   if (!user.usageThisMonth || !user.usageThisMonth.lastResetDate) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
     await user.save();
@@ -2218,8 +2279,7 @@ async function checkAndResetMonthlyUsage(user) {
   if (lastResetDate.getMonth() !== currentDate.getMonth() || lastResetDate.getFullYear() !== currentDate.getFullYear()) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: currentDate
     };
     await user.save();
@@ -2396,27 +2456,7 @@ var continueStory2 = async (req, res) => {
       return res.status(404).json({ message: "Story not found" });
     }
     const storyLength = existingStory.settings?.length || 3;
-    const actionCheck = await canPerformAction(userId, "generateChapter", { storyLength });
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your chapter generation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for chapter generation",
-          code: "PAYMENT_REQUIRED"
-        });
-      }
-    }
     const continuedStory = await continueStoryService(id, selectedChoice);
-    await trackChapterGeneration(userId);
     res.status(200).json(continuedStory);
   } catch (error) {
     console.error("Error continuing story:", error);
@@ -2533,6 +2573,63 @@ var getChapterChoices = async (req, res) => {
   } catch (error) {
     console.error("Error getting chapter choices:", error);
     res.status(500).json({ message: "Failed to get chapter choices" });
+  }
+};
+var likeStory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    story.likes = (story.likes || 0) + 1;
+    await story.save();
+    res.status(200).json({ message: "Story liked successfully", likes: story.likes });
+  } catch (error) {
+    console.error("Error liking story:", error);
+    res.status(500).json({ message: "Failed to like story" });
+  }
+};
+var upvoteStory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    story.upvotes = (story.upvotes || 0) + 1;
+    await story.save();
+    res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
+  } catch (error) {
+    console.error("Error upvoting story:", error);
+    res.status(500).json({ message: "Failed to upvote story" });
+  }
+};
+var downvoteStory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    story.downvotes = (story.downvotes || 0) + 1;
+    await story.save();
+    res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
+  } catch (error) {
+    console.error("Error downvoting story:", error);
+    res.status(500).json({ message: "Failed to downvote story" });
   }
 };
 
@@ -2675,21 +2772,24 @@ router2.get("/public", async (req, res) => {
       publicStories.map(async (story) => {
         try {
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const user = await User.findById(story.userId);
+            const user = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
-              userName: user ? user.name : "Anonymous"
+              userName: user ? user.name : "Anonymous",
+              authorBadges: user ? user.badges : []
             };
           } else {
             return {
               ...story.toObject(),
-              userName: "Anonymous"
+              userName: "Anonymous",
+              authorBadges: []
             };
           }
         } catch (err) {
           return {
             ...story.toObject(),
-            userName: "Anonymous"
+            userName: "Anonymous",
+            authorBadges: []
           };
         }
       })
@@ -2824,6 +2924,9 @@ router2.route("/:id/chapters").get(getStoryChapters);
 router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
+router2.route("/:id/like").post(authMiddleware, likeStory);
+router2.route("/:id/upvote").post(authMiddleware, upvoteStory);
+router2.route("/:id/downvote").post(authMiddleware, downvoteStory);
 router2.get("/premium-stories", authMiddleware, async (req, res) => {
   try {
     const userId = req.session.userId;
@@ -2840,21 +2943,24 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
       premiumStories.map(async (story) => {
         try {
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const author = await User.findById(story.userId);
+            const author = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
-              userName: author ? author.name : "Anonymous"
+              userName: author ? author.name : "Anonymous",
+              authorBadges: author ? author.badges : []
             };
           } else {
             return {
               ...story.toObject(),
-              userName: "Anonymous"
+              userName: "Anonymous",
+              authorBadges: []
             };
           }
         } catch (err) {
           return {
             ...story.toObject(),
-            userName: "Anonymous"
+            userName: "Anonymous",
+            authorBadges: []
           };
         }
       })
@@ -3035,6 +3141,15 @@ router3.delete("/stories/:id", isAdmin, async (req, res) => {
     res.status(500).json({ message: "Failed to delete story" });
   }
 });
+router3.post("/award-top-author", isAdmin, async (req, res) => {
+  try {
+    await checkAndAwardTopAuthor();
+    res.json({ message: "Top author check and award initiated." });
+  } catch (error) {
+    console.error("Error awarding top author:", error);
+    res.status(500).json({ message: "Failed to award top author." });
+  }
+});
 var admin_route_default = router3;
 
 // server/routes/user.route.ts
@@ -3129,8 +3244,8 @@ router5.post("/create-checkout-session", authMiddleware, async (req, res) => {
       plan: z3.enum(["standard", "premium"]).default("standard")
     });
     const { plan } = schema.parse(req.body);
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS3 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    const planPrice = SUBSCRIPTION_PLANS3[plan].price;
+    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const planPrice = SUBSCRIPTION_PLANS2[plan].price;
     const origin = req.headers.origin || "https://" + req.headers.host;
     const session2 = await stripe_default.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -3140,8 +3255,8 @@ router5.post("/create-checkout-session", authMiddleware, async (req, res) => {
             currency: "eur",
             // Using Euro as per requirements
             product_data: {
-              name: `${SUBSCRIPTION_PLANS3[plan].name} Subscription`,
-              description: SUBSCRIPTION_PLANS3[plan].description
+              name: `${SUBSCRIPTION_PLANS2[plan].name} Subscription`,
+              description: SUBSCRIPTION_PLANS2[plan].description
             },
             unit_amount: planPrice
           },
@@ -3172,7 +3287,7 @@ router5.get("/success", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid session ID" });
     }
     const subscriptionPlan = typeof plan === "string" ? plan : "standard";
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS3 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     if (!["standard", "premium"].includes(subscriptionPlan)) {
       return res.status(400).json({ success: false, message: "Invalid subscription plan" });
     }

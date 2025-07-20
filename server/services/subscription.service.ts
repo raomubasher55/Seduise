@@ -12,8 +12,7 @@ export async function trackStoryGeneration(userId: string): Promise<void> {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 1,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
   } else {
@@ -24,44 +23,21 @@ export async function trackStoryGeneration(userId: string): Promise<void> {
 }
 
 /**
- * Update the user's usage counters when a chapter is generated
- */
-export async function trackChapterGeneration(userId: string): Promise<void> {
-  const user = await User.findById(userId);
-  if (!user) return;
-
-  // Increment the chapters generated count
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      chaptersGenerated: 1,
-      audioMinutesUsed: 0,
-      lastResetDate: new Date()
-    };
-  } else {
-    user.usageThisMonth.chaptersGenerated += 1;
-  }
-
-  await user.save();
-}
-
-/**
  * Update the user's usage counters when audio is generated
  */
-export async function trackAudioGeneration(userId: string, audioLengthMinutes: number): Promise<void> {
+export async function trackAudioGeneration(userId: string, audioCredits: number): Promise<void> {
   const user = await User.findById(userId);
   if (!user) return;
 
-  // Increment the audio minutes used
+  // Increment the audio credits used
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: audioLengthMinutes,
+      audioCreditsUsed: audioCredits,
       lastResetDate: new Date()
     };
   } else {
-    user.usageThisMonth.audioMinutesUsed += audioLengthMinutes;
+    user.usageThisMonth.audioCreditsUsed += audioCredits;
   }
 
   await user.save();
@@ -73,8 +49,8 @@ export async function trackAudioGeneration(userId: string, audioLengthMinutes: n
  */
 export async function canPerformAction(
   userId: string,
-  actionType: 'generateStory' | 'generateChapter' | 'generateAudio',
-  params?: { audioLengthMinutes?: number, storyLength?: number }
+  actionType: 'generateStory' | 'generateAudio',
+  params?: { audioCredits?: number, storyLength?: number }
 ): Promise<{ 
   canProceed: boolean;
   message?: string;
@@ -94,8 +70,7 @@ export async function canPerformAction(
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
     await user.save();
@@ -107,15 +82,6 @@ export async function canPerformAction(
   // Get subscription limits
   const subscriptionType = user.subscription as keyof typeof SUBSCRIPTION_PLANS;
 
-  // Explicitly prevent audio generation for free users
-  if (actionType === 'generateAudio' && subscriptionType === 'free') {
-    return {
-      canProceed: false,
-      message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
-      subscriptionLimitReached: true
-    };
-  }
-  
   // Check if the user has reached their subscription limits
   let limitReached = false;
   let limitType = '';
@@ -123,40 +89,22 @@ export async function canPerformAction(
   // Ensure usageThisMonth is initialized
   const usage = user.usageThisMonth || {
     storiesGenerated: 0,
-    chaptersGenerated: 0,
-    audioMinutesUsed: 0,
+    audioCreditsUsed: 0,
     lastResetDate: new Date()
   };
   
   if (actionType === 'generateStory') {
     limitReached = hasReachedLimit({
       storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated,
-      audioMinutesUsed: usage.audioMinutesUsed
+      audioCreditsUsed: usage.audioCreditsUsed
     }, subscriptionType, 'stories');
     limitType = 'story generation';
-  } else if (actionType === 'generateChapter') {
-    limitReached = hasReachedLimit({
-      storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated,
-      audioMinutesUsed: usage.audioMinutesUsed
-    }, subscriptionType, 'chapters');
-    limitType = 'chapter generation';
   } else if (actionType === 'generateAudio') {
-    const audioMinutes = params?.audioLengthMinutes || 0;
+    const audioCredits = params?.audioCredits || 0;
     
-    // Check if the requested audio length exceeds the maximum allowed
     const limits = getUserLimits(subscriptionType);
-    if (audioMinutes > limits.audioMinutes) {
-      return {
-        canProceed: false,
-        message: `Your subscription allows a maximum of ${limits.audioMinutes} minutes of audio per narration. Please upgrade your plan for longer narrations.`,
-      };
-    }
-    
-    // Check if the user has enough available minutes in their monthly quota
-    const remainingMinutes = limits.audioMinutes - usage.audioMinutesUsed;
-    if (audioMinutes > remainingMinutes) {
+    const remainingCredits = limits.audioCredits - usage.audioCreditsUsed;
+    if (audioCredits > remainingCredits) {
       limitReached = true;
       limitType = 'audio generation';
     }
@@ -169,11 +117,8 @@ export async function canPerformAction(
     
     if (actionType === 'generateStory') {
       requiredCredits = getActionCreditCost('generateStory', { storyLength: params?.storyLength });
-    } else if (actionType === 'generateAudio' && params?.audioLengthMinutes) {
-      requiredCredits = getActionCreditCost('generateAudio', { minutes: params.audioLengthMinutes });
-    } else {
-      // For chapters, use the same cost as a story for now, defaulting to medium length
-      requiredCredits = getActionCreditCost('generateStory', { storyLength: params?.storyLength });
+    } else if (actionType === 'generateAudio' && params?.audioCredits) {
+      requiredCredits = getActionCreditCost('generateAudio', { minutes: params.audioCredits });
     }
 
     if (user.credits < requiredCredits) {
@@ -220,8 +165,7 @@ async function checkAndResetMonthlyUsage(user: any): Promise<void> {
   if (!user.usageThisMonth || !user.usageThisMonth.lastResetDate) {
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
     await user.save();
@@ -237,10 +181,29 @@ async function checkAndResetMonthlyUsage(user: any): Promise<void> {
     // Reset usage counters
     user.usageThisMonth = {
       storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: currentDate
     };
     await user.save();
   }
+}
+
+/**
+ * Get the user's current subscription plan details
+ */
+export async function getSubscriptionDetails(userId: string): Promise<any> {
+  const user = await User.findById(userId);
+  if (!user) {
+    return null;
+  }
+
+  const subscriptionType = user.subscription as keyof typeof SUBSCRIPTION_PLANS;
+  const planDetails = SUBSCRIPTION_PLANS[subscriptionType];
+
+  return {
+    planName: planDetails.name,
+    price: planDetails.price,
+    usage: user.usageThisMonth,
+    limits: getUserLimits(subscriptionType)
+  };
 }

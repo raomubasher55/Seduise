@@ -3,6 +3,7 @@ import { StorySettings } from "@shared/schema";
 import { continueStory, generateStory, generateChapterTitle, generateChapterSummary, generateChoices } from "../utils/openai";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
+import { awardBadge } from "./reward.service";
 
 export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance") => {
     const user = await User.findById(userId);
@@ -123,6 +124,11 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
     // Add story ID to user's stories array
     user.stories.push(story._id);
     await user.save();
+
+    // Award "First Story" badge if this is the user's first story
+    if (user.stories.length === 1) {
+        await awardBadge(userId, "First Story");
+    }
     
     // After story is saved, attempt to generate audio
     try {

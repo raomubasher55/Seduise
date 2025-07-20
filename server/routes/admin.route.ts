@@ -3,6 +3,7 @@ import { isAdmin } from "../middlewares/auth.middleware";
 import { User } from "../models/user.model";
 import { Story } from "../models/story.model";
 import { hash } from "bcrypt";
+import { checkAndAwardTopAuthor } from "../services/reward.service";
 
 const router = Router();
 
@@ -175,6 +176,16 @@ router.delete("/stories/:id", isAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error deleting story:", error);
     res.status(500).json({ message: "Failed to delete story" });
+  }
+});
+
+router.post("/award-top-author", isAdmin, async (req, res) => {
+  try {
+    await checkAndAwardTopAuthor();
+    res.json({ message: "Top author check and award initiated." });
+  } catch (error) {
+    console.error("Error awarding top author:", error);
+    res.status(500).json({ message: "Failed to award top author." });
   }
 });
 

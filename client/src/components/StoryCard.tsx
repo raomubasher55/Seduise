@@ -1,13 +1,88 @@
-import { Heart } from "lucide-react";
+import { Heart, ThumbsUp, ThumbsDown, Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Story } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface StoryCardProps {
   story: Story;
 }
 
 const StoryCard = ({ story }: StoryCardProps) => {
+  const queryClient = useQueryClient();
+
+  const likeMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/like`);
+      if (!response.ok) {
+        throw new Error("Failed to like story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidate queries to refetch stories and update like count
+      queryClient.invalidateQueries({ queryKey: ['publicStories'] });
+      queryClient.invalidateQueries({ queryKey: ['premiumStories'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${story._id}`] });
+    },
+    onError: (error) => {
+      console.error("Error liking story:", error);
+      // Optionally show a toast notification
+    },
+  });
+
+  const upvoteMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/upvote`);
+      if (!response.ok) {
+        throw new Error("Failed to upvote story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['publicStories'] });
+      queryClient.invalidateQueries({ queryKey: ['premiumStories'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${story._id}`] });
+    },
+    onError: (error) => {
+      console.error("Error upvoting story:", error);
+    },
+  });
+
+  const downvoteMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/downvote`);
+      if (!response.ok) {
+        throw new Error("Failed to downvote story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['publicStories'] });
+      queryClient.invalidateQueries({ queryKey: ['premiumStories'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${story._id}`] });
+    },
+    onError: (error) => {
+      console.error("Error downvoting story:", error);
+    },
+  });
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigating to story reader
+    likeMutation.mutate(story._id);
+  };
+
+  const handleUpvote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    upvoteMutation.mutate(story._id);
+  };
+
+  const handleDownvote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    downvoteMutation.mutate(story._id);
+  };
+
   return (
     <div className="cursor-pointer" onClick={() => window.location.href = `/story/${story._id}`}>
       <Card className="story-card bg-[#1E1E1E] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
@@ -42,10 +117,30 @@ const StoryCard = ({ story }: StoryCardProps) => {
               {/* <span className="ml-2 text-xs text-gray-400">by Author</span> */}
             </div>
             <div className="flex items-center">
-              {/* <Heart className="h-4 w-4 text-[#A93B5B] mr-1" /> */}
-              {/* <span className="text-xs text-gray-400">{story.likes}</span> */}
+              <button onClick={handleLike} disabled={likeMutation.isPending}>
+                <Heart className="h-4 w-4 text-[#A93B5B] mr-1" fill={story.likes > 0 ? "#A93B5B" : "none"} />
+              </button>
+              <span className="text-xs text-gray-400">{story.likes}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button onClick={handleUpvote} disabled={upvoteMutation.isPending}>
+                <ThumbsUp className="h-4 w-4 text-blue-400" fill={story.upvotes > 0 ? "#60A5FA" : "none"} />
+              </button>
+              <span className="text-xs text-gray-400">{story.upvotes}</span>
+              <button onClick={handleDownvote} disabled={downvoteMutation.isPending}>
+                <ThumbsDown className="h-4 w-4 text-red-400" fill={story.downvotes > 0 ? "#F87171" : "none"} />
+              </button>
+              <span className="text-xs text-gray-400">{story.downvotes}</span>
             </div>
           </div>
+          {story.authorBadges && story.authorBadges.includes("Top Author") && (
+            <div className="mt-2 text-center">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                <Star className="-ml-0.5 mr-1 h-3 w-3" />
+                Top Author
+              </span>
+            </div>
+          )}
         </div>
       </Card>
     </div>

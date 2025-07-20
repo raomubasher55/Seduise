@@ -1,53 +1,68 @@
 // Subscription plans and their limits
 export const SUBSCRIPTION_PLANS = {
-  free: {
-    name: "Free",
-    description: "Basic access with limited features",
+  discovery: {
+    name: "Discovery",
+    description: "Explore Without Commitment",
     price: 0, // Free tier
     monthlyLimits: {
-      stories: 0, // Free tier doesn't generate stories directly
-      chapters: 3,
-      audioMinutes: 0
+      stories: 2,
+      audioCredits: 1
     },
     features: [
-      "Up to 3 chapters",
-      "No Audio Generation",
-      "Basic story customization"
+      "Create up to 2 personalized stories (text)",
+      "1 free audio (≈ 1 to 2 min)",
+      "Standard voice",
+      "No access to the premium library"
     ],
     supportsCredits: true
   },
-  standard: {
-    name: "Standard",
-    description: "Enhanced storytelling experience",
-    price: 400, // $4.00/month (in cents)
+  essentiel: {
+    name: "Essentiel",
+    description: "Pleasure at Your Own Pace",
+    price: 599, // €5.99/month (in cents)
     monthlyLimits: {
-      stories: 0, // Standard tier doesn't generate stories directly
-      chapters: 5,
-      audioMinutes: 5 // Limited audio (e.g., 5 minutes) 
+      stories: 5,
+      audioCredits: 6
     },
     features: [
-      "Up to 5 chapters",
-      "Limited audio narration",
-      "Enhanced story customization"
+      "Create up to 5 personalized stories (text)",
+      "6 audio credits (≈ 15 minutes total)",
+      "Natural-sounding voices",
+      "No access to the premium library"
     ],
     supportsCredits: true
   },
-  premium: {
-    name: "Premium",
-    description: "Ultimate storytelling experience",
-    price: 2200, // $22.00/month (in cents)
+  seduction: {
+    name: "Seduction",
+    description: "Your Pleasure Rendezvous",
+    price: 1199, // €11.99/month (in cents)
     monthlyLimits: {
-      stories: 0, // Premium tier doesn't generate stories directly
-      chapters: 10,
-      audioMinutes: 20 // Full audio (e.g., 20 minutes)
+      stories: 12,
+      audioCredits: 12
     },
     features: [
-      "Up to 10 chapters",
-      "Full audio narration",
-      "Exclusive content access",
-      "All premium voices",
-      "Priority support",
-      "Early access to new features"
+      "Create up to 12 personalized stories (text)",
+      "12 audio credits (≈ 30 minutes)",
+      "Expressive & realistic voices",
+      "Partial access to the premium audio library",
+      "New stories added monthly"
+    ],
+    supportsCredits: true
+  },
+  intimacy: {
+    name: "Intimacy",
+    description: "The Ultimate Experience Without Limits",
+    price: 2499, // €24.99/month (in cents)
+    monthlyLimits: {
+      stories: 25,
+      audioCredits: 24
+    },
+    features: [
+      "Create up to 25 personalized stories (text)",
+      "24 audio credits (≈ 60 minutes)",
+      "Expressive & immersive voices",
+      "Full access to the premium audio library",
+      "Tailored suggestions and exclusive stories"
     ],
     supportsCredits: true
   }
@@ -114,28 +129,25 @@ export const STORY_LENGTHS = {
 
 // Functions to determine user limits based on subscription plan
 export function getUserLimits(subscriptionType: keyof typeof SUBSCRIPTION_PLANS) {
-  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.free.monthlyLimits;
+  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.discovery.monthlyLimits;
 }
 
 // Helper function to check if user has reached their limits
 export function hasReachedLimit(
   usageThisMonth: {
     storiesGenerated: number;
-    chaptersGenerated: number;
-    audioMinutesUsed: number;
+    audioCreditsUsed: number;
   },
   subscriptionType: keyof typeof SUBSCRIPTION_PLANS,
-  checkType: 'stories' | 'chapters' | 'audioMinutes'
+  checkType: 'stories' | 'audioCredits'
 ): boolean {
   const limits = getUserLimits(subscriptionType);
   
   switch (checkType) {
     case 'stories':
       return usageThisMonth.storiesGenerated >= limits.stories;
-    case 'chapters':
-      return usageThisMonth.chaptersGenerated >= limits.chapters;
-    case 'audioMinutes':
-      return usageThisMonth.audioMinutesUsed >= limits.audioMinutes;
+    case 'audioCredits':
+      return usageThisMonth.audioCreditsUsed >= limits.audioCredits;
     default:
       return false;
   }

@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import AudioPlayer from "@/components/AudioPlayer";
-import { Sparkles, Heart, Share2, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import { Sparkles, Heart, Share2, ChevronLeft, ChevronRight, BookOpen, ThumbsUp, ThumbsDown } from "lucide-react";
 import { continueStory, makeChoice } from "@/lib/ai";
 import { generateSpeech } from "@/lib/audio";
 import { queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { formatTime } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Chapter } from "@shared/schema";
@@ -31,6 +32,99 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const [fontSize, setFontSize] = useState<"sm" | "md" | "lg">("md");
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
   const [readingMode, setReadingMode] = useState(false);
+
+  const likeMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/like`);
+      if (!response.ok) {
+        throw new Error("Failed to like story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      toast({
+        title: "Story Liked",
+        description: "You've successfully liked this story!",
+      });
+    },
+    onError: (error) => {
+      console.error("Error liking story:", error);
+      toast({
+        title: "Error",
+        description: "Failed to like story. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLike = () => {
+    if (storyId) {
+      likeMutation.mutate(storyId);
+    }
+  };
+
+  const upvoteMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/upvote`);
+      if (!response.ok) {
+        throw new Error("Failed to upvote story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      toast({
+        title: "Story Upvoted",
+        description: "You've successfully upvoted this story!",
+      });
+    },
+    onError: (error) => {
+      console.error("Error upvoting story:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upvote story. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpvote = () => {
+    if (storyId) {
+      upvoteMutation.mutate(storyId);
+    }
+  };
+
+  const downvoteMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/downvote`);
+      if (!response.ok) {
+        throw new Error("Failed to downvote story");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      toast({
+        title: "Story Downvoted",
+        description: "You've successfully downvoted this story!",
+      });
+    },
+    onError: (error) => {
+      console.error("Error downvoting story:", error);
+      toast({
+        title: "Error",
+        description: "Failed to downvote story. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDownvote = () => {
+    if (storyId) {
+      downvoteMutation.mutate(storyId);
+    }
+  };
 
   // Fetch story data
   const { data: story, isLoading, error } = useQuery({
@@ -324,14 +418,23 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                         </div>
                         {/* <span className="ml-2 text-xs text-gray-400">by Author</span> */}
                       </div>
-                      {/* <div className="flex items-center space-x-3">
-                      <button className="text-gray-400 hover:text-[#D9B08C]">
-                        <Heart size={16} />
-                      </button>
-                      <button className="text-gray-400 hover:text-[#D9B08C]">
-                        <Share2 size={16} />
-                      </button>
-                    </div> */}
+                      <div className="flex items-center space-x-3">
+                        <button onClick={handleLike} disabled={likeMutation.isPending}>
+                          <Heart size={16} fill={story?.likes > 0 ? "#A93B5B" : "none"} className="text-[#A93B5B]" />
+                        </button>
+                        <span className="text-xs text-gray-400">{story?.likes || 0}</span>
+                        <button onClick={handleUpvote} disabled={upvoteMutation.isPending}>
+                          <ThumbsUp size={16} fill={story?.upvotes > 0 ? "#60A5FA" : "none"} className="text-blue-400" />
+                        </button>
+                        <span className="text-xs text-gray-400">{story?.upvotes || 0}</span>
+                        <button onClick={handleDownvote} disabled={downvoteMutation.isPending}>
+                          <ThumbsDown size={16} fill={story?.downvotes > 0 ? "#F87171" : "none"} className="text-red-400" />
+                        </button>
+                        <span className="text-xs text-gray-400">{story?.downvotes || 0}</span>
+                        <button className="text-gray-400 hover:text-[#D9B08C]">
+                          <Share2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -355,7 +458,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               </div>
             )}
 
-            <div className="md: bg-[#2D2D2D] rounded-xl p-6 w-full">
+            <div className="md:w-2/3 bg-[#2D2D2D] rounded-xl p-6">
               {/* Chapter Header */}
               {currentChapter && chapters.length > 1 && (
                 <div className="mb-6 flex items-center justify-between">

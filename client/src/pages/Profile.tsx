@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Edit, Crown, Clock, BookOpen, Eye, Heart, Save } from "lucide-react";
+import { User, Edit, Crown, Clock, BookOpen, Eye, Heart, Save, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 
@@ -146,6 +146,16 @@ export default function Profile() {
             <h2 className="text-xl font-semibold mb-1">{user.name}</h2>
             <p className="text-gray-400 mb-3">{user.email}</p>
             
+            {user.badges && user.badges.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
+                {user.badges.map((badge: string) => (
+                  <span key={badge} className="px-3 py-1 rounded-full text-xs bg-blue-600 text-white">
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            )}
+            
             <div className="flex space-x-2 mb-4">
               <span className={`px-3 py-1 rounded-full text-xs flex items-center ${
                 user.role === "admin" ? "bg-[#8B1E3F] text-white" : "bg-gray-700 text-gray-200"
@@ -266,6 +276,22 @@ export default function Profile() {
                   {userStories.reduce((total, story) => total + (story.likes || 0), 0)}
                 </div>
                 <div className="text-xs text-gray-400">Total Likes</div>
+              </div>
+              
+              <div className="bg-[#2D2D2D] p-4 rounded-lg flex flex-col items-center">
+                <ThumbsUp className="text-[#D9B08C] mb-2" size={24} />
+                <div className="text-xl font-bold">
+                  {userStories.reduce((total, story) => total + (story.upvotes || 0), 0)}
+                </div>
+                <div className="text-xs text-gray-400">Total Upvotes</div>
+              </div>
+              
+              <div className="bg-[#2D2D2D] p-4 rounded-lg flex flex-col items-center">
+                <ThumbsDown className="text-[#D9B08C] mb-2" size={24} />
+                <div className="text-xl font-bold">
+                  {userStories.reduce((total, story) => total + (story.downvotes || 0), 0)}
+                </div>
+                <div className="text-xs text-gray-400">Total Downvotes</div>
               </div>
               
               <div className="bg-[#2D2D2D] p-4 rounded-lg flex flex-col items-center">

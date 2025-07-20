@@ -632,26 +632,24 @@ const CreateStory = () => {
             </Select>
           </div>
 
-          {/* Public/Private Toggle (Premium users only) */}
-          {isPremium && (
-            <div className="mb-8 p-4 bg-[#121212] border border-gray-700 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="public-toggle"
-                    checked={isPublic}
-                    onCheckedChange={setIsPublic}
-                  />
-                  <Label htmlFor="public-toggle" className="text-white">
-                    Make story public
-                  </Label>
-                </div>
-                <div className="text-xs text-gray-400">
-                  {isPublic ? "Your story will be visible in the Community section" : "Only you can view this story"}
-                </div>
+          {/* Public/Private Toggle */}
+          <div className="mb-8 p-4 bg-[#121212] border border-gray-700 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="public-toggle"
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                />
+                <Label htmlFor="public-toggle" className="text-white">
+                  Make story public
+                </Label>
+              </div>
+              <div className="text-xs text-gray-400">
+                {isPublic ? "Your story will be visible in the Community section" : "Only you can view this story"}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Tabbed Interface */}
           <div className="rounded-xl overflow-hidden shadow-md">

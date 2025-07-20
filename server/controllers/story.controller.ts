@@ -15,7 +15,6 @@ import {
   canPerformAction, 
   deductCredits, 
   trackStoryGeneration,
-  trackChapterGeneration, 
   trackAudioGeneration 
 } from "../services/subscription.service";
 
@@ -257,34 +256,12 @@ export const continueStory = async (req: Request, res: Response) => {
     const storyLength = existingStory.settings?.length || 3; // Default to medium if not specified
     
     // Check subscription limits and credit balance for chapter generation
-    const actionCheck = await canPerformAction(userId, 'generateChapter', { storyLength });
     
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your chapter generation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    
-    // If subscription limit reached but has credits, deduct them
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for chapter generation",
-          code: "PAYMENT_REQUIRED"
-        });
-      }
-    }
     
     // Continue the story, passing the selectedChoice
     const continuedStory = await continueStoryService(id, selectedChoice);
     
-    // Track chapter generation for subscription limits
-    await trackChapterGeneration(userId);
+    
     
     res.status(200).json(continuedStory);
   } catch (error) {
@@ -431,5 +408,84 @@ export const getChapterChoices = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error getting chapter choices:", error);
     res.status(500).json({ message: "Failed to get chapter choices" });
+  }
+};
+
+export const likeStory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId; // Assuming user is authenticated
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const story = await Story.findById(id);
+
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    // Check if user has already liked this story (optional, but good practice)
+    // You might want to store user IDs who liked a story in an array on the story model
+    // For simplicity, we'll just increment for now.
+
+    story.likes = (story.likes || 0) + 1;
+    await story.save();
+
+    res.status(200).json({ message: "Story liked successfully", likes: story.likes });
+  } catch (error) {
+    console.error("Error liking story:", error);
+    res.status(500).json({ message: "Failed to like story" });
+  }
+};
+
+export const upvoteStory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const story = await Story.findById(id);
+
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    story.upvotes = (story.upvotes || 0) + 1;
+    await story.save();
+
+    res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
+  } catch (error) {
+    console.error("Error upvoting story:", error);
+    res.status(500).json({ message: "Failed to upvote story" });
+  }
+};
+
+export const downvoteStory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const story = await Story.findById(id);
+
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    story.downvotes = (story.downvotes || 0) + 1;
+    await story.save();
+
+    res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
+  } catch (error) {
+    console.error("Error downvoting story:", error);
+    res.status(500).json({ message: "Failed to downvote story" });
   }
 };

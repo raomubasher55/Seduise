@@ -39,6 +39,7 @@ const userSchema = new Schema({
   googleId: { type: String, sparse: true, unique: true },
   profilePicture: { type: String },
   authProvider: { type: String, enum: ["local", "google"], default: "local" },
+  badges: [{ type: String }] // Array of strings to store badge names/IDs
 });
 
 userSchema.index({ email: 1 }, { unique: true });

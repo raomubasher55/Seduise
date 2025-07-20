@@ -10,6 +10,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {apiRequest} from '@/lib/queryClient';
+import { useToast } from "@/hooks/use-toast";
+import { string } from "zod";
 
 interface VoiceSelectorProps {
   onVoiceSelect: (voiceId: string) => void;
@@ -22,6 +24,7 @@ export function VoiceSelector({ onVoiceSelect, selectedVoice }: VoiceSelectorPro
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = useState(false);
   const [currentPlayingVoice, setCurrentPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchVoices = async () => {
@@ -84,6 +87,11 @@ export function VoiceSelector({ onVoiceSelect, selectedVoice }: VoiceSelectorPro
       // Play the audio
       await audio.play();
     } catch (error) {
+      toast({
+        title: "Error",
+        description: "generation is not available on the Free plan",
+        variant: "destructive",
+      });
       console.error("Error previewing voice:", error);
     }
   };

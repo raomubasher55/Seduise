@@ -19,9 +19,9 @@ interface Story {
 export default function PremiumGallery() {
   const { user, isLoading: isUserLoading } = useAuth();
 
-  const { data: stories, isLoading, error } = useQuery<Story[]>(
-    ['premiumStories'],
-    async () => {
+  const { data: stories, isLoading, error } = useQuery<Story[]>({
+    queryKey: ['premiumStories'],
+    queryFn: async () => {
       const response = await fetch('/api/stories/premium-stories');
       if (!response.ok) {
         // If the user is not premium, the backend will return 403
@@ -32,8 +32,8 @@ export default function PremiumGallery() {
       }
       return response.json();
     },
-    { enabled: !!user && user.isPremium } // Only fetch if user is logged in and premium
-  );
+    enabled: !!user && user.isPremium // Only fetch if user is logged in and premium
+  });
 
   if (isUserLoading || isLoading) {
     return (
@@ -69,7 +69,7 @@ export default function PremiumGallery() {
         <Card className="bg-[#1E1E1E] p-8 text-center">
           <h2 className="text-2xl font-bold mb-4">Error Loading Stories</h2>
           <p className="text-gray-400 mb-6">{error.message}</p>
-          <Button onClick={() => window.location.reload()}>Try Again</Button>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['premiumStories'] })}>Try Again</Button>
         </Card>
       </div>
     );

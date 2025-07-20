@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices } from "../controllers/story.controller";
+import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices, likeStory, upvoteStory, downvoteStory } from "../controllers/story.controller";
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
@@ -140,22 +140,25 @@ router.get("/public", async (req, res) => {
         try {
           // Check if userId is a valid ObjectId before querying
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const user = await User.findById(story.userId);
+            const user = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
-              userName: user ? user.name : "Anonymous"
+              userName: user ? user.name : "Anonymous",
+              authorBadges: user ? user.badges : []
             };
           } else {
             return {
               ...story.toObject(),
-              userName: "Anonymous"
+              userName: "Anonymous",
+              authorBadges: []
             };
           }
         } catch (err) {
           // If there's an error finding the user, just return the story with Anonymous
           return {
             ...story.toObject(),
-            userName: "Anonymous"
+            userName: "Anonymous",
+            authorBadges: []
           };
         }
       })
@@ -310,6 +313,9 @@ router.route("/:id/chapters").get(getStoryChapters);
 router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory);
+router.route("/:id/like").post(authMiddleware, likeStory);
+router.route("/:id/upvote").post(authMiddleware, upvoteStory);
+router.route("/:id/downvote").post(authMiddleware, downvoteStory);
 
 // Get all premium stories (only for premium users)
 router.get("/premium-stories", authMiddleware, async (req, res) => {
@@ -334,21 +340,24 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
       premiumStories.map(async (story) => {
         try {
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const author = await User.findById(story.userId);
+            const author = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
-              userName: author ? author.name : "Anonymous"
+              userName: author ? author.name : "Anonymous",
+              authorBadges: author ? author.badges : []
             };
           } else {
             return {
               ...story.toObject(),
-              userName: "Anonymous"
+              userName: "Anonymous",
+              authorBadges: []
             };
           }
         } catch (err) {
           return {
             ...story.toObject(),
-            userName: "Anonymous"
+            userName: "Anonymous",
+            authorBadges: []
           };
         }
       })

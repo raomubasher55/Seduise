@@ -32,6 +32,7 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/PaymentCancelPage";
 import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
+import PremiumGallery from "./pages/PremiumGallery";
 
 function App() {
   return (
