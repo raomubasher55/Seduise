@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices, likeStory, upvoteStory, downvoteStory } from "../controllers/story.controller";
+import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices, likeStory, upvoteStory, downvoteStory, unlockChapter } from "../controllers/story.controller";
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
@@ -313,6 +313,7 @@ router.route("/:id/chapters").get(getStoryChapters);
 router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory);
+router.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
 router.route("/:id/like").post(authMiddleware, likeStory);
 router.route("/:id/upvote").post(authMiddleware, upvoteStory);
 router.route("/:id/downvote").post(authMiddleware, downvoteStory);

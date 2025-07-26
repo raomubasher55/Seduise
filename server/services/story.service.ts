@@ -1,6 +1,6 @@
 import { Story } from "../models/story.model";
 import { StorySettings } from "@shared/schema";
-import { continueStory, generateStory, generateChapterTitle, generateChapterSummary, generateChoices } from "../utils/openai";
+import { continueStory, generateStory, generateChapterTitle, generateChapterSummary, generateChoices, concludeStory } from "../utils/openai";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 import { awardBadge } from "./reward.service";
@@ -143,7 +143,7 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
     return story;
 };
 
-export const continueStoryService = async (id: string, selectedChoice?: string) => {
+export const continueStoryService = async (id: string, finalChoice?: string, conclude?: boolean) => {
     const story = await Story.findById(id);
     if (!story) {
         throw new Error("Story not found");
@@ -182,11 +182,17 @@ export const continueStoryService = async (id: string, selectedChoice?: string) 
         console.log(`Current content length: ${currentContent.length} characters`);
         
         // Continue the story with the original settings, passing the selected choice
-        const continuation = await continueStory(
-            currentContent,
-            story.settings as any,
-            selectedChoice
-        );
+        const continuation = conclude
+            ? await concludeStory(
+                currentContent,
+                story.settings as any,
+                finalChoice
+              )
+            : await continueStory(
+                currentContent,
+                story.settings as any,
+                finalChoice
+              );
         
         // Generate a descriptive title and summary for the new chapter
         const nextChapterNumber = story.isChapterBased ? story.chapters.length + 1 : 2;
@@ -266,6 +272,7 @@ export const continueStoryService = async (id: string, selectedChoice?: string) 
         // If continuation fails, refund the credits
         user.credits += CONTINUATION_COST;
         await user.save();
+        console.error("Error in continueStoryService:", error);
         throw error;
     }
 };

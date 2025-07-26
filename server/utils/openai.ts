@@ -590,3 +590,141 @@ export async function continueStory(existingContent: string, settings: StoryGene
     throw new Error("Failed to continue the story. Please try again.");
   }
 }
+
+export async function concludeStory(existingContent: string, settings: StoryGenerationOptions, selectedChoice?: string): Promise<string> {
+  try {
+    const {
+      timePeriod,
+      location,
+      atmosphere,
+      protagonistGender,
+      partnerGender,
+      relationship,
+      writingTone,
+      length,
+      settingDescription,
+      protagonistDescription,
+      loveInterestDescription,
+      explicitLevel
+    } = settings;
+
+    // Calculate max tokens and word count based on story length for more consistent audio duration
+    // Short (2): 2-3 minutes audio (approximately 1200 tokens, ~300-400 words)
+    // Medium (3): 4-5 minutes audio (approximately 2400 tokens, ~700-900 words)
+    // Long (4): 8-10 minutes audio (approximately 4800 tokens, ~1500-1800 words)
+    
+    let maxTokens = 0;
+    let targetWordCount = "";
+    
+    if (length === 2) { // Short
+      maxTokens = 1200;
+      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+    } else if (length === 3) { // Medium
+      maxTokens = 2400;
+      targetWordCount = "Write a medium-length conclusion of approximately 700-900 words.";
+    } else if (length === 4) { // Long
+      maxTokens = 4800;
+      targetWordCount = "Write a longer conclusion of approximately 1500-1800 words.";
+    } else {
+      // Default to short if somehow an invalid length is provided
+      maxTokens = 1200;
+      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+    }
+    
+    console.log(`Story conclusion length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
+
+    // Determine explicit content level based on the slider value
+    const explicitLevelDescription = explicitLevel !== undefined 
+      ? `Set the explicitness level to ${explicitLevel}% - the higher the percentage, the more explicit the content.`
+      : "Keep the content moderately explicit unless otherwise specified.";
+      
+    // Add detailed descriptions if provided
+    const settingPrompt = settingDescription 
+      ? `Setting description: ${settingDescription}` 
+      : "";
+      
+    const protagonistPrompt = protagonistDescription 
+      ? `Protagonist description: ${protagonistDescription}` 
+      : "";
+      
+    const loveInterestPrompt = loveInterestDescription 
+      ? `Love interest description: ${loveInterestDescription}` 
+      : "";
+
+    const choicePrompt = selectedChoice ? `The user chose: \"${selectedChoice}\". Conclude the story based on this choice.` : '';
+
+    const systemPrompt = `You are an expert erotic fiction writer. Conclude this story seamlessly from where it left off.
+    
+    CRITICAL INSTRUCTIONS:
+    1. Read the existing content carefully and continue EXACTLY where it ended
+    2. DO NOT repeat any dialogue, actions, or scenes from the existing content
+    3. Bring the story to a satisfying conclusion. Resolve the main conflicts and provide a clear ending.
+    4. DO NOT end with a cliffhanger.
+    5. Maintain the same characters, setting, and tone throughout
+    6. DO NOT include "Chapter X" headers - provide only the story content
+    
+    Story settings:
+    - Time Period: ${timePeriod}
+    - Location: ${location}
+    - Atmosphere: ${atmosphere}
+    - Protagonist Gender: ${protagonistGender}
+    - Partner Gender: ${partnerGender}
+    - Relationship: ${relationship}
+    - Writing Tone: ${writingTone}
+    ${targetWordCount} This is critical for producing the correct audio duration.
+    ${explicitLevelDescription}
+    
+    ${settingPrompt}
+    ${protagonistPrompt}
+    ${loveInterestPrompt}
+    
+    ${choicePrompt}
+    
+    Your conclusion should provide a sense of closure and resolution.`;
+
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Here\'s the existing story content:\n\n${existingContent}\n\nIMPORTANT: Conclude the story from the exact point where it ended. Provide a satisfying resolution.` }
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.8,
+    });
+
+    let responseText = response.choices[0].message.content || "The story concludes...";
+    
+    // Clean the response of any JSON or markdown formatting
+    if (responseText.includes('{') && responseText.includes('}')) {
+      responseText = responseText
+        .replace(/```json\s?/g, '').replace(/```\s?/g, '')
+        .replace(/{[^}]*}/g, '') // Remove any JSON objects
+        .replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, '') // Remove arrays of strings
+        .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
+        .trim();
+    }
+
+    // Remove any chapter headers that might have been added
+    responseText = responseText.replace(/^Chapter \d+:?\s*/i, '').trim();
+    
+    // Validate that the response doesn't end mid-sentence
+    const lastChar = responseText.slice(-1);
+    const lastFewChars = responseText.slice(-3);
+    
+    // If it ends abruptly, try to clean it up
+    if (!['."','!"','?"','"'].some(ending => lastFewChars.includes(ending))) {
+      // Find the last complete sentence
+      const sentences = responseText.split(/[.!?]+/);
+      if (sentences.length > 1) {
+        // Remove the incomplete last sentence and reconstruct
+        sentences.pop(); // Remove last incomplete part
+        responseText = sentences.join('.') + '.';
+      }
+    }
+    
+    return responseText;
+  } catch (error) {
+    console.error("Error concluding story:", error);
+    throw new Error("Failed to conclude the story. Please try again.");
+  }
+}

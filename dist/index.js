@@ -55,28 +55,11 @@ var init_plans = __esm({
   "server/constants/plans.ts"() {
     "use strict";
     SUBSCRIPTION_PLANS = {
-      discovery: {
-        name: "Discovery",
-        description: "Explore Without Commitment",
-        price: 0,
-        // Free tier
-        monthlyLimits: {
-          stories: 2,
-          audioCredits: 1
-        },
-        features: [
-          "Create up to 2 personalized stories (text)",
-          "1 free audio (\u2248 1 to 2 min)",
-          "Standard voice",
-          "No access to the premium library"
-        ],
-        supportsCredits: true
-      },
-      essentiel: {
+      starter: {
         name: "Essentiel",
         description: "Pleasure at Your Own Pace",
         price: 599,
-        // €5.99/month (in cents)
+        // €5.99/month in cents for Stripe
         monthlyLimits: {
           stories: 5,
           audioCredits: 6
@@ -89,11 +72,11 @@ var init_plans = __esm({
         ],
         supportsCredits: true
       },
-      seduction: {
+      popular: {
         name: "Seduction",
         description: "Your Pleasure Rendezvous",
         price: 1199,
-        // €11.99/month (in cents)
+        // €11.99/month in cents
         monthlyLimits: {
           stories: 12,
           audioCredits: 12
@@ -107,11 +90,11 @@ var init_plans = __esm({
         ],
         supportsCredits: true
       },
-      intimacy: {
+      premium: {
         name: "Intimacy",
         description: "The Ultimate Experience Without Limits",
         price: 2499,
-        // €24.99/month (in cents)
+        // €24.99/month in cents
         monthlyLimits: {
           stories: 25,
           audioCredits: 24
@@ -995,6 +978,10 @@ var userSchema = new Schema({
   stripeCustomerId: { type: String },
   stripeSubscriptionId: { type: String },
   stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
+  unlockedChapters: [{
+    storyId: { type: Schema.Types.ObjectId, ref: "Story" },
+    chapterNumber: { type: Number }
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   // Google OAuth Fields
@@ -1756,6 +1743,104 @@ IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from
     throw new Error("Failed to continue the story. Please try again.");
   }
 }
+async function concludeStory(existingContent, settings, selectedChoice) {
+  try {
+    const {
+      timePeriod,
+      location,
+      atmosphere,
+      protagonistGender,
+      partnerGender,
+      relationship,
+      writingTone,
+      length,
+      settingDescription,
+      protagonistDescription,
+      loveInterestDescription,
+      explicitLevel
+    } = settings;
+    let maxTokens = 0;
+    let targetWordCount = "";
+    if (length === 2) {
+      maxTokens = 1200;
+      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+    } else if (length === 3) {
+      maxTokens = 2400;
+      targetWordCount = "Write a medium-length conclusion of approximately 700-900 words.";
+    } else if (length === 4) {
+      maxTokens = 4800;
+      targetWordCount = "Write a longer conclusion of approximately 1500-1800 words.";
+    } else {
+      maxTokens = 1200;
+      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+    }
+    console.log(`Story conclusion length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
+    const explicitLevelDescription = explicitLevel !== void 0 ? `Set the explicitness level to ${explicitLevel}% - the higher the percentage, the more explicit the content.` : "Keep the content moderately explicit unless otherwise specified.";
+    const settingPrompt = settingDescription ? `Setting description: ${settingDescription}` : "";
+    const protagonistPrompt = protagonistDescription ? `Protagonist description: ${protagonistDescription}` : "";
+    const loveInterestPrompt = loveInterestDescription ? `Love interest description: ${loveInterestDescription}` : "";
+    const choicePrompt = selectedChoice ? `The user chose: "${selectedChoice}". Conclude the story based on this choice.` : "";
+    const systemPrompt = `You are an expert erotic fiction writer. Conclude this story seamlessly from where it left off.
+    
+    CRITICAL INSTRUCTIONS:
+    1. Read the existing content carefully and continue EXACTLY where it ended
+    2. DO NOT repeat any dialogue, actions, or scenes from the existing content
+    3. Bring the story to a satisfying conclusion. Resolve the main conflicts and provide a clear ending.
+    4. DO NOT end with a cliffhanger.
+    5. Maintain the same characters, setting, and tone throughout
+    6. DO NOT include "Chapter X" headers - provide only the story content
+    
+    Story settings:
+    - Time Period: ${timePeriod}
+    - Location: ${location}
+    - Atmosphere: ${atmosphere}
+    - Protagonist Gender: ${protagonistGender}
+    - Partner Gender: ${partnerGender}
+    - Relationship: ${relationship}
+    - Writing Tone: ${writingTone}
+    ${targetWordCount} This is critical for producing the correct audio duration.
+    ${explicitLevelDescription}
+    
+    ${settingPrompt}
+    ${protagonistPrompt}
+    ${loveInterestPrompt}
+    
+    ${choicePrompt}
+    
+    Your conclusion should provide a sense of closure and resolution.`;
+    const response = await novitaAI.chat.completions.create({
+      model: "deepseek/deepseek_v3",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Here's the existing story content:
+
+${existingContent}
+
+IMPORTANT: Conclude the story from the exact point where it ended. Provide a satisfying resolution.` }
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.8
+    });
+    let responseText = response.choices[0].message.content || "The story concludes...";
+    if (responseText.includes("{") && responseText.includes("}")) {
+      responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
+    }
+    responseText = responseText.replace(/^Chapter \d+:?\s*/i, "").trim();
+    const lastChar = responseText.slice(-1);
+    const lastFewChars = responseText.slice(-3);
+    if (!['."', '!"', '?"', '"'].some((ending) => lastFewChars.includes(ending))) {
+      const sentences = responseText.split(/[.!?]+/);
+      if (sentences.length > 1) {
+        sentences.pop();
+        responseText = sentences.join(".") + ".";
+      }
+    }
+    return responseText;
+  } catch (error) {
+    console.error("Error concluding story:", error);
+    throw new Error("Failed to conclude the story. Please try again.");
+  }
+}
 
 // server/services/reward.service.ts
 async function awardBadge(userId, badgeName) {
@@ -1947,7 +2032,7 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
   }
   return story;
 };
-var continueStoryService = async (id, selectedChoice) => {
+var continueStoryService = async (id, finalChoice, conclude) => {
   const story = await Story.findById(id);
   if (!story) {
     throw new Error("Story not found");
@@ -1971,10 +2056,14 @@ var continueStoryService = async (id, selectedChoice) => {
       currentContent = story.content || "";
     }
     console.log(`Current content length: ${currentContent.length} characters`);
-    const continuation = await continueStory(
+    const continuation = conclude ? await concludeStory(
       currentContent,
       story.settings,
-      selectedChoice
+      finalChoice
+    ) : await continueStory(
+      currentContent,
+      story.settings,
+      finalChoice
     );
     const nextChapterNumber = story.isChapterBased ? story.chapters.length + 1 : 2;
     let chapterTitle = `Chapter ${nextChapterNumber}`;
@@ -2037,6 +2126,7 @@ var continueStoryService = async (id, selectedChoice) => {
   } catch (error) {
     user.credits += CONTINUATION_COST;
     await user.save();
+    console.error("Error in continueStoryService:", error);
     throw error;
   }
 };
@@ -2167,11 +2257,30 @@ async function trackStoryGeneration(userId) {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 1,
+      chaptersGenerated: 0,
       audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
   } else {
     user.usageThisMonth.storiesGenerated += 1;
+  }
+  await user.save();
+}
+async function trackChapterGeneration(userId) {
+  const user = await User.findById(userId);
+  if (!user) return;
+  if (!user.usageThisMonth) {
+    user.usageThisMonth = {
+      storiesGenerated: 0,
+      chaptersGenerated: 1,
+      audioCreditsUsed: 0,
+      lastResetDate: /* @__PURE__ */ new Date()
+    };
+  } else {
+    if (!user.usageThisMonth.chaptersGenerated) {
+      user.usageThisMonth.chaptersGenerated = 0;
+    }
+    user.usageThisMonth.chaptersGenerated += 1;
   }
   await user.save();
 }
@@ -2200,6 +2309,7 @@ async function canPerformAction(userId, actionType, params) {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
+      chaptersGenerated: 0,
       audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
@@ -2211,15 +2321,24 @@ async function canPerformAction(userId, actionType, params) {
   let limitType = "";
   const usage = user.usageThisMonth || {
     storiesGenerated: 0,
+    chaptersGenerated: 0,
     audioCreditsUsed: 0,
     lastResetDate: /* @__PURE__ */ new Date()
   };
   if (actionType === "generateStory") {
     limitReached = hasReachedLimit({
       storiesGenerated: usage.storiesGenerated,
+      chaptersGenerated: usage.chaptersGenerated || 0,
       audioCreditsUsed: usage.audioCreditsUsed
     }, subscriptionType, "stories");
     limitType = "story generation";
+  } else if (actionType === "continueStory") {
+    limitReached = hasReachedLimit({
+      storiesGenerated: usage.storiesGenerated,
+      chaptersGenerated: usage.chaptersGenerated || 0,
+      audioCreditsUsed: usage.audioCreditsUsed
+    }, subscriptionType, "chapters");
+    limitType = "story continuation";
   } else if (actionType === "generateAudio") {
     const audioCredits = params?.audioCredits || 0;
     const limits = getUserLimits(subscriptionType);
@@ -2233,6 +2352,8 @@ async function canPerformAction(userId, actionType, params) {
     let requiredCredits = 0;
     if (actionType === "generateStory") {
       requiredCredits = getActionCreditCost("generateStory", { storyLength: params?.storyLength });
+    } else if (actionType === "continueStory") {
+      requiredCredits = getActionCreditCost("continueStory");
     } else if (actionType === "generateAudio" && params?.audioCredits) {
       requiredCredits = getActionCreditCost("generateAudio", { minutes: params.audioCredits });
     }
@@ -2401,6 +2522,7 @@ var getStory2 = async (req, res) => {
         }
       }
     }
+    res.setHeader("Cache-Control", "no-cache");
     res.status(200).json(story);
   } catch (error) {
     console.error("Error getting story:", error);
@@ -2446,17 +2568,33 @@ var getStoryAudio = async (req, res) => {
 var continueStory2 = async (req, res) => {
   try {
     const { id } = req.params;
-    const { selectedChoice } = req.body;
+    const { selectedChoice, choice, conclude } = req.body;
+    const finalChoice = selectedChoice || choice;
     const userId = req.session.userId;
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    const existingStory = await Story.findById(id);
-    if (!existingStory) {
-      return res.status(404).json({ message: "Story not found" });
+    const actionCheck = await canPerformAction(userId, "continueStory");
+    if (!actionCheck.canProceed) {
+      return res.status(403).json({
+        message: actionCheck.message || "You've reached your story continuation limit",
+        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
+        requiredCredits: actionCheck.requiredCredits,
+        currentCredits: actionCheck.currentCredits,
+        isPremiumRequired: actionCheck.subscriptionLimitReached
+      });
     }
-    const storyLength = existingStory.settings?.length || 3;
-    const continuedStory = await continueStoryService(id, selectedChoice);
+    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
+      if (!deducted) {
+        return res.status(402).json({
+          message: "Failed to deduct credits for story continuation",
+          code: "PAYMENT_REQUIRED"
+        });
+      }
+    }
+    const continuedStory = await continueStoryService(id, finalChoice, conclude);
+    await trackChapterGeneration(userId);
     res.status(200).json(continuedStory);
   } catch (error) {
     console.error("Error continuing story:", error);
@@ -2472,7 +2610,7 @@ var continueStory2 = async (req, res) => {
     if (error instanceof Error && error.message === "User not found") {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(500).json({ message: "Failed to continue story" });
+    res.status(500).json({ message: "Failed to continue story", error: error instanceof Error ? error.message : error });
   }
 };
 var updateStory = async (req, res) => {
@@ -2504,6 +2642,7 @@ var getStoryChapters = async (req, res) => {
       return res.status(404).json({ message: "Story not found" });
     }
     if (story.isChapterBased && story.chapters.length > 0) {
+      res.setHeader("Cache-Control", "no-cache");
       res.status(200).json({ chapters: story.chapters });
     } else if (story.content) {
       const chapter = {
@@ -2515,6 +2654,7 @@ var getStoryChapters = async (req, res) => {
         wordCount: story.content.split(" ").length,
         creditsCost: story.creditsCost
       };
+      res.setHeader("Cache-Control", "no-cache");
       res.status(200).json({ chapters: [chapter] });
     } else {
       res.status(200).json({ chapters: [] });
@@ -2573,6 +2713,38 @@ var getChapterChoices = async (req, res) => {
   } catch (error) {
     console.error("Error getting chapter choices:", error);
     res.status(500).json({ message: "Failed to get chapter choices" });
+  }
+};
+var unlockChapter = async (req, res) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    const chapterNum = parseInt(chapterNumber);
+    const chapter = story.chapters.find((ch) => ch.number === chapterNum);
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+    if (user.credits < chapter.creditsCost) {
+      return res.status(402).json({ message: "Insufficient credits to unlock this chapter" });
+    }
+    user.credits -= chapter.creditsCost;
+    user.unlockedChapters.push({ storyId: story._id, chapterNumber: chapterNum });
+    await user.save();
+    res.status(200).json({ message: "Chapter unlocked successfully" });
+  } catch (error) {
+    console.error("Error unlocking chapter:", error);
+    res.status(500).json({ message: "Failed to unlock chapter" });
   }
 };
 var likeStory = async (req, res) => {
@@ -2924,6 +3096,7 @@ router2.route("/:id/chapters").get(getStoryChapters);
 router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
 router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
 router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
+router2.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
 router2.route("/:id/like").post(authMiddleware, likeStory);
 router2.route("/:id/upvote").post(authMiddleware, upvoteStory);
 router2.route("/:id/downvote").post(authMiddleware, downvoteStory);
@@ -3244,6 +3417,7 @@ router5.post("/create-checkout-session", authMiddleware, async (req, res) => {
       plan: z3.enum(["standard", "premium"]).default("standard")
     });
     const { plan } = schema.parse(req.body);
+    console.log("plan", plan);
     const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const planPrice = SUBSCRIPTION_PLANS2[plan].price;
     const origin = req.headers.origin || "https://" + req.headers.host;

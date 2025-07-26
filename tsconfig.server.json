@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./server",
+    "target": "esnext",
+    "lib": ["esnext"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noEmit": false,
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": ["server/**/*.ts"],
+  "exclude": ["node_modules", "dist", "client", "server/routes/api.ts"]
+}

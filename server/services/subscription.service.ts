@@ -12,11 +12,37 @@ export async function trackStoryGeneration(userId: string): Promise<void> {
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 1,
+      chaptersGenerated: 0,
       audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
   } else {
     user.usageThisMonth.storiesGenerated += 1;
+  }
+
+  await user.save();
+}
+
+/**
+ * Update the user's usage counters when a chapter is generated
+ */
+export async function trackChapterGeneration(userId: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  // Increment the chapters generated count
+  if (!user.usageThisMonth) {
+    user.usageThisMonth = {
+      storiesGenerated: 0,
+      chaptersGenerated: 1,
+      audioCreditsUsed: 0,
+      lastResetDate: new Date()
+    };
+  } else {
+    if (!user.usageThisMonth.chaptersGenerated) {
+      user.usageThisMonth.chaptersGenerated = 0;
+    }
+    user.usageThisMonth.chaptersGenerated += 1;
   }
 
   await user.save();
@@ -49,7 +75,7 @@ export async function trackAudioGeneration(userId: string, audioCredits: number)
  */
 export async function canPerformAction(
   userId: string,
-  actionType: 'generateStory' | 'generateAudio',
+  actionType: 'generateStory' | 'generateAudio' | 'continueStory',
   params?: { audioCredits?: number, storyLength?: number }
 ): Promise<{ 
   canProceed: boolean;
@@ -70,6 +96,7 @@ export async function canPerformAction(
   if (!user.usageThisMonth) {
     user.usageThisMonth = {
       storiesGenerated: 0,
+      chaptersGenerated: 0,
       audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
@@ -89,6 +116,7 @@ export async function canPerformAction(
   // Ensure usageThisMonth is initialized
   const usage = user.usageThisMonth || {
     storiesGenerated: 0,
+    chaptersGenerated: 0,
     audioCreditsUsed: 0,
     lastResetDate: new Date()
   };
@@ -96,9 +124,17 @@ export async function canPerformAction(
   if (actionType === 'generateStory') {
     limitReached = hasReachedLimit({
       storiesGenerated: usage.storiesGenerated,
+      chaptersGenerated: usage.chaptersGenerated || 0,
       audioCreditsUsed: usage.audioCreditsUsed
     }, subscriptionType, 'stories');
     limitType = 'story generation';
+  } else if (actionType === 'continueStory') {
+    limitReached = hasReachedLimit({
+      storiesGenerated: usage.storiesGenerated,
+      chaptersGenerated: usage.chaptersGenerated || 0,
+      audioCreditsUsed: usage.audioCreditsUsed
+    }, subscriptionType, 'chapters');
+    limitType = 'story continuation';
   } else if (actionType === 'generateAudio') {
     const audioCredits = params?.audioCredits || 0;
     
@@ -117,7 +153,9 @@ export async function canPerformAction(
     
     if (actionType === 'generateStory') {
       requiredCredits = getActionCreditCost('generateStory', { storyLength: params?.storyLength });
-    } else if (actionType === 'generateAudio' && params?.audioCredits) {
+    } else if (actionType === 'continueStory') {
+        requiredCredits = getActionCreditCost('continueStory');
+    }else if (actionType === 'generateAudio' && params?.audioCredits) {
       requiredCredits = getActionCreditCost('generateAudio', { minutes: params.audioCredits });
     }
 

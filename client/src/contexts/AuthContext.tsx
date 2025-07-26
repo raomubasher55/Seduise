@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { createContext, useContext, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 interface User {
@@ -9,6 +9,7 @@ interface User {
   role: string;
   isPremium: boolean;
   credits: number;
+  unlockedChapters: { storyId: string; chapterNumber: number }[];
   authProvider: string;
   createdAt: string;
   updatedAt: string;
@@ -31,36 +32,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [hasCheckedToken, setHasCheckedToken] = useState(false);
-  
-  // First, check for token presence - this runs only once at component mount
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    console.log("Initial token check:", token ? `${token.substring(0, 10)}...` : "No token found");
-    setHasCheckedToken(true);
-  }, []);
-  
-  // Second, define the query with proper conditions based on token check
-  const { data: currentUser, isLoading, refetch } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: user, isLoading, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
-    enabled: hasCheckedToken && !!localStorage.getItem('token'),
-    staleTime: Infinity, // Don't refetch automatically
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      try {
+        const response = await apiRequest("GET", "/api/auth/me");
+        return await response.json();
+      } catch (error) {
+        localStorage.removeItem('token');
+        return null;
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
     retry: false,
-    gcTime: 600000, // 10 minutes
   });
-
-
-  useEffect(() => {
-    console.log("Current user" , currentUser);
-    if (currentUser) {
-      setUser(currentUser as User);
-    }
-  }, [currentUser]);
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
@@ -72,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
-      setUser(data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
 
@@ -86,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
-      setUser(data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
 
@@ -96,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     onSuccess: () => {
       localStorage.removeItem('token');
-      setUser(null);
+      queryClient.setQueryData(["/api/auth/me"], null);
     },
   });
 
@@ -113,22 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshUser = async () => {
-    try {
-      const result = await refetch();
-      if (result.data) {
-        setUser(result.data as User);
-      }
-      return result.data as User;
-    } catch (error) {
-      console.error("Error refreshing user:", error);
-      return null;
-    }
+    const result = await refetch();
+    return result.data ?? null;
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: user ?? null,
         isLoading: isLoading || loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending,
         isAuthenticated: !!user,
         isPremium: !!user?.isPremium,

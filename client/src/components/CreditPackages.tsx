@@ -22,49 +22,112 @@ interface CreditPackagesProps {
   isPremium?: boolean;
 }
 
+
 const packages: CreditPackage[] = [
   {
-    id: 'starter',
-    name: 'Starter',
-    credits: 20,
-    price: 4.99,
-    description: 'Ideal for casual users who want to create a few stories',
+    id: '0',
+    name: 'Discovery',
+    credits: 0,
+    price: 0,
+    description: 'Explore Without Commitment',
     features: [
-      'Access to basic story generation',
-      'Standard audio narration',
-      'Limited story customization',
+      '🖋 Create up to 2 personalized stories (text)',
+      '🎧 1 free audio (≈ 1 to 2 min)',
+      '🎙 Standard voice',
+      '📚 No access to the premium library',
+      '✨ Perfect to explore the world of Seduice for free',
+    ]
+  },
+  {
+    id: 'starter',
+    name: 'Essentiel',
+    credits: 12,
+    price: 5.99,
+    popular: true,
+    description: 'Pleasure at Your Own Pace',
+    features: [
+      '🖋 Create up to 5 personalized stories (text)',
+      '🎧 6 audio credits (≈ 15 minutes total)',
+      '🎙 Natural-sounding voices',
+      '📚 No access to the premium library',
+      '🔐 A soft and regular introduction to your intimate desires',
     ]
   },
   {
     id: 'popular',
-    name: 'Popular',
-    credits: 50,
-    price: 9.99,
-    popular: true,
-    description: 'Our most popular option for regular storytellers',
+    name: 'Seduction',
+    credits: 30,
+    price: 11.99,
+    description: 'Your Pleasure Rendezvous',
     features: [
-      'All Starter features',
-      'Enhanced story generation',
-      'Improved audio quality',
-      'More customization options',
+      '🖋 Create up to 12 personalized stories (text)',
+      '🎧 12 audio credits (≈ 30 minutes)',
+      '🎙 Expressive & realistic voices',
+      '📚 Partial access to the premium audio library',
+      '🎁 New stories added monthly',
+      '💫 Let your desires unfold like an intimate audio series',
     ]
   },
   {
     id: 'premium',
-    name: 'Premium',
-        credits: 100,
-    price: 21.99,
+    name: 'Intimacy',
+    credits: 60,
+    price: 24.99,
     bestValue: true,
-    description: 'Best value for dedicated story creators',
+    description: 'The Ultimate Experience Without Limits',
     features: [
-      'All Popular features',
-      'Priority story generation',
-      'Premium voice selection',
-      'Advanced customization tools',
-      'Early access to new features',
+      '🖋 Create up to 25 personalized stories (text)',
+      '🎧 24 audio credits (≈ 60 minutes)',
+      '🎙 Expressive & immersive voices',
+      '📚 Full access to the premium audio library',
+      '💌 Tailored suggestions and exclusive stories',
     ]
   }
 ];
+
+// const packages: CreditPackage[] = [
+//   {
+//     id: 'starter',
+//     name: 'Starter',
+//     credits: 20,
+//     price: 4.99,
+//     description: 'Ideal for casual users who want to create a few stories',
+//     features: [
+//       'Access to basic story generation',
+//       'Standard audio narration',
+//       'Limited story customization',
+//     ]
+//   },
+//   {
+//     id: 'popular',
+//     name: 'Popular',
+//     credits: 50,
+//     price: 9.99,
+//     popular: true,
+//     description: 'Our most popular option for regular storytellers',
+//     features: [
+//       'All Starter features',
+//       'Enhanced story generation',
+//       'Improved audio quality',
+//       'More customization options',
+//     ]
+//   },
+//   {
+//     id: 'premium',
+//     name: 'Premium',
+//         credits: 100,
+//     price: 21.99,
+//     bestValue: true,
+//     description: 'Best value for dedicated story creators',
+//     features: [
+//       'All Popular features',
+//       'Priority story generation',
+//       'Premium voice selection',
+//       'Advanced customization tools',
+//       'Early access to new features',
+//     ]
+//   }
+// ];
 
 export default function CreditPackages({ isPremium = false}: CreditPackagesProps) {
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
@@ -78,8 +141,11 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
   };
 
   const handlePurchaseCredits = async (pkg: CreditPackage) => {
+
     console.log(`Starting credit purchase process for package: ${pkg.id}, credits: ${pkg.credits}, price: ${pkg.price}`);
-    setIsProcessing(prev => ({ ...prev, [pkg.id]: true }));
+    if(pkg.id !== '0'){
+      setIsProcessing(prev => ({ ...prev, [pkg.id]: true }));
+    }
     
     try {
       // Make a direct request to the Stripe checkout API
@@ -211,7 +277,8 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
                 ))}
               </ul>
             </CardContent>
-            
+            {
+              pkg.id !== '0' ? 
             <CardFooter>
               <Button 
                 className="w-full" 
@@ -225,6 +292,9 @@ export default function CreditPackages({ isPremium = false}: CreditPackagesProps
                 {isProcessing[pkg.id] ? "Processing..." : "Purchase Credits"}
               </Button>
             </CardFooter>
+            :<>
+            </>
+            }
           </Card>
         );
       })}

@@ -26,6 +26,8 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
     });
     
     const { plan } = schema.parse(req.body);
+
+    console.log("plan"  , plan)
     
     // Import subscription plans from constants
     const { SUBSCRIPTION_PLANS } = await import('../constants/plans');

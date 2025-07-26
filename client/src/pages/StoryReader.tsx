@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import AudioPlayer from "@/components/AudioPlayer";
-import { Sparkles, Heart, Share2, ChevronLeft, ChevronRight, BookOpen, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Sparkles, Heart, Share2, ChevronLeft, ChevronRight, BookOpen, ThumbsUp, ThumbsDown, Lock } from "lucide-react";
 import { continueStory, makeChoice } from "@/lib/ai";
 import { generateSpeech } from "@/lib/audio";
 import { queryClient } from "@/lib/queryClient";
@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { formatTime } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Chapter } from "@shared/schema";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StoryReaderProps {
   params: {
@@ -23,12 +24,14 @@ interface StoryReaderProps {
 }
 
 const StoryReader = ({ params }: StoryReaderProps) => {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const storyId = params.id;
   const [hasAudio, setHasAudio] = useState(false);
   const [currentChapterNum, setCurrentChapterNum] = useState(1);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showCreditDialog, setShowCreditDialog] = useState(false);
+  const [showConcludeDialog, setShowConcludeDialog] = useState(false);
   const [fontSize, setFontSize] = useState<"sm" | "md" | "lg">("md");
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
   const [readingMode, setReadingMode] = useState(false);
@@ -58,11 +61,12 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
   });
 
-  const handleLike = () => {
+  const handleLike = useCallback(() => {
     if (storyId) {
       likeMutation.mutate(storyId);
     }
-  };
+  }, [storyId, likeMutation]);
+
 
   const upvoteMutation = useMutation({
     mutationFn: async (storyId: string) => {
@@ -89,11 +93,11 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
   });
 
-  const handleUpvote = () => {
+  const handleUpvote = useCallback(() => {
     if (storyId) {
       upvoteMutation.mutate(storyId);
     }
-  };
+  }, [storyId, upvoteMutation]);
 
   const downvoteMutation = useMutation({
     mutationFn: async (storyId: string) => {
@@ -120,11 +124,12 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
   });
 
-  const handleDownvote = () => {
+  const handleDownvote = useCallback(() => {
     if (storyId) {
       downvoteMutation.mutate(storyId);
     }
-  };
+  }, [storyId, downvoteMutation]);
+
 
   // Fetch story data
   const { data: story, isLoading, error } = useQuery({
@@ -134,16 +139,16 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   // Fetch choices for the current chapter
   const { data: choicesData, isLoading: isLoadingChoices } = useQuery({
     queryKey: [`/api/stories/${storyId}/chapters/${currentChapterNum}/choices`],
-    enabled: !!story && !!currentChapterNum, // Only fetch if story and currentChapterNum are available
+    enabled: !!story && !!currentChapterNum,
   });
 
   // Fetch chapters data
   const { data: chaptersData, isLoading: isLoadingChapters } = useQuery({
-    queryKey: [`/api/stories/${storyId}/chapters`],
+    queryKey: [`/api/stories/${storyId}/chapters`, story?._id],
     enabled: !!story,
   });
 
-  // Update chapters when data loads
+  // Update chapters when data loads - CORRECTED
   useEffect(() => {
     if (chaptersData?.chapters) {
       setChapters(chaptersData.chapters);
@@ -159,7 +164,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     isLoading: isLoadingAudio,
     error: audioError
   } = useQuery({
-    // queryKey: [`/api/speech/${storyId}`],
     queryKey: [`/api/stories/${storyId}/audio`],
     enabled: !!story,
     retry: 1,
@@ -168,19 +172,15 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     }
   });
 
-  // console.log(`The audioData is ${audioData}`);
-
   // Update hasAudio state when audioData changes
   useEffect(() => {
     const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
     if (currentChapter && currentChapter.audioUrl) {
       setHasAudio(true);
     }
-    // Check if the story has an audio URL directly in the story object
     else if (story && story.audioUrl) {
       setHasAudio(true);
     }
-    // Check audio data from the API
     else if (audioData && audioData.audioUrl) {
       setHasAudio(true);
     } else {
@@ -192,21 +192,14 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const generateSpeechMutation = useMutation({
     mutationFn: generateSpeech,
     onSuccess: (data) => {
-      // console.log("Speech generated successfully:", data);
       toast({
         title: "Audio Generated",
         description: "Your story narration is ready to play.",
       });
-
-      // Set hasAudio based on the response data
       if (data && data.audioUrl) {
         setHasAudio(true);
-
-        // Invalidate queries to refresh the audio data
         queryClient.invalidateQueries({ queryKey: [`/api/speech/${storyId}`] });
         queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/audio`] });
-
-        // Update the story to include the latest audio URL
         if (story) {
           story.audioUrl = data.audioUrl;
         }
@@ -223,7 +216,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
 
   // Continue story mutation
   const continueStoryMutation = useMutation({
-    mutationFn: continueStory,
+    mutationFn: (variables: { storyId: string, conclude?: boolean }) => continueStory(variables.storyId, undefined, variables.conclude),
     onSuccess: (data) => {
       toast({
         title: "Story Continued",
@@ -233,7 +226,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
     },
     onError: (error: any) => {
-      // Check if this is insufficient credits error
       if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
         toast({
           title: "Insufficient Credits",
@@ -301,58 +293,86 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
   });
 
-  const handleGenerateAudio = () => {
+  const unlockChapterMutation = useMutation({
+    mutationFn: async ({ storyId, chapterNumber }: { storyId: string; chapterNumber: number }) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/chapters/${chapterNumber}/unlock`);
+      if (!response.ok) {
+        throw await response.json(); // Throw the actual error response from server
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Chapter Unlocked",
+        description: "You can now read this chapter.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unlock chapter. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateAudio = useCallback(() => {
     if (!story) return;
 
     const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
     if (!currentChapter) return;
 
-    // Get the narration voice from settings
     const narrationVoice = (story.settings as any).narrationVoice || 'Soft Female';
-
-    // Map the narration voice to correct ElevenLabs IDs for male voices
     let voiceId = narrationVoice;
     if (narrationVoice === 'Deep Male') {
-      voiceId = 'VR6AewLTigWG4xSOukaG'; // Adam's voice ID
+      voiceId = 'VR6AewLTigWG4xSOukaG';
     } else if (narrationVoice === 'Authoritative Male') {
-      voiceId = 'TxGEqnHWrfWFTfGW9XjX'; // Josh's voice ID  
+      voiceId = 'TxGEqnHWrfWFTfGW9XjX';
     }
-
-    console.log(`Using voice: ${narrationVoice}, mapped to ElevenLabs ID: ${voiceId}`);
 
     generateSpeechMutation.mutate({
       text: currentChapter.content,
       voiceId: voiceId,
       storyId: storyId
     });
-  };
+  }, [story, chapters, currentChapterNum, storyId, generateSpeechMutation]);
 
-  console.log(`Story is ${story} `);
 
-  const handleContinueStory = () => {
-    // If there are choices for the current chapter, don't show the credit dialog directly
-    // Instead, the choices themselves will trigger the next action
+  const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
+
+  const handleContinueStory = useCallback(() => {
     if (currentChapter?.choices && currentChapter.choices.length > 0) {
-      // This case should ideally not be reached if the UI correctly hides the button
-      // when choices are present. But as a fallback, do nothing or log a warning.
       console.warn("Continue Story button clicked when choices are available.");
       return;
     }
     setShowCreditDialog(true);
-  };
+  }, [currentChapter]);
 
-  const handleMakeChoice = (selectedChoice: string) => {
+  const handleMakeChoice = useCallback((selectedChoice: string) => {
     if (!storyId || !currentChapterNum) return;
     makeChoiceMutation.mutate({ storyId, chapterNumber: currentChapterNum, selectedChoice });
-  };
+  }, [storyId, currentChapterNum, makeChoiceMutation]);
 
-  const navigateToChapter = (chapterNumber: number) => {
+  const handleUnlockChapter = useCallback(() => {
+    if (!storyId || !currentChapterNum) return;
+    unlockChapterMutation.mutate({ storyId, chapterNumber: currentChapterNum });
+  }, [storyId, currentChapterNum, unlockChapterMutation]);
+
+  const navigateToChapter = useCallback((chapterNumber: number) => {
     if (chapterNumber >= 1 && chapterNumber <= chapters.length) {
       setCurrentChapterNum(chapterNumber);
     }
-  };
+  }, [chapters.length]);
 
-  const currentChapter = chapters.find(ch => ch.number === currentChapterNum);
+  const isChapterUnlocked = (
+    currentChapter?.number === 1 ||
+    story?.userId === user?._id ||
+    user?.unlockedChapters?.some(uc => uc.storyId === storyId && uc.chapterNumber === currentChapterNum)
+  );
+
   const canGoNext = currentChapterNum < chapters.length;
   const canGoPrevious = currentChapterNum > 1;
   const progress = chapters.length > 0 ? (currentChapterNum / chapters.length) * 100 : 0;
@@ -382,7 +402,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   }
 
   const settings = story.settings || {};
-  console.log('image', story.imageUrl)
 
   return (
     <div className={`w-full px-4 py-8 ${readingMode ? 'reading-mode' : ''}`}>
@@ -392,11 +411,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
             {!readingMode && (
               <div className="md:w-1/3 flex flex-col">
                 <Card className="bg-[#2D2D2D] rounded-xl overflow-hidden mb-6 border-0">
-                  {/* <img 
-                  src={story.imageUrl || "https://images.unsplash.com/photo-1575299899528-a-a3dbcf8e5e?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"} 
-                  alt="Story cover" 
-                  className="w-full h-48 object-cover"
-                /> */}
                   <div className="p-5">
                     <h3 className="font-['Playfair_Display'] text-xl font-semibold mb-1">{story.title}</h3>
                     <p className="text-gray-400 text-sm mb-4">
@@ -414,9 +428,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center">
                         <div className="w-6 h-6 rounded-full bg-[#574873] flex items-center justify-center text-xs">
-                          {/* {story.userId ? "U" + story.userId : "SG"} */}
                         </div>
-                        {/* <span className="ml-2 text-xs text-gray-400">by Author</span> */}
                       </div>
                       <div className="flex items-center space-x-3">
                         <button onClick={handleLike} disabled={likeMutation.isPending}>
@@ -459,7 +471,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
             )}
 
             <div className="md:w-2/3 bg-[#2D2D2D] rounded-xl p-6">
-              {/* Chapter Header */}
               {currentChapter && chapters.length > 1 && (
                 <div className="mb-6 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -489,7 +500,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 </div>
               )}
 
-              {/* Reading Experience Controls */}
               <div className="mb-4 flex items-center md:justify-between md:flex-row flex-col border-y border-gray-700 py-2 gap-2">
                 <div className="flex md:items-center md:flex-row flex-col md:gap-4 gap-2">
                   <Select value={fontFamily} onValueChange={(value) => setFontFamily(value as any)}>
@@ -524,7 +534,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 </Button>
               </div>
 
-              {hasAudio ? (
+              {hasAudio && isChapterUnlocked ? (
                 <AudioPlayer
                   audioUrl={(currentChapter?.audioUrl) || story.audioUrl || audioData?.audioUrl || null}
                   title={currentChapter ? currentChapter.title : story.title}
@@ -543,7 +553,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                     </div>
                     <Button
                       onClick={handleGenerateAudio}
-                      disabled={generateSpeechMutation.isPending}
+                      disabled={generateSpeechMutation.isPending || !isChapterUnlocked}
                       className="bg-[#8B1E3F] hover:bg-[#A93B5B]"
                     >
                       {generateSpeechMutation.isPending ? "Generating..." : "Generate Audio"}
@@ -557,11 +567,26 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 <h2 className="text-2xl font-['Playfair_Display'] font-semibold mb-4">
                   {currentChapter ? currentChapter.title : story.title}
                 </h2>
-                {(currentChapter ? currentChapter.content : story.content || '').split('\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4 leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
+                {isChapterUnlocked ? (
+                  (currentChapter ? currentChapter.content : story.content || '').split('\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4 leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ))
+                ) : (
+                  <div className="text-center p-8 bg-gray-800 rounded-lg">
+                    <Lock className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-lg font-medium text-white">Chapter Locked</h3>
+                    <p className="mt-1 text-sm text-gray-400">You need to unlock this chapter to read it.</p>
+                    <Button
+                      onClick={handleUnlockChapter}
+                      disabled={unlockChapterMutation.isPending}
+                      className="mt-4 bg-[#8B1E3F] hover:bg-[#A93B5B]"
+                    >
+                      {unlockChapterMutation.isPending ? "Unlocking..." : `Unlock for ${currentChapter?.creditsCost} credit(s)`}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 flex flex-col sm:flex-row justify-between items-center sm:items-start space-y-4 sm:space-y-0">
@@ -608,14 +633,28 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                           <ChevronRight size={16} className="ml-1" />
                         </Button>
                       )}
-                      <Button
-                        className="bg-[#8B1E3F] hover:bg-[#A93B5B] transition-colors px-4 py-2 rounded-lg text-white flex items-center justify-center w-full sm:w-auto"
-                        onClick={handleContinueStory}
-                        disabled={continueStoryMutation.isPending}
-                      >
-                        <Sparkles className="mr-2" size={16} />
-                        {continueStoryMutation.isPending ? "Continuing..." : "Continue Story"}
-                      </Button>
+                      {story?.userId === user?._id && (
+                        <>
+                          <Button
+                            className="bg-[#8B1E3F] hover:bg-[#A93B5B] transition-colors px-4 py-2 rounded-lg text-white flex items-center justify-center w-full sm:w-auto"
+                            onClick={handleContinueStory}
+                            disabled={continueStoryMutation.isPending}
+                          >
+                            <Sparkles className="mr-2" size={16} />
+                            {continueStoryMutation.isPending ? "Continuing..." : "Continue Story"}
+                          </Button>
+                          {chapters.length >= 3 && (
+                            <Button
+                              className="bg-blue-600 hover:bg-blue-700 transition-colors px-4 py-2 rounded-lg text-white flex items-center justify-center w-full sm:w-auto"
+                              onClick={() => setShowConcludeDialog(true)}
+                              disabled={continueStoryMutation.isPending}
+                            >
+                              <BookOpen className="mr-2" size={16} />
+                              {continueStoryMutation.isPending ? "Concluding..." : "Conclude Story"}
+                            </Button>
+                          )}
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -625,7 +664,6 @@ const StoryReader = ({ params }: StoryReaderProps) => {
         </div>
       </section>
 
-      {/* Credit Confirmation Dialog */}
       <AlertDialog open={showCreditDialog} onOpenChange={setShowCreditDialog}>
         <AlertDialogContent className="bg-[#1E1E1E] border-gray-700">
           <AlertDialogHeader>
@@ -641,9 +679,32 @@ const StoryReader = ({ params }: StoryReaderProps) => {
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#8B1E3F] hover:bg-[#A93B5B] text-white"
-              onClick={() => continueStoryMutation.mutate(storyId)}
+              onClick={() => continueStoryMutation.mutate({ storyId: storyId.toString() })}
             >
               Continue Story (1 Credit)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showConcludeDialog} onOpenChange={setShowConcludeDialog}>
+        <AlertDialogContent className="bg-[#1E1E1E] border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Conclude Story</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              This will generate a final chapter to conclude the story. This action will cost 1 credit.
+              Are you sure you want to end the story?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-[#2D2D2D] border-gray-700 text-gray-400 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => continueStoryMutation.mutate({ storyId, conclude: true })}
+            >
+              Conclude Story (1 Credit)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

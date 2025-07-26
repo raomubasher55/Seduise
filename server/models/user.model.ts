@@ -33,6 +33,10 @@ const userSchema = new Schema({
   stripeCustomerId: { type: String },
   stripeSubscriptionId: { type: String },
   stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
+  unlockedChapters: [{ 
+    storyId: { type: Schema.Types.ObjectId, ref: 'Story' },
+    chapterNumber: { type: Number }
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   // Google OAuth Fields

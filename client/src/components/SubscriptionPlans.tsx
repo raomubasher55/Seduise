@@ -6,105 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  popular?: boolean;
-  description: string;
-  features: {
-    included: string[];
-    excluded: string[];
-  };
-  limits: {
-    storiesPerMonth: number;
-    chaptersPerMonth: number;
-    audioMinutes: number;
-  };
-}
+import { SUBSCRIPTION_PLANS } from '../../../server/constants/plans';
 
 interface SubscriptionPlansProps {
   currentPlan?: string;
 }
 
-const plans: SubscriptionPlan[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    description: 'Basic access with limited features',
-    features: {
-      included: [
-        'Up to 3 chapters',
-        'Basic story customization',
-      ],
-      excluded: [
-        'Audio narration',
-        'Premium voices',
-        'Exclusive content',
-      ]
-    },
-    limits: {
-      storiesPerMonth: 0, // Free tier doesn't generate stories directly
-      chaptersPerMonth: 3,
-      audioMinutes: 0
-    }
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    price: 4.00,
-    description: 'Enhanced storytelling experience',
-    features: {
-      included: [
-        'Up to 5 chapters',
-        'Limited audio narration',
-        'Enhanced story customization',
-      ],
-      excluded: [
-        'Premium voices',
-        'Exclusive content',
-      ]
-    },
-    limits: {
-      storiesPerMonth: 0, // Standard tier doesn't generate stories directly
-      chaptersPerMonth: 5,
-      audioMinutes: 5 // Example: 5 minutes of audio
-    }
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: 22.00,
-    popular: true,
-    description: 'Ultimate storytelling experience',
-    features: {
-      included: [
-        'Up to 10 chapters',
-        'Full audio narration',
-        'Exclusive content access',
-        'All premium voices',
-        'Priority support',
-      ],
-      excluded: []
-    },
-    limits: {
-      storiesPerMonth: 0, // Premium tier doesn't generate stories directly
-      chaptersPerMonth: 10,
-      audioMinutes: 20 // Example: 20 minutes of audio
-    }
-  }
-];
-
-export function SubscriptionPlans({ currentPlan = 'free' }: SubscriptionPlansProps) {
+export function SubscriptionPlans({ currentPlan = 'discovery' }: SubscriptionPlansProps) {
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleSubscribe = async (planId: string) => {
-    // Don't do anything if it's the current plan
-    if (planId === currentPlan) {
+    if (planId.toLowerCase() === currentPlan.toLowerCase()) {
       toast({
         title: "Already subscribed",
         description: "You are already subscribed to this plan.",
@@ -116,7 +30,6 @@ export function SubscriptionPlans({ currentPlan = 'free' }: SubscriptionPlansPro
     setIsProcessing(prev => ({ ...prev, [planId]: true }));
 
     try {
-      // Navigate to the checkout page for subscriptions
       window.location.href = `/checkout/subscription/${planId}`;
     } catch (error) {
       console.error('Error redirecting to subscription checkout:', error);
@@ -131,59 +44,35 @@ export function SubscriptionPlans({ currentPlan = 'free' }: SubscriptionPlansPro
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      {plans.map((plan) => (
+      {Object.entries(SUBSCRIPTION_PLANS).map(([planId, plan]) => (
         <Card 
-          key={plan.id} 
-          className={`flex flex-col ${plan.popular ? 'border-primary border-2 shadow-lg relative' : 'border'}`}
+          key={planId} 
+          className={`flex flex-col ${(plan as any).popular ? 'border-primary border-2 shadow-lg relative' : 'border'}`}
         >
-          {plan.popular && (
+          {(plan as any).popular && (
             <div className="absolute -top-3 left-0 right-0 flex justify-center">
               <Badge className="bg-primary hover:bg-primary text-white px-3 py-1">Most Popular</Badge>
             </div>
           )}
           
-          <CardHeader className={`${plan.popular ? 'pt-6' : ''}`}>
+          <CardHeader className={`${(plan as any).popular ? 'pt-6' : ''}`}>
             <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
             <CardDescription>{plan.description}</CardDescription>
           </CardHeader>
           
           <CardContent className="flex-grow">
             <div className="mb-4">
-              <span className="text-3xl font-bold">${plan.price}</span>
+              <span className="text-3xl font-bold">€{plan.price / 100}</span>
               <span className="text-muted-foreground ml-1">/month</span>
             </div>
             
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium mb-2">Usage Limits</h4>
-                <ul className="space-y-1 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    <span>{plan.limits.storiesPerMonth} stories per month</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    <span>{plan.limits.chaptersPerMonth} chapters per month</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    <span>Up to {plan.limits.audioMinutes} min audio per story</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <div>
                 <h4 className="font-medium mb-2">Features</h4>
                 <ul className="space-y-1 text-sm">
-                  {plan.features.included.map((feature, i) => (
+                  {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                  {plan.features.excluded.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-muted-foreground">
-                      <X className="h-4 w-4" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -195,13 +84,13 @@ export function SubscriptionPlans({ currentPlan = 'free' }: SubscriptionPlansPro
           <CardFooter>
             <Button 
               className="w-full" 
-              variant={plan.id === currentPlan ? "outline" : (plan.popular ? "default" : "secondary")}
-              disabled={isProcessing[plan.id] || plan.id === currentPlan}
-              onClick={() => handleSubscribe(plan.id)}
+              variant={planId.toLowerCase() === currentPlan.toLowerCase() ? "outline" : ((plan as any).popular ? "default" : "secondary")}
+              disabled={isProcessing[planId] || planId.toLowerCase() === currentPlan.toLowerCase()}
+              onClick={() => handleSubscribe(planId)}
             >
-              {isProcessing[plan.id] ? 
+              {isProcessing[planId] ? 
                 "Processing..." : 
-                plan.id === currentPlan ? 
+                planId.toLowerCase() === currentPlan.toLowerCase() ? 
                   "Current Plan" : 
                   `Subscribe to ${plan.name}`
               }

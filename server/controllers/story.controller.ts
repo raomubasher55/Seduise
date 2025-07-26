@@ -15,9 +15,9 @@ import {
   canPerformAction, 
   deductCredits, 
   trackStoryGeneration,
-  trackAudioGeneration 
+  trackAudioGeneration,
+  trackChapterGeneration
 } from "../services/subscription.service";
-
 
 
 
@@ -186,6 +186,7 @@ export const getStory = async (req: Request, res: Response) => {
       }
     }
     
+    res.setHeader('Cache-Control', 'no-cache');
     res.status(200).json(story);
   } catch (error) {
     console.error("Error getting story:", error);
@@ -239,29 +240,43 @@ export const getStoryAudio = async (req: Request, res: Response) => {
 export const continueStory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { selectedChoice } = req.body; // Get selectedChoice from request body
+    const { selectedChoice, choice, conclude } = req.body; // Get selectedChoice, choice, and conclude flag from request body
+    const finalChoice = selectedChoice || choice;
     const userId = req.session.userId;
     
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
     
-    // First get the story to check its settings
-    const existingStory = await Story.findById(id);
-    if (!existingStory) {
-      return res.status(404).json({ message: "Story not found" });
+    // Check subscription limits and credit balance for chapter generation
+    const actionCheck = await canPerformAction(userId, 'continueStory');
+    
+    if (!actionCheck.canProceed) {
+      return res.status(403).json({
+        message: actionCheck.message || "You've reached your story continuation limit",
+        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
+        requiredCredits: actionCheck.requiredCredits,
+        currentCredits: actionCheck.currentCredits,
+        isPremiumRequired: actionCheck.subscriptionLimitReached
+      });
     }
     
-    // Extract length from story settings if available
-    const storyLength = existingStory.settings?.length || 3; // Default to medium if not specified
-    
-    // Check subscription limits and credit balance for chapter generation
-    
+    // If subscription limit reached but has credits, deduct them
+    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
+      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
+      if (!deducted) {
+        return res.status(402).json({
+          message: "Failed to deduct credits for story continuation",
+          code: "PAYMENT_REQUIRED"
+        });
+      }
+    }
     
     // Continue the story, passing the selectedChoice
-    const continuedStory = await continueStoryService(id, selectedChoice);
+    const continuedStory = await continueStoryService(id, finalChoice, conclude);
     
-    
+    // Track chapter generation for subscription limits
+    await trackChapterGeneration(userId);
     
     res.status(200).json(continuedStory);
   } catch (error) {
@@ -283,7 +298,7 @@ export const continueStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    res.status(500).json({ message: "Failed to continue story" });
+    res.status(500).json({ message: "Failed to continue story", error: error instanceof Error ? error.message : error });
   }
 };
 
@@ -327,6 +342,7 @@ export const getStoryChapters = async (req: Request, res: Response) => {
     
     // Return chapters if story is chapter-based, otherwise convert legacy content
     if (story.isChapterBased && story.chapters.length > 0) {
+      res.setHeader('Cache-Control', 'no-cache');
       res.status(200).json({ chapters: story.chapters });
     } else if (story.content) {
       // Convert legacy story to chapter format
@@ -339,6 +355,7 @@ export const getStoryChapters = async (req: Request, res: Response) => {
         wordCount: story.content.split(' ').length,
         creditsCost: story.creditsCost
       };
+      res.setHeader('Cache-Control', 'no-cache');
       res.status(200).json({ chapters: [chapter] });
     } else {
       res.status(200).json({ chapters: [] });
@@ -408,6 +425,49 @@ export const getChapterChoices = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error getting chapter choices:", error);
     res.status(500).json({ message: "Failed to get chapter choices" });
+  }
+};
+
+export const unlockChapter = async (req: Request, res: Response) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const userId = req.session.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+
+    const chapterNum = parseInt(chapterNumber);
+    const chapter = story.chapters.find(ch => ch.number === chapterNum);
+
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    // Check if the user has enough credits
+    if (user.credits < chapter.creditsCost) {
+      return res.status(402).json({ message: "Insufficient credits to unlock this chapter" });
+    }
+
+    // Deduct credits and add the chapter to the user's unlocked chapters
+    user.credits -= chapter.creditsCost;
+    user.unlockedChapters.push({ storyId: story._id, chapterNumber: chapterNum });
+    await user.save();
+
+    res.status(200).json({ message: "Chapter unlocked successfully" });
+  } catch (error) {
+    console.error("Error unlocking chapter:", error);
+    res.status(500).json({ message: "Failed to unlock chapter" });
   }
 };
 

@@ -4,6 +4,7 @@ import CreditPackages from '../components/CreditPackages';
 import CreditDisplay from '../components/CreditDisplay';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { CREDIT_COSTS } from '../../../server/constants/plans';
 
 export default function CreditsPage() {
   const { user } = useAuth();
@@ -64,9 +65,11 @@ export default function CreditsPage() {
                   <div className="flex flex-col gap-2">
                     <h3 className="text-lg font-semibold">Credit Costs</h3>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Story generation: 2 credits</li>
-                      {/* <li>• Chapter continuation: 1 credit</li> */}
-                      {/* <li>• Audio narration: 3 credits per 10 minutes</li> */}
+                      <li>• Story generation (short): {CREDIT_COSTS.generateStory.short} credit(s)</li>
+                      <li>• Story generation (medium): {CREDIT_COSTS.generateStory.medium} credit(s)</li>
+                      <li>• Story generation (long): {CREDIT_COSTS.generateStory.long} credit(s)</li>
+                      <li>• Chapter continuation: 1 credit</li>
+                      <li>• Audio narration: {CREDIT_COSTS.audioMinute} credit(s) per minute</li>
                     </ul>
                   </div>
                   <div className="flex flex-col gap-2">

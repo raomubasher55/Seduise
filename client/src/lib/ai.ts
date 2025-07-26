@@ -6,9 +6,9 @@ export async function generateStory(params: StoryGenerationParams): Promise<Stor
   return response.json();
 }
 
-export async function continueStory(storyId: number, continuationPrompt?: string): Promise<StoryWithAudio> {
+export async function continueStory(storyId: string, continuationPrompt?: string, conclude?: boolean): Promise<StoryWithAudio> {
   const response = await apiRequest("POST", `/api/stories/${storyId}/continue`, 
-    continuationPrompt ? { continuationPrompt } : undefined
+    { continuationPrompt, conclude }
   );
   return response.json();
 }

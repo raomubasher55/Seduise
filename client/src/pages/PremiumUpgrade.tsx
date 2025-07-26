@@ -60,95 +60,13 @@ const PremiumUpgrade = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Upgrade to Premium</h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Unlock unlimited story creation and premium features to enhance your storytelling experience
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="bg-[#1E1E1E] border-gray-800">
-            <CardHeader>
-              <CardTitle className="text-white">Free</CardTitle>
-              <CardDescription className="text-gray-400">Your current plan</CardDescription>
-              <div className="text-3xl font-bold mt-2">$0</div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-center text-gray-300">
-                  <Check className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>Limited to 3 story generations</span>
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <Check className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>Basic voice options</span>
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <Check className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>Standard story customization</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-[#402648] to-[#8B1E3F] border-0 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-amber-400 text-black px-3 py-1 rounded-bl-lg font-semibold text-sm">
-              RECOMMENDED
-            </div>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                Premium
-                <Sparkles className="w-5 h-5 ml-2 text-amber-400" />
-              </CardTitle>
-              <CardDescription className="text-gray-200">Unleash your creativity</CardDescription>
-              <div className="text-3xl font-bold mt-2">$99.99</div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-center text-white">
-                  <Check className="w-5 h-5 mr-3 text-amber-400" />
-                  <span className="font-semibold">800 Credits</span>
-                </li>
-                <li className="flex items-center text-white">
-                  <Check className="w-5 h-5 mr-3 text-amber-400" />
-                  <span>Premium voice options</span>
-                </li>
-                <li className="flex items-center text-white">
-                  <Check className="w-5 h-5 mr-3 text-amber-400" />
-                  <span>Priority story processing</span>
-                </li>
-                <li className="flex items-center text-white">
-                  <Check className="w-5 h-5 mr-3 text-amber-400" />
-                  <span>Advanced customization options</span>
-                </li>
-                <li className="flex items-center text-white">
-                  <Check className="w-5 h-5 mr-3 text-amber-400" />
-                  <span>Early access to new features</span>
-                </li>
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button
-                className="w-full py-6 text-lg font-semibold bg-amber-400 hover:bg-amber-500 text-black"
-                onClick={handleUpgrade}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Processing...' : 'Upgrade Now'}
-                {!isLoading && <ChevronRight className="ml-2 h-5 w-5" />}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-
-        <div className="mt-12 text-center text-gray-400 text-sm">
-          <p>
-            Payments are processed securely through Stripe. <br />
-            By upgrading, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </div>
+    <div className="container mx-auto px-4 py-16 text-center">
+      <div className="max-w-md mx-auto">
+        <h1 className="text-3xl font-bold mb-6">Upgrade Your Plan</h1>
+        <p className="text-lg text-gray-400 mb-8">
+          Explore our subscription plans to unlock more features and credits.
+        </p>
+        <Button onClick={() => navigate('/subscription')}>View Plans</Button>
       </div>
     </div>
   );

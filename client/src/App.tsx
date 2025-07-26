@@ -33,6 +33,7 @@ import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/PaymentCancelPage";
 import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
 import PremiumGallery from "./pages/PremiumGallery";
+import SubscriptionPlans from "./components/SubscriptionPlans";
 
 function App() {
   return (
@@ -112,6 +113,7 @@ function App() {
               <Route path="/credits">
                 <ProtectedRoute>
                   <CreditsPage />
+                  {/* <SubscriptionPlans/> */}
                 </ProtectedRoute>
               </Route>
               
