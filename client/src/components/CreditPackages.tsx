@@ -25,62 +25,50 @@ interface CreditPackagesProps {
 
 const packages: CreditPackage[] = [
   {
-    id: '0',
-    name: 'Discovery',
-    credits: 0,
-    price: 0,
-    description: 'Explore Without Commitment',
-    features: [
-      '🖋 Create up to 2 personalized stories (text)',
-      '🎧 1 free audio (≈ 1 to 2 min)',
-      '🎙 Standard voice',
-      '📚 No access to the premium library',
-      '✨ Perfect to explore the world of Seduice for free',
-    ]
-  },
-  {
     id: 'starter',
-    name: 'Essentiel',
-    credits: 12,
-    price: 5.99,
-    popular: true,
-    description: 'Pleasure at Your Own Pace',
+    name: 'Starter Pack',
+    credits: 20,
+    price: 3.99,
+    description: 'Perfect for trying more stories',
     features: [
-      '🖋 Create up to 5 personalized stories (text)',
-      '🎧 6 audio credits (≈ 15 minutes total)',
-      '🎙 Natural-sounding voices',
-      '📚 No access to the premium library',
-      '🔐 A soft and regular introduction to your intimate desires',
+      '💳 20 credits (one-time purchase)',
+      '📖 Generate ~4-6 short stories',
+      '🎧 Create ~3-4 audio narrations',
+      '💎 Credits never expire',
+      '🔄 Use anytime you run out of monthly credits'
     ]
   },
   {
     id: 'popular',
-    name: 'Seduction',
-    credits: 30,
-    price: 11.99,
-    description: 'Your Pleasure Rendezvous',
+    name: 'Popular Pack',
+    credits: 50,
+    price: 8.99,
+    popular: true,
+    description: 'Most popular credit top-up',
     features: [
-      '🖋 Create up to 12 personalized stories (text)',
-      '🎧 12 audio credits (≈ 30 minutes)',
-      '🎙 Expressive & realistic voices',
-      '📚 Partial access to the premium audio library',
-      '🎁 New stories added monthly',
-      '💫 Let your desires unfold like an intimate audio series',
+      '💳 50 credits (one-time purchase)',
+      '📖 Generate ~10-15 short stories',
+      '🎧 Create ~8-10 audio narrations',
+      '💎 Credits never expire',
+      '🎯 Great value for regular users',
+      '🔄 Perfect when monthly quota runs out'
     ]
   },
   {
     id: 'premium',
-    name: 'Intimacy',
-    credits: 60,
-    price: 24.99,
+    name: 'Power Pack',
+    credits: 100,
+    price: 15.99,
     bestValue: true,
-    description: 'The Ultimate Experience Without Limits',
+    description: 'Maximum credits for heavy users',
     features: [
-      '🖋 Create up to 25 personalized stories (text)',
-      '🎧 24 audio credits (≈ 60 minutes)',
-      '🎙 Expressive & immersive voices',
-      '📚 Full access to the premium audio library',
-      '💌 Tailored suggestions and exclusive stories',
+      '💳 100 credits (one-time purchase)',
+      '📖 Generate ~20-30 short stories',
+      '🎧 Create ~15-20 audio narrations',
+      '💎 Credits never expire',
+      '💰 Best value per credit',
+      '⚡ Perfect for power users',
+      '🔄 Stock up and never run out'
     ]
   }
 ];

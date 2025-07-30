@@ -1,82 +1,113 @@
-// Subscription plans and their limits
-export const SUBSCRIPTION_PLANS = {
-  starter: {
-    name: "Essentiel",
-    description: "Pleasure at Your Own Pace",
-    price: 599, // €5.99/month in cents for Stripe
-    monthlyLimits: {
-      stories: 5,
-      audioCredits: 6
-    },
-    features: [
-      "Create up to 5 personalized stories (text)",
-      "6 audio credits (≈ 15 minutes total)",
-      "Natural-sounding voices",
-      "No access to the premium library"
-    ],
-    supportsCredits: true
-  },
-  popular: {
-    name: "Seduction",
-    description: "Your Pleasure Rendezvous",
-    price: 1199, // €11.99/month in cents
-    monthlyLimits: {
-      stories: 12,
-      audioCredits: 12
-    },
-    features: [
-      "Create up to 12 personalized stories (text)",
-      "12 audio credits (≈ 30 minutes)",
-      "Expressive & realistic voices",
-      "Partial access to the premium audio library",
-      "New stories added monthly"
-    ],
-    supportsCredits: true
-  },
-  premium: {
-    name: "Intimacy",
-    description: "The Ultimate Experience Without Limits",
-    price: 2499, // €24.99/month in cents
-    monthlyLimits: {
-      stories: 25,
-      audioCredits: 24
-    },
-    features: [
-      "Create up to 25 personalized stories (text)",
-      "24 audio credits (≈ 60 minutes)",
-      "Expressive & immersive voices",
-      "Full access to the premium audio library",
-      "Tailored suggestions and exclusive stories"
-    ],
-    supportsCredits: true
-  }
-};
 
 
-  // Credit packages
+  // Subscription plans
+  export const SUBSCRIPTION_PLANS = {
+    discovery: {
+      id: 'discovery',
+      name: 'Discovery',
+      price: 0, // Free
+      billingPeriod: 'free',
+      description: 'Explore Without Commitment',
+      monthlyCredits: 10,
+      monthlyLimits: {
+        stories: 2,
+        audioCredits: 1
+      },
+      features: [
+        'Create up to 2 personalized stories (text)',
+        '1 free audio',
+        'Standard voice',
+        'No access to the premium library',
+        'Perfect to explore the world of Seduice for free'
+      ]
+    },
+    essential: {
+      id: 'essential',
+      name: 'Essential',
+      price: 599, // €5.99 (in cents)
+      billingPeriod: 'monthly',
+      description: 'Pleasure at Your Own Pace',
+      monthlyCredits: 15,
+      popular: true,
+      monthlyLimits: {
+        stories: 5,
+        audioCredits: 6
+      },
+      features: [
+        'Create up to 5 personalized stories (text)',
+        '6 audio credits',
+        'Natural-sounding voices',
+        'No access to the premium library',
+        'A soft and regular introduction to your intimate desires'
+      ]
+    },
+    passion: {
+      id: 'passion',
+      name: 'Passion',
+      price: 1199, // €11.99 (in cents)
+      billingPeriod: 'monthly',
+      description: 'Your Pleasure Rendezvous',
+      monthlyCredits: 35,
+      monthlyLimits: {
+        stories: 12,
+        audioCredits: 12
+      },
+      features: [
+        'Create up to 12 personalized stories (text)',
+        '12 audio credits',
+        'Expressive & realistic voices',
+        'Partial access to the premium audio library',
+        'New stories added monthly',
+        'Let your desires unfold like an intimate audio series'
+      ]
+    },
+    escape: {
+      id: 'escape',
+      name: 'Escape',
+      price: 2499, // €24.99 (in cents)
+      billingPeriod: 'monthly',
+      description: 'The Ultimate Experience Without Limits',
+      monthlyCredits: 70,
+      bestValue: true,
+      monthlyLimits: {
+        stories: 25,
+        audioCredits: 24
+      },
+      features: [
+        'Create up to 25 personalized stories (text)',
+        '24 audio credits',
+        'Expressive & immersive voices',
+        'Full access to the premium audio library',
+        'Tailored suggestions and exclusive stories',
+        'Priority support & early feature access'
+      ]
+    }
+  };
+
+  // Credit packages (one-time purchases)
   export const CREDIT_PACKAGES = {
     starter: {
       id: 'starter',
       name: 'Starter Pack',
       credits: 20,
-      price: 499, // €4.99 (in cents)
-      description: 'Perfect for casual story creation'
+      price: 399, // €3.99 (in cents)
+      description: 'Perfect for trying more stories'
     },
     popular: {
       id: 'popular',
       name: 'Popular Pack',
       credits: 50,
-      price: 999, // €9.99 (in cents)
+      price: 899, // €8.99 (in cents)
       popular: true,
-      description: 'Most popular choice for regular users'
+      description: 'Most popular credit top-up'
     },
     premium: {
       id: 'premium',
-      name: 'Premium Pack',
+      name: 'Power Pack',
       credits: 100,
-      price: 2199, // €21.99 (in cents)
+      price: 1599, // €15.99 (in cents)
       bestValue: true,
-      description: 'Best value for avid storytellers'
+      description: 'Maximum credits for heavy users'
     }
   };
 

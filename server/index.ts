@@ -133,7 +133,6 @@
     } else {
       serveStatic(app);
     }
-
     // ALWAYS serve the app on port 5000
     const port = 5000;
     server.listen(port, () => {

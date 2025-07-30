@@ -5,7 +5,7 @@ import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 import { awardBadge } from "./reward.service";
 
-export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance") => {
+export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance", accessType: string = "public") => {
     const user = await User.findById(userId);
     if (!user) {
         throw new Error("User not found");
@@ -111,7 +111,8 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         content: cleanedContent, // Keep for backward compatibility
         userId,
         settings,
-        isPublic,
+        isPublic: accessType === 'public',
+        accessType: accessType,
         category,
         chapters: [firstChapter],
         currentChapter: 1,

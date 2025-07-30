@@ -32,7 +32,7 @@ export const userSchema = z.object({
   stories: z.array(z.string()).default([]),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
-  subscription: z.enum(["free", "pro"]).default("free"),
+  subscription: z.enum(["free", "essential", "passion", "escape"]).default("free"),
   authProvider: z.enum(["local", "google"]).default("local")
 });
 

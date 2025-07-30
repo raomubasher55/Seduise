@@ -55,7 +55,7 @@ const Header = () => {
           <nav className="hidden md:flex space-x-6">
             <NavLink href="/discover" current={location} label="Discover" />
             <NavLink href="/create" current={location} label="Create" />
-            {isPremium && <NavLink href="/premium-gallery" current={location} label="Premium Gallery" />}
+            {(user?.subscription === 'passion' || user?.subscription === 'escape') && <NavLink href="/premium-gallery" current={location} label="Premium Gallery" />}
             {/* <NavLink href="/community" current={location} label="Community" /> */}
             {/* <NavLink href="#role-play" current={location} label="Role-Play" /> */}
           </nav>
@@ -66,19 +66,19 @@ const Header = () => {
             </Button>
             
             {/* Premium button - hidden on small mobile screens */}
-            {/* {isPremium ? (
-              <Button className="hidden sm:flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
+            {isPremium ? (
+              <Button className="hidden sm:flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
                 <Crown size={18} className="mr-2" />
                 <span>Premium</span>
               </Button>
             ) : (
-              <Link href="/premium">
-                <Button className="hidden sm:flex items-center bg-gradient-to-r from-[#8B1E3F] to-[#3D315B] px-4 py-2 rounded-full text-white hover:from-[#A93B5B] hover:to-[#574873] transition-all">
+              <Link href="/premium-upgrade">
+                <Button className="hidden sm:flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
                   <Crown size={18} className="mr-2" />
                   <span>Get Premium</span>
                 </Button>
               </Link>
-            )} */}
+            )}
             
             {/* Credits button - always show when authenticated */}
             {isAuthenticated && (
@@ -185,23 +185,23 @@ const Header = () => {
             <nav className="flex flex-col space-y-4">
               <MobileNavLink href="/discover" label="Discover" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/create" label="Create" onClick={() => setMobileMenuOpen(false)} />
-              {isPremium && <MobileNavLink href="/premium-gallery" label="Premium Gallery" onClick={() => setMobileMenuOpen(false)} />}
+              {(user?.subscription === 'passion' || user?.subscription === 'escape') && <MobileNavLink href="/premium-gallery" label="Premium Gallery" onClick={() => setMobileMenuOpen(false)} />}
               {/* <MobileNavLink href="/community" label="Community" onClick={() => setMobileMenuOpen(false)} /> */}
               {/* <MobileNavLink href="#role-play" label="Role-Play" onClick={() => setMobileMenuOpen(false)} /> */}
               
               {/* Premium link for mobile */}
-              {/* {!isPremium && (
+              {!isPremium && (
                 <MobileNavLink 
-                  href="/premium" 
+                  href="/premium-upgrade" 
                   label={
                     <div className="flex items-center">
-                      <Crown size={16} className="mr-2 text-[#D9B08C]" />
+                      <Crown size={16} className="mr-2 text-purple-400" />
                       <span>Get Premium</span>
                     </div>
                   } 
                   onClick={() => setMobileMenuOpen(false)} 
                 />
-              )} */}
+              )}
               
               {/* Credits link for mobile when authenticated */}
               {isAuthenticated && (

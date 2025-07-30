@@ -59,6 +59,7 @@ const CreateStory = () => {
   const [, navigate] = useLocation();
   const [storyTitle, setStoryTitle] = useState<string>("");
   const [isPublic, setIsPublic] = useState<boolean>(false);
+  const [accessType, setAccessType] = useState<string>("public");
   const [category, setCategory] = useState<string>("romance");
   const [settings, setSettings] = useState<StorySettings>({
     timePeriod: "Contemporary",
@@ -209,7 +210,8 @@ const CreateStory = () => {
         explicitLevel: explicitLevel
       },
       maxTokens: settings.length === 2 ? 1200 : settings.length === 3 ? 2400 : 4800, // Match server-side token calculation
-      isPublic: isPremium ? isPublic : false,
+      isPublic: accessType === 'public',
+      accessType: accessType,
       category: category
     });
   };
@@ -510,27 +512,6 @@ const CreateStory = () => {
                 />
               </div>
 
-              {/* Visibility Toggle - Only for Premium Users */}
-              {isPremium && (
-                <div className="mt-6 p-4 bg-[#1E1E1E] border border-gray-700 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">Story Visibility</h3>
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Switch
-                      id="story-visibility"
-                      checked={isPublic}
-                      onCheckedChange={setIsPublic}
-                    />
-                    <Label htmlFor="story-visibility" className="cursor-pointer">
-                      {isPublic ? 'Public - Share with the community' : 'Private - Only visible to you'}
-                    </Label>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {isPublic
-                      ? 'Your story will be visible in the community section for others to enjoy.'
-                      : 'Your story will only be visible to you in your dashboard.'}
-                  </p>
-                </div>
-              )}
 
               <div className="flex justify-between mt-8">
                 <Button
@@ -632,23 +613,85 @@ const CreateStory = () => {
             </Select>
           </div>
 
-          {/* Public/Private Toggle */}
+          {/* Story Access Type */}
           <div className="mb-8 p-4 bg-[#121212] border border-gray-700 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="public-toggle"
-                  checked={isPublic}
-                  onCheckedChange={setIsPublic}
-                />
-                <Label htmlFor="public-toggle" className="text-white">
-                  Make story public
-                </Label>
+            <label className="block text-lg font-medium text-white mb-3">Story Access</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Public Option */}
+              <div
+                onClick={() => setAccessType('public')}
+                className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                  accessType === 'public' 
+                    ? 'border-[#8B1E3F] bg-[#8B1E3F]/10' 
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-white">Public</h4>
+                  <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">FREE</span>
+                </div>
+                <p className="text-sm text-gray-400">Visible to everyone in community</p>
               </div>
-              <div className="text-xs text-gray-400">
-                {isPublic ? "Your story will be visible in the Community section" : "Only you can view this story"}
+
+              {/* Private Option */}
+              <div
+                onClick={() => setAccessType('private')}
+                className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                  accessType === 'private' 
+                    ? 'border-[#8B1E3F] bg-[#8B1E3F]/10' 
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-white">Private</h4>
+                  <span className="text-xs bg-gray-600 text-white px-2 py-1 rounded">FREE</span>
+                </div>
+                <p className="text-sm text-gray-400">Only visible to you</p>
               </div>
+
+              {/* Premium Option - Only for Passion/Escape users */}
+              {(user?.subscription === 'passion' || user?.subscription === 'escape') && (
+                <div
+                  onClick={() => setAccessType('premium_exclusive')}
+                  className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                    accessType === 'premium_exclusive' 
+                      ? 'border-yellow-500 bg-yellow-500/10' 
+                      : 'border-yellow-600/50 hover:border-yellow-500/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-white">Premium</h4>
+                    <span className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 rounded">
+                      EXCLUSIVE
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">Only in premium gallery</p>
+                </div>
+              )}
             </div>
+            
+            {/* Info text based on selected access type */}
+            <div className="mt-3 text-sm text-gray-400">
+              {accessType === 'public' && "Your story will appear in the public community section for all users to enjoy."}
+              {accessType === 'private' && "Your story will only be visible to you in your personal dashboard."}
+              {accessType === 'premium_exclusive' && "Your story will only appear in the premium gallery for Passion and Escape subscribers."}
+            </div>
+            
+            {/* Upgrade prompt for non-premium users who try to select premium */}
+            {accessType === 'premium_exclusive' && user?.subscription !== 'passion' && user?.subscription !== 'escape' && (
+              <div className="mt-3 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
+                <p className="text-sm text-yellow-200">
+                  Premium story creation is available for Passion and Escape subscribers only.
+                </p>
+                <Button 
+                  size="sm" 
+                  className="mt-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                  onClick={() => navigate('/premium-upgrade')}
+                >
+                  Upgrade to Premium
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Tabbed Interface */}

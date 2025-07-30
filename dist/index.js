@@ -8,6 +8,146 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// server/models/user.model.ts
+var user_model_exports = {};
+__export(user_model_exports, {
+  User: () => User
+});
+import { Schema, model } from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import dotenv2 from "dotenv";
+var JWT_SECRET, userSchema, User;
+var init_user_model = __esm({
+  "server/models/user.model.ts"() {
+    "use strict";
+    dotenv2.config();
+    JWT_SECRET = process.env.JWT_SECRET || "story_app_super_secret_key_for_tokens_2025";
+    userSchema = new Schema({
+      email: { type: String, required: true, unique: true },
+      password: { type: String, required: false },
+      // Made optional for Google auth
+      name: { type: String, required: true },
+      phone: { type: String, required: false },
+      // Added phone field
+      role: { type: String, enum: ["admin", "user"], default: "user" },
+      subscription: {
+        type: String,
+        enum: ["free", "essential", "passion", "escape"],
+        default: "free"
+      },
+      isPremium: { type: Boolean, default: false },
+      // True for any paid plan
+      credits: { type: Number, default: 10 },
+      // Default 10 credits for new users
+      // Subscription usage tracking
+      usageThisMonth: {
+        storiesGenerated: { type: Number, default: 0 },
+        chaptersGenerated: { type: Number, default: 0 },
+        audioMinutesUsed: { type: Number, default: 0 },
+        lastResetDate: { type: Date, default: Date.now }
+      },
+      // For Stripe integration
+      stripeCustomerId: { type: String },
+      stripeSubscriptionId: { type: String },
+      stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
+      unlockedChapters: [{
+        storyId: { type: Schema.Types.ObjectId, ref: "Story" },
+        chapterNumber: { type: Number }
+      }],
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      // Google OAuth Fields
+      googleId: { type: String, sparse: true, unique: true },
+      profilePicture: { type: String },
+      authProvider: { type: String, enum: ["local", "google"], default: "local" },
+      badges: [{
+        id: String,
+        name: String,
+        description: String,
+        icon: String,
+        color: String,
+        rarity: { type: String, enum: ["common", "rare", "epic", "legendary"] },
+        awardedAt: { type: Date, default: Date.now }
+      }]
+    });
+    userSchema.index({ email: 1 }, { unique: true });
+    userSchema.pre("save", async function(next) {
+      if (!this.isModified("password") || !this.password) return next();
+      this.password = await bcrypt.hash(this.password, 10);
+      next();
+    });
+    userSchema.methods.comparePassword = async function(candidatePassword) {
+      if (!this.password) return false;
+      return await bcrypt.compare(candidatePassword, this.password);
+    };
+    userSchema.methods.generateAuthToken = function() {
+      return jwt.sign({ id: this._id }, JWT_SECRET, { expiresIn: "24h" });
+    };
+    userSchema.methods.toJSON = function() {
+      const user = this.toObject();
+      delete user.password;
+      return user;
+    };
+    User = model("User", userSchema);
+  }
+});
+
+// server/models/story.model.ts
+var story_model_exports = {};
+__export(story_model_exports, {
+  Story: () => Story
+});
+import { Schema as Schema2, model as model2 } from "mongoose";
+var chapterSchema, storySchema, Story;
+var init_story_model = __esm({
+  "server/models/story.model.ts"() {
+    "use strict";
+    chapterSchema = new Schema2({
+      number: { type: Number, required: true },
+      title: { type: String, required: true },
+      content: { type: String, required: true },
+      summary: { type: String },
+      audioUrl: { type: String },
+      createdAt: { type: Date, default: Date.now },
+      wordCount: { type: Number },
+      creditsCost: { type: Number, default: 1 }
+    });
+    storySchema = new Schema2({
+      title: { type: String, required: true },
+      content: { type: String },
+      // Keep for backward compatibility
+      audioUrl: { type: String },
+      userId: { type: String, required: true },
+      settings: { type: Object, required: true },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      isPublic: { type: Boolean, default: true },
+      imageUrl: { type: String },
+      likes: { type: Number, default: 0 },
+      plays: { type: Number, default: 0 },
+      upvotes: { type: Number, default: 0 },
+      downvotes: { type: Number, default: 0 },
+      category: { type: String, default: "romance" },
+      creditsCost: { type: Number, default: 1 },
+      chapters: { type: [chapterSchema], default: [] },
+      currentChapter: { type: Number, default: 1 },
+      totalChapters: { type: Number, default: 1 },
+      isChapterBased: { type: Boolean, default: false },
+      isPremiumContent: { type: Boolean, default: false },
+      accessType: {
+        type: String,
+        enum: ["public", "premium_early_access", "premium_exclusive"],
+        default: "public"
+      },
+      premiumAccessDate: { type: Date },
+      publicReleaseDate: { type: Date }
+    }, { timestamps: true });
+    storySchema.index({ id: 1 }, { unique: false });
+    Story = model2("Story", storySchema);
+  }
+});
+
 // server/constants/plans.ts
 var plans_exports = {};
 __export(plans_exports, {
@@ -55,58 +195,89 @@ var init_plans = __esm({
   "server/constants/plans.ts"() {
     "use strict";
     SUBSCRIPTION_PLANS = {
-      starter: {
-        name: "Essentiel",
-        description: "Pleasure at Your Own Pace",
+      discovery: {
+        id: "discovery",
+        name: "Discovery",
+        price: 0,
+        // Free
+        billingPeriod: "free",
+        description: "Explore Without Commitment",
+        monthlyCredits: 10,
+        monthlyLimits: {
+          stories: 2,
+          audioCredits: 1
+        },
+        features: [
+          "Create up to 2 personalized stories (text)",
+          "1 free audio",
+          "Standard voice",
+          "No access to the premium library",
+          "Perfect to explore the world of Seduice for free"
+        ]
+      },
+      essential: {
+        id: "essential",
+        name: "Essential",
         price: 599,
-        // €5.99/month in cents for Stripe
+        // €5.99 (in cents)
+        billingPeriod: "monthly",
+        description: "Pleasure at Your Own Pace",
+        monthlyCredits: 15,
+        popular: true,
         monthlyLimits: {
           stories: 5,
           audioCredits: 6
         },
         features: [
           "Create up to 5 personalized stories (text)",
-          "6 audio credits (\u2248 15 minutes total)",
+          "6 audio credits",
           "Natural-sounding voices",
-          "No access to the premium library"
-        ],
-        supportsCredits: true
+          "No access to the premium library",
+          "A soft and regular introduction to your intimate desires"
+        ]
       },
-      popular: {
-        name: "Seduction",
-        description: "Your Pleasure Rendezvous",
+      passion: {
+        id: "passion",
+        name: "Passion",
         price: 1199,
-        // €11.99/month in cents
+        // €11.99 (in cents)
+        billingPeriod: "monthly",
+        description: "Your Pleasure Rendezvous",
+        monthlyCredits: 35,
         monthlyLimits: {
           stories: 12,
           audioCredits: 12
         },
         features: [
           "Create up to 12 personalized stories (text)",
-          "12 audio credits (\u2248 30 minutes)",
+          "12 audio credits",
           "Expressive & realistic voices",
           "Partial access to the premium audio library",
-          "New stories added monthly"
-        ],
-        supportsCredits: true
+          "New stories added monthly",
+          "Let your desires unfold like an intimate audio series"
+        ]
       },
-      premium: {
-        name: "Intimacy",
-        description: "The Ultimate Experience Without Limits",
+      escape: {
+        id: "escape",
+        name: "Escape",
         price: 2499,
-        // €24.99/month in cents
+        // €24.99 (in cents)
+        billingPeriod: "monthly",
+        description: "The Ultimate Experience Without Limits",
+        monthlyCredits: 70,
+        bestValue: true,
         monthlyLimits: {
           stories: 25,
           audioCredits: 24
         },
         features: [
           "Create up to 25 personalized stories (text)",
-          "24 audio credits (\u2248 60 minutes)",
+          "24 audio credits",
           "Expressive & immersive voices",
           "Full access to the premium audio library",
-          "Tailored suggestions and exclusive stories"
-        ],
-        supportsCredits: true
+          "Tailored suggestions and exclusive stories",
+          "Priority support & early feature access"
+        ]
       }
     };
     CREDIT_PACKAGES = {
@@ -114,27 +285,27 @@ var init_plans = __esm({
         id: "starter",
         name: "Starter Pack",
         credits: 20,
-        price: 499,
-        // €4.99 (in cents)
-        description: "Perfect for casual story creation"
+        price: 399,
+        // €3.99 (in cents)
+        description: "Perfect for trying more stories"
       },
       popular: {
         id: "popular",
         name: "Popular Pack",
         credits: 50,
-        price: 999,
-        // €9.99 (in cents)
+        price: 899,
+        // €8.99 (in cents)
         popular: true,
-        description: "Most popular choice for regular users"
+        description: "Most popular credit top-up"
       },
       premium: {
         id: "premium",
-        name: "Premium Pack",
+        name: "Power Pack",
         credits: 100,
-        price: 2199,
-        // €21.99 (in cents)
+        price: 1599,
+        // €15.99 (in cents)
         bestValue: true,
-        description: "Best value for avid storytellers"
+        description: "Maximum credits for heavy users"
       }
     };
     CREDIT_COSTS = {
@@ -480,7 +651,7 @@ var MemStorage = class {
 var storage = new MemStorage();
 
 // server/routes.ts
-import { z as z4 } from "zod";
+import { z as z5 } from "zod";
 
 // server/utils/elevenlabs.ts
 import dotenv from "dotenv";
@@ -940,78 +1111,9 @@ import path3 from "path";
 import fs3 from "fs";
 
 // server/middlewares/auth.middleware.ts
+init_user_model();
 import jwt2 from "jsonwebtoken";
 import dotenv3 from "dotenv";
-
-// server/models/user.model.ts
-import { Schema, model } from "mongoose";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import dotenv2 from "dotenv";
-dotenv2.config();
-var JWT_SECRET = process.env.JWT_SECRET || "story_app_super_secret_key_for_tokens_2025";
-var userSchema = new Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: false },
-  // Made optional for Google auth
-  name: { type: String, required: true },
-  phone: { type: String, required: false },
-  // Added phone field
-  role: { type: String, enum: ["admin", "user"], default: "user" },
-  subscription: {
-    type: String,
-    enum: ["free", "standard", "premium"],
-    default: "free"
-  },
-  isPremium: { type: Boolean, default: false },
-  // True for any paid plan
-  credits: { type: Number, default: 10 },
-  // Default 10 credits for new users
-  // Subscription usage tracking
-  usageThisMonth: {
-    storiesGenerated: { type: Number, default: 0 },
-    chaptersGenerated: { type: Number, default: 0 },
-    audioMinutesUsed: { type: Number, default: 0 },
-    lastResetDate: { type: Date, default: Date.now }
-  },
-  // For Stripe integration
-  stripeCustomerId: { type: String },
-  stripeSubscriptionId: { type: String },
-  stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
-  unlockedChapters: [{
-    storyId: { type: Schema.Types.ObjectId, ref: "Story" },
-    chapterNumber: { type: Number }
-  }],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  // Google OAuth Fields
-  googleId: { type: String, sparse: true, unique: true },
-  profilePicture: { type: String },
-  authProvider: { type: String, enum: ["local", "google"], default: "local" },
-  badges: [{ type: String }]
-  // Array of strings to store badge names/IDs
-});
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.pre("save", async function(next) {
-  if (!this.isModified("password") || !this.password) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  if (!this.password) return false;
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-userSchema.methods.generateAuthToken = function() {
-  return jwt.sign({ id: this._id }, JWT_SECRET, { expiresIn: "24h" });
-};
-userSchema.methods.toJSON = function() {
-  const user = this.toObject();
-  delete user.password;
-  return user;
-};
-var User = model("User", userSchema);
-
-// server/middlewares/auth.middleware.ts
 dotenv3.config();
 var JWT_SECRET2 = process.env.JWT_SECRET || "story_app_super_secret_key_for_tokens_2025";
 var authMiddleware = (req, res, next) => {
@@ -1090,6 +1192,7 @@ var isAdmin = async (req, res, next) => {
 import { Router } from "express";
 
 // server/services/auth.service.ts
+init_user_model();
 var login = async (email, password) => {
   const user = await User.findOne({ email });
   if (!user) {
@@ -1120,6 +1223,7 @@ var signup = async (email, password, name, phone) => {
 };
 
 // server/controllers/auth.controller.ts
+init_user_model();
 var login2 = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -1208,6 +1312,7 @@ var googleCallback = (req, res) => {
 };
 
 // server/config/passport.ts
+init_user_model();
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv4 from "dotenv";
@@ -1304,59 +1409,21 @@ router.get(
 );
 var auth_route_default = router;
 
-// server/models/story.model.ts
-import { Schema as Schema2, model as model2 } from "mongoose";
-var chapterSchema = new Schema2({
-  number: { type: Number, required: true },
-  title: { type: String, required: true },
-  content: { type: String, required: true },
-  summary: { type: String },
-  audioUrl: { type: String },
-  createdAt: { type: Date, default: Date.now },
-  wordCount: { type: Number },
-  creditsCost: { type: Number, default: 1 }
-});
-var storySchema = new Schema2({
-  title: { type: String, required: true },
-  content: { type: String },
-  // Keep for backward compatibility
-  audioUrl: { type: String },
-  userId: { type: String, required: true },
-  settings: { type: Object, required: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  isPublic: { type: Boolean, default: true },
-  imageUrl: { type: String },
-  likes: { type: Number, default: 0 },
-  plays: { type: Number, default: 0 },
-  upvotes: { type: Number, default: 0 },
-  downvotes: { type: Number, default: 0 },
-  category: { type: String, default: "romance" },
-  creditsCost: { type: Number, default: 1 },
-  chapters: { type: [chapterSchema], default: [] },
-  currentChapter: { type: Number, default: 1 },
-  totalChapters: { type: Number, default: 1 },
-  isChapterBased: { type: Boolean, default: false },
-  isPremiumContent: { type: Boolean, default: false },
-  accessType: {
-    type: String,
-    enum: ["public", "premium_early_access", "premium_exclusive"],
-    default: "public"
-  },
-  premiumAccessDate: { type: Date },
-  publicReleaseDate: { type: Date }
-}, { timestamps: true });
-storySchema.index({ id: 1 }, { unique: false });
-var Story = model2("Story", storySchema);
+// server/routes.ts
+init_user_model();
+init_story_model();
 
 // server/routes/story.route.ts
 import { Router as Router2 } from "express";
+
+// server/services/story.service.ts
+init_story_model();
 
 // server/utils/openai.ts
 import OpenAI from "openai";
 var novitaAI = new OpenAI({
   baseURL: "https://api.novita.ai/v3/openai",
-  apiKey: "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI"
+  apiKey: process.env.OPENAI_KEY || "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI"
 });
 var stream = false;
 async function generateStory(options) {
@@ -1842,23 +1909,292 @@ IMPORTANT: Conclude the story from the exact point where it ended. Provide a sat
   }
 }
 
+// server/services/story.service.ts
+init_user_model();
+
+// server/services/reward.service.ts
+init_user_model();
+
+// server/constants/badges.ts
+var BADGE_DEFINITIONS = {
+  // ==================== ENGAGEMENT BADGES ====================
+  "first_like": {
+    id: "first_like",
+    name: "First Heart",
+    description: "Received your first like on a story",
+    icon: "\u{1F49D}",
+    color: "#FFB6C1",
+    category: "engagement",
+    rarity: "common",
+    criteria: {
+      type: "likes",
+      threshold: 1,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 5
+    }
+  },
+  "popular_author": {
+    id: "popular_author",
+    name: "Popular Author",
+    description: "Received 50+ likes across all stories",
+    icon: "\u2B50",
+    color: "#FFD700",
+    category: "engagement",
+    rarity: "rare",
+    criteria: {
+      type: "likes",
+      threshold: 50,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 25
+    }
+  },
+  "viral_storyteller": {
+    id: "viral_storyteller",
+    name: "Viral Storyteller",
+    description: "Received 200+ likes across all stories",
+    icon: "\u{1F525}",
+    color: "#FF4500",
+    category: "engagement",
+    rarity: "epic",
+    criteria: {
+      type: "likes",
+      threshold: 200,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 100,
+      premium_days: 3
+    }
+  },
+  "legend_author": {
+    id: "legend_author",
+    name: "Legend Author",
+    description: "Received 1000+ likes across all stories",
+    icon: "\u{1F451}",
+    color: "#8A2BE2",
+    category: "engagement",
+    rarity: "legendary",
+    criteria: {
+      type: "likes",
+      threshold: 1e3,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 500,
+      premium_days: 30
+    }
+  },
+  // ==================== QUALITY BADGES ====================
+  "quality_writer": {
+    id: "quality_writer",
+    name: "Quality Writer",
+    description: "High engagement ratio (likes/plays > 0.3)",
+    icon: "\u2728",
+    color: "#4169E1",
+    category: "quality",
+    rarity: "rare",
+    criteria: {
+      type: "engagement_ratio",
+      threshold: 0.3,
+      timeframe: "all_time",
+      additional_conditions: {
+        min_plays: 20
+        // Must have at least 20 plays to qualify
+      }
+    },
+    rewards: {
+      credits: 30
+    }
+  },
+  "masterpiece_creator": {
+    id: "masterpiece_creator",
+    name: "Masterpiece Creator",
+    description: "Exceptional engagement ratio (likes/plays > 0.5)",
+    icon: "\u{1F3A8}",
+    color: "#9932CC",
+    category: "quality",
+    rarity: "epic",
+    criteria: {
+      type: "engagement_ratio",
+      threshold: 0.5,
+      timeframe: "all_time",
+      additional_conditions: {
+        min_plays: 50
+      }
+    },
+    rewards: {
+      credits: 75,
+      premium_days: 7
+    }
+  },
+  // ==================== COMMUNITY BADGES ====================
+  "community_favorite": {
+    id: "community_favorite",
+    name: "Community Favorite",
+    description: "More upvotes than downvotes with 10+ total votes",
+    icon: "\u{1F3C6}",
+    color: "#32CD32",
+    category: "community",
+    rarity: "rare",
+    criteria: {
+      type: "upvotes",
+      threshold: 10,
+      timeframe: "all_time",
+      additional_conditions: {
+        upvote_ratio: 0.7
+        // 70% upvotes
+      }
+    },
+    rewards: {
+      credits: 40
+    }
+  },
+  "peoples_choice": {
+    id: "peoples_choice",
+    name: "People's Choice",
+    description: "Overwhelmingly positive community response (90%+ upvotes)",
+    icon: "\u{1F396}\uFE0F",
+    color: "#FF6347",
+    category: "community",
+    rarity: "epic",
+    criteria: {
+      type: "upvotes",
+      threshold: 25,
+      timeframe: "all_time",
+      additional_conditions: {
+        upvote_ratio: 0.9,
+        min_total_votes: 30
+      }
+    },
+    rewards: {
+      credits: 100,
+      premium_days: 5
+    }
+  },
+  // ==================== MILESTONE BADGES ====================
+  "storyteller": {
+    id: "storyteller",
+    name: "Storyteller",
+    description: "Created your first story",
+    icon: "\u{1F4DA}",
+    color: "#8B4513",
+    category: "milestone",
+    rarity: "common",
+    criteria: {
+      type: "stories_created",
+      threshold: 1,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 10
+    }
+  },
+  "prolific_writer": {
+    id: "prolific_writer",
+    name: "Prolific Writer",
+    description: "Created 10+ stories",
+    icon: "\u{1F4D6}",
+    color: "#228B22",
+    category: "milestone",
+    rarity: "rare",
+    criteria: {
+      type: "stories_created",
+      threshold: 10,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 50
+    }
+  },
+  "story_master": {
+    id: "story_master",
+    name: "Story Master",
+    description: "Created 50+ stories",
+    icon: "\u{1F4DD}",
+    color: "#B8860B",
+    category: "milestone",
+    rarity: "epic",
+    criteria: {
+      type: "stories_created",
+      threshold: 50,
+      timeframe: "all_time"
+    },
+    rewards: {
+      credits: 200,
+      premium_days: 14
+    }
+  },
+  // ==================== MONTHLY ACHIEVEMENTS ====================
+  "monthly_star": {
+    id: "monthly_star",
+    name: "Monthly Star",
+    description: "Top engagement this month",
+    icon: "\u{1F31F}",
+    color: "#FFD700",
+    category: "community",
+    rarity: "epic",
+    criteria: {
+      type: "likes",
+      threshold: 20,
+      timeframe: "monthly"
+    },
+    rewards: {
+      credits: 75,
+      premium_days: 3
+    }
+  }
+};
+var getBadgesByCategory = (category) => {
+  return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.category === category);
+};
+var getBadgesByRarity = (rarity) => {
+  return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.rarity === rarity);
+};
+var getBadgeById = (id) => {
+  return BADGE_DEFINITIONS[id];
+};
+var BADGE_CHECK_ORDER = Object.values(BADGE_DEFINITIONS).sort((a, b) => {
+  const rarityOrder = { "legendary": 0, "epic": 1, "rare": 2, "common": 3 };
+  return rarityOrder[a.rarity] - rarityOrder[b.rarity];
+}).map((badge) => badge.id);
+
 // server/services/reward.service.ts
 async function awardBadge(userId, badgeName) {
+  console.warn("awardBadge is deprecated. Use badgeService.processUserBadges() for automatic badge awarding.");
   try {
     const user = await User.findById(userId);
     if (!user) {
       console.warn(`User ${userId} not found for badge award.`);
       return false;
     }
-    if (!user.badges.includes(badgeName)) {
-      user.badges.push(badgeName);
-      await user.save();
-      console.log(`Awarded badge "${badgeName}" to user ${userId}.`);
-      return true;
-    } else {
-      console.log(`User ${userId} already has badge "${badgeName}".`);
-      return false;
+    if (typeof badgeName === "string" && !getBadgeById(badgeName)) {
+      const legacyBadge = {
+        id: badgeName.toLowerCase().replace(/\s+/g, "_"),
+        name: badgeName,
+        description: `Legacy badge: ${badgeName}`,
+        icon: "\u{1F3C6}",
+        color: "#FFD700",
+        rarity: "common",
+        awardedAt: /* @__PURE__ */ new Date()
+      };
+      if (!user.badges) {
+        user.badges = [];
+      }
+      const existingBadge = user.badges.find(
+        (badge) => badge.name === badgeName || badge.id === legacyBadge.id
+      );
+      if (!existingBadge) {
+        user.badges.push(legacyBadge);
+        await user.save();
+        console.log(`Awarded legacy badge "${badgeName}" to user ${userId}.`);
+        return true;
+      }
     }
+    return false;
   } catch (error) {
     console.error(`Error awarding badge "${badgeName}" to user ${userId}:`, error);
     return false;
@@ -1931,7 +2267,7 @@ async function checkAndAwardTopAuthor() {
 }
 
 // server/services/story.service.ts
-var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance") => {
+var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance", accessType = "public") => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
@@ -2012,7 +2348,8 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
     // Keep for backward compatibility
     userId,
     settings,
-    isPublic,
+    isPublic: accessType === "public",
+    accessType,
     category,
     chapters: [firstChapter],
     currentChapter: 1,
@@ -2177,7 +2514,7 @@ var userSchema2 = z.object({
   stories: z.array(z.string()).default([]),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
-  subscription: z.enum(["free", "pro"]).default("free"),
+  subscription: z.enum(["free", "essential", "passion", "escape"]).default("free"),
   authProvider: z.enum(["local", "google"]).default("local")
 });
 var insertUserSchema = userSchema2.omit({ id: true });
@@ -2246,168 +2583,435 @@ var insertVoiceSchema = voiceSchema.omit({ id: true });
 
 // server/controllers/story.controller.ts
 import { z as z2 } from "zod";
+init_story_model();
+init_user_model();
 import path2 from "path";
 import fs2 from "fs";
 
-// server/services/subscription.service.ts
-init_plans();
-async function trackStoryGeneration(userId) {
-  const user = await User.findById(userId);
-  if (!user) return;
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 1,
-      chaptersGenerated: 0,
-      audioCreditsUsed: 0,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-  } else {
-    user.usageThisMonth.storiesGenerated += 1;
-  }
-  await user.save();
-}
-async function trackChapterGeneration(userId) {
-  const user = await User.findById(userId);
-  if (!user) return;
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      chaptersGenerated: 1,
-      audioCreditsUsed: 0,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-  } else {
-    if (!user.usageThisMonth.chaptersGenerated) {
-      user.usageThisMonth.chaptersGenerated = 0;
-    }
-    user.usageThisMonth.chaptersGenerated += 1;
-  }
-  await user.save();
-}
-async function trackAudioGeneration(userId, audioCredits) {
-  const user = await User.findById(userId);
-  if (!user) return;
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      audioCreditsUsed: audioCredits,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-  } else {
-    user.usageThisMonth.audioCreditsUsed += audioCredits;
-  }
-  await user.save();
-}
-async function canPerformAction(userId, actionType, params) {
-  const user = await User.findById(userId);
-  if (!user) {
-    return {
-      canProceed: false,
-      message: "User not found"
-    };
-  }
-  if (!user.usageThisMonth) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      chaptersGenerated: 0,
-      audioCreditsUsed: 0,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-    await user.save();
-  }
-  await checkAndResetMonthlyUsage(user);
-  const subscriptionType = user.subscription;
-  let limitReached = false;
-  let limitType = "";
-  const usage = user.usageThisMonth || {
-    storiesGenerated: 0,
-    chaptersGenerated: 0,
-    audioCreditsUsed: 0,
-    lastResetDate: /* @__PURE__ */ new Date()
-  };
-  if (actionType === "generateStory") {
-    limitReached = hasReachedLimit({
-      storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated || 0,
-      audioCreditsUsed: usage.audioCreditsUsed
-    }, subscriptionType, "stories");
-    limitType = "story generation";
-  } else if (actionType === "continueStory") {
-    limitReached = hasReachedLimit({
-      storiesGenerated: usage.storiesGenerated,
-      chaptersGenerated: usage.chaptersGenerated || 0,
-      audioCreditsUsed: usage.audioCreditsUsed
-    }, subscriptionType, "chapters");
-    limitType = "story continuation";
-  } else if (actionType === "generateAudio") {
-    const audioCredits = params?.audioCredits || 0;
-    const limits = getUserLimits(subscriptionType);
-    const remainingCredits = limits.audioCredits - usage.audioCreditsUsed;
-    if (audioCredits > remainingCredits) {
-      limitReached = true;
-      limitType = "audio generation";
-    }
-  }
-  if (limitReached) {
-    let requiredCredits = 0;
-    if (actionType === "generateStory") {
-      requiredCredits = getActionCreditCost("generateStory", { storyLength: params?.storyLength });
-    } else if (actionType === "continueStory") {
-      requiredCredits = getActionCreditCost("continueStory");
-    } else if (actionType === "generateAudio" && params?.audioCredits) {
-      requiredCredits = getActionCreditCost("generateAudio", { minutes: params.audioCredits });
-    }
-    if (user.credits < requiredCredits) {
+// server/services/badge.service.ts
+init_user_model();
+init_story_model();
+var BadgeService = class {
+  /**
+   * Get comprehensive user statistics for badge evaluation
+   */
+  async getUserStats(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        console.error(`User ${userId} not found for stats calculation`);
+        return null;
+      }
+      const userStories = await Story.find({ userId });
+      const totalLikes = userStories.reduce((sum, story) => sum + (story.likes || 0), 0);
+      const totalUpvotes = userStories.reduce((sum, story) => sum + (story.upvotes || 0), 0);
+      const totalDownvotes = userStories.reduce((sum, story) => sum + (story.downvotes || 0), 0);
+      const totalPlays = userStories.reduce((sum, story) => sum + (story.plays || 0), 0);
+      const storiesCreated = userStories.length;
+      const engagementRatio = totalPlays > 0 ? totalLikes / totalPlays : 0;
+      const totalVotes = totalUpvotes + totalDownvotes;
+      const upvoteRatio = totalVotes > 0 ? totalUpvotes / totalVotes : 0;
+      const currentMonth = (/* @__PURE__ */ new Date()).getMonth();
+      const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+      const monthlyStories = userStories.filter((story) => {
+        const storyDate = new Date(story.createdAt);
+        return storyDate.getMonth() === currentMonth && storyDate.getFullYear() === currentYear;
+      });
+      const monthlyLikes = monthlyStories.reduce((sum, story) => sum + (story.likes || 0), 0);
+      const monthlyUpvotes = monthlyStories.reduce((sum, story) => sum + (story.upvotes || 0), 0);
       return {
-        canProceed: false,
-        message: `You've reached your monthly ${limitType} limit and don't have enough credits. You need ${requiredCredits} credits to continue.`,
-        requiredCredits,
-        currentCredits: user.credits,
-        subscriptionLimitReached: true
+        totalLikes,
+        totalUpvotes,
+        totalDownvotes,
+        totalPlays,
+        storiesCreated,
+        engagementRatio,
+        upvoteRatio,
+        monthlyLikes,
+        monthlyUpvotes,
+        monthlyStories: monthlyStories.length
+      };
+    } catch (error) {
+      console.error("Error calculating user stats:", error);
+      return null;
+    }
+  }
+  /**
+   * Check if a user qualifies for a specific badge
+   */
+  evaluateBadgeCriteria(badge, stats) {
+    try {
+      const { criteria } = badge;
+      switch (criteria.type) {
+        case "likes":
+          const likesValue = criteria.timeframe === "monthly" ? stats.monthlyLikes : stats.totalLikes;
+          return likesValue >= criteria.threshold;
+        case "upvotes":
+          const upvotesValue = criteria.timeframe === "monthly" ? stats.monthlyUpvotes : stats.totalUpvotes;
+          let meetsUpvoteThreshold = upvotesValue >= criteria.threshold;
+          if (criteria.additional_conditions) {
+            if (criteria.additional_conditions.upvote_ratio) {
+              meetsUpvoteThreshold = meetsUpvoteThreshold && stats.upvoteRatio >= criteria.additional_conditions.upvote_ratio;
+            }
+            if (criteria.additional_conditions.min_total_votes) {
+              const totalVotes = stats.totalUpvotes + stats.totalDownvotes;
+              meetsUpvoteThreshold = meetsUpvoteThreshold && totalVotes >= criteria.additional_conditions.min_total_votes;
+            }
+          }
+          return meetsUpvoteThreshold;
+        case "plays":
+          return stats.totalPlays >= criteria.threshold;
+        case "stories_created":
+          const storiesValue = criteria.timeframe === "monthly" ? stats.monthlyStories : stats.storiesCreated;
+          return storiesValue >= criteria.threshold;
+        case "engagement_ratio":
+          let meetsEngagementThreshold = stats.engagementRatio >= criteria.threshold;
+          if (criteria.additional_conditions?.min_plays) {
+            meetsEngagementThreshold = meetsEngagementThreshold && stats.totalPlays >= criteria.additional_conditions.min_plays;
+          }
+          return meetsEngagementThreshold;
+        case "community_impact":
+          return stats.totalLikes > 10 && stats.upvoteRatio > 0.6;
+        default:
+          console.warn(`Unknown badge criteria type: ${criteria.type}`);
+          return false;
+      }
+    } catch (error) {
+      console.error(`Error evaluating badge criteria for ${badge.id}:`, error);
+      return false;
+    }
+  }
+  /**
+   * Check which new badges a user has earned
+   */
+  async checkEligibleBadges(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return [];
+      }
+      const stats = await this.getUserStats(userId);
+      if (!stats) {
+        return [];
+      }
+      const currentBadges = user.badges || [];
+      const newBadges = [];
+      for (const badgeId of BADGE_CHECK_ORDER) {
+        if (currentBadges.some((badge) => badge.id === badgeId)) {
+          continue;
+        }
+        const badgeDefinition = getBadgeById(badgeId);
+        if (!badgeDefinition) {
+          continue;
+        }
+        if (this.evaluateBadgeCriteria(badgeDefinition, stats)) {
+          newBadges.push({
+            badgeId,
+            awarded: true,
+            reason: `Earned by meeting criteria: ${badgeDefinition.description}`,
+            rewards: badgeDefinition.rewards
+          });
+        }
+      }
+      return newBadges;
+    } catch (error) {
+      console.error("Error checking eligible badges:", error);
+      return [];
+    }
+  }
+  /**
+   * Award badges to a user and apply rewards
+   */
+  async awardBadges(userId, badgeAwards) {
+    const awarded = [];
+    const errors = [];
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        errors.push("User not found");
+        return { success: false, awarded, errors };
+      }
+      for (const award of badgeAwards) {
+        try {
+          const badgeDefinition = getBadgeById(award.badgeId);
+          if (!badgeDefinition) {
+            errors.push(`Badge definition not found: ${award.badgeId}`);
+            continue;
+          }
+          const existingBadge = user.badges?.find((badge) => badge.id === award.badgeId);
+          if (existingBadge) {
+            continue;
+          }
+          if (!user.badges) {
+            user.badges = [];
+          }
+          user.badges.push({
+            id: award.badgeId,
+            name: badgeDefinition.name,
+            description: badgeDefinition.description,
+            icon: badgeDefinition.icon,
+            color: badgeDefinition.color,
+            rarity: badgeDefinition.rarity,
+            awardedAt: /* @__PURE__ */ new Date()
+          });
+          if (award.rewards?.credits) {
+            user.credits = (user.credits || 0) + award.rewards.credits;
+            console.log(`Awarded ${award.rewards.credits} credits for badge: ${badgeDefinition.name}`);
+          }
+          if (award.rewards?.premium_days) {
+            console.log(`Badge would award ${award.rewards.premium_days} premium days: ${badgeDefinition.name}`);
+          }
+          awarded.push(award.badgeId);
+          console.log(`\u2705 Awarded badge "${badgeDefinition.name}" to user ${userId}`);
+        } catch (error) {
+          console.error(`Error awarding badge ${award.badgeId}:`, error);
+          errors.push(`Failed to award badge ${award.badgeId}: ${error.message}`);
+        }
+      }
+      if (awarded.length > 0) {
+        await user.save();
+      }
+      return {
+        success: awarded.length > 0 || errors.length === 0,
+        awarded,
+        errors
+      };
+    } catch (error) {
+      console.error("Error in awardBadges:", error);
+      errors.push(`System error: ${error.message}`);
+      return { success: false, awarded, errors };
+    }
+  }
+  /**
+   * Main function to check and award all eligible badges
+   */
+  async processUserBadges(userId) {
+    try {
+      const eligibleBadges = await this.checkEligibleBadges(userId);
+      if (eligibleBadges.length === 0) {
+        return { newBadges: [], errors: [] };
+      }
+      const result = await this.awardBadges(userId, eligibleBadges);
+      return {
+        newBadges: result.awarded,
+        errors: result.errors
+      };
+    } catch (error) {
+      console.error("Error processing user badges:", error);
+      return {
+        newBadges: [],
+        errors: [`Failed to process badges: ${error.message}`]
       };
     }
-    return {
-      canProceed: true,
-      message: `You've reached your monthly ${limitType} limit. ${requiredCredits} credits will be deducted from your account.`,
-      requiredCredits,
-      currentCredits: user.credits,
-      subscriptionLimitReached: true
+  }
+  /**
+   * Get user's badge summary for display
+   */
+  async getUserBadgeSummary(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.badges) {
+        return {
+          total: 0,
+          byRarity: { common: 0, rare: 0, epic: 0, legendary: 0 },
+          recent: []
+        };
+      }
+      const badges = user.badges;
+      const byRarity = {
+        common: badges.filter((b) => b.rarity === "common").length,
+        rare: badges.filter((b) => b.rarity === "rare").length,
+        epic: badges.filter((b) => b.rarity === "epic").length,
+        legendary: badges.filter((b) => b.rarity === "legendary").length
+      };
+      const recent = badges.sort((a, b) => new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime()).slice(0, 5);
+      return {
+        total: badges.length,
+        byRarity,
+        recent
+      };
+    } catch (error) {
+      console.error("Error getting user badge summary:", error);
+      return null;
+    }
+  }
+};
+var badgeService = new BadgeService();
+
+// server/middleware/engagement.middleware.ts
+var EngagementTracker = class {
+  badgeCheckQueue = [];
+  isProcessingQueue = false;
+  /**
+   * Add a badge check task to the queue
+   */
+  enqueueBadgeCheck(userId, trigger) {
+    const recentCheck = this.badgeCheckQueue.find(
+      (task) => task.userId === userId && Date.now() - task.timestamp.getTime() < 3e4
+      // 30 seconds
+    );
+    if (!recentCheck) {
+      this.badgeCheckQueue.push({
+        userId,
+        trigger,
+        timestamp: /* @__PURE__ */ new Date()
+      });
+      if (!this.isProcessingQueue) {
+        this.processQueue();
+      }
+    }
+  }
+  /**
+   * Process the badge check queue
+   */
+  async processQueue() {
+    if (this.isProcessingQueue || this.badgeCheckQueue.length === 0) {
+      return;
+    }
+    this.isProcessingQueue = true;
+    while (this.badgeCheckQueue.length > 0) {
+      const task = this.badgeCheckQueue.shift();
+      if (!task) continue;
+      try {
+        console.log(`\u{1F3C6} Checking badges for user ${task.userId} (trigger: ${task.trigger})`);
+        const result = await badgeService.processUserBadges(task.userId);
+        if (result.newBadges.length > 0) {
+          console.log(`\u{1F389} User ${task.userId} earned ${result.newBadges.length} new badges: ${result.newBadges.join(", ")}`);
+        }
+        if (result.errors.length > 0) {
+          console.error(`\u274C Badge processing errors for user ${task.userId}:`, result.errors);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`Error processing badge check for user ${task.userId}:`, error);
+      }
+    }
+    this.isProcessingQueue = false;
+  }
+  /**
+   * Trigger badge check for story creation
+   */
+  onStoryCreated(userId) {
+    this.enqueueBadgeCheck(userId, "story_created");
+  }
+  /**
+   * Trigger badge check for story interaction
+   */
+  onStoryInteraction(userId, interactionType) {
+    this.enqueueBadgeCheck(userId, `story_${interactionType}`);
+  }
+  /**
+   * Manual badge check (for testing or admin functions)
+   */
+  async checkBadgesNow(userId) {
+    try {
+      console.log(`\u{1F50D} Manual badge check for user ${userId}`);
+      return await badgeService.processUserBadges(userId);
+    } catch (error) {
+      console.error(`Error in manual badge check for user ${userId}:`, error);
+      return {
+        newBadges: [],
+        errors: [`Manual check failed: ${error.message}`]
+      };
+    }
+  }
+};
+var engagementTracker = new EngagementTracker();
+var trackEngagement = (action) => {
+  return (req, res, next) => {
+    const originalJson = res.json;
+    res.json = function(data) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        const userId = req.session?.userId;
+        if (userId) {
+          switch (action) {
+            case "story_created":
+              engagementTracker.onStoryCreated(userId);
+              break;
+            case "story_liked":
+            case "story_upvoted":
+            case "story_downvoted":
+            case "story_played":
+              break;
+          }
+        }
+      }
+      return originalJson.call(this, data);
     };
+    next();
+  };
+};
+var trackStoryInteraction = async (storyId, interactionType) => {
+  try {
+    const { Story: Story2 } = await Promise.resolve().then(() => (init_story_model(), story_model_exports));
+    const story = await Story2.findById(storyId);
+    if (story && story.userId) {
+      engagementTracker.onStoryInteraction(story.userId, interactionType);
+    }
+  } catch (error) {
+    console.error(`Error tracking story interaction for story ${storyId}:`, error);
   }
-  return { canProceed: true };
-}
-async function deductCredits(userId, credits) {
-  const user = await User.findById(userId);
-  if (!user || user.credits < credits) {
-    return false;
+};
+var runDailyBadgeCheck = async () => {
+  try {
+    console.log("\u{1F550} Starting daily badge check for all users...");
+    const { User: User2 } = await Promise.resolve().then(() => (init_user_model(), user_model_exports));
+    const users = await User2.find({}, "_id").lean();
+    let processedCount = 0;
+    let errorCount = 0;
+    for (const user of users) {
+      try {
+        const result = await badgeService.processUserBadges(user._id.toString());
+        if (result.newBadges.length > 0) {
+          console.log(`\u{1F4CA} Daily check: User ${user._id} earned badges: ${result.newBadges.join(", ")}`);
+        }
+        processedCount++;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`Error in daily badge check for user ${user._id}:`, error);
+        errorCount++;
+      }
+    }
+    console.log(`\u2705 Daily badge check completed. Processed: ${processedCount}, Errors: ${errorCount}`);
+  } catch (error) {
+    console.error("Error running daily badge check:", error);
   }
-  user.credits -= credits;
-  await user.save();
-  return true;
-}
-async function checkAndResetMonthlyUsage(user) {
-  if (!user.usageThisMonth || !user.usageThisMonth.lastResetDate) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      audioCreditsUsed: 0,
-      lastResetDate: /* @__PURE__ */ new Date()
-    };
-    await user.save();
-    return;
-  }
-  const lastResetDate = new Date(user.usageThisMonth.lastResetDate);
-  const currentDate = /* @__PURE__ */ new Date();
-  if (lastResetDate.getMonth() !== currentDate.getMonth() || lastResetDate.getFullYear() !== currentDate.getFullYear()) {
-    user.usageThisMonth = {
-      storiesGenerated: 0,
-      audioCreditsUsed: 0,
-      lastResetDate: currentDate
-    };
-    await user.save();
-  }
-}
+};
 
 // server/controllers/story.controller.ts
+var trackStoryGeneration = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error("User not found for tracking story generation");
+      return;
+    }
+    if (!user.usageThisMonth) {
+      user.usageThisMonth = {
+        storiesGenerated: 0,
+        chaptersGenerated: 0,
+        audioMinutesUsed: 0,
+        lastResetDate: /* @__PURE__ */ new Date()
+      };
+    }
+    const now = /* @__PURE__ */ new Date();
+    const lastReset = new Date(user.usageThisMonth.lastResetDate);
+    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+      user.usageThisMonth = {
+        storiesGenerated: 1,
+        chaptersGenerated: 0,
+        audioMinutesUsed: 0,
+        lastResetDate: now
+      };
+    } else {
+      user.usageThisMonth.storiesGenerated += 1;
+    }
+    await user.save();
+    console.log(`Tracked story generation for user ${userId}. Total this month: ${user.usageThisMonth.storiesGenerated}`);
+  } catch (error) {
+    console.error("Error tracking story generation:", error);
+  }
+};
 var createStory2 = async (req, res) => {
   try {
     const settingsSchema = z2.object({
@@ -2415,9 +3019,10 @@ var createStory2 = async (req, res) => {
       settings: storySettingsSchema,
       maxTokens: z2.number().optional(),
       isPublic: z2.boolean().optional().default(false),
+      accessType: z2.enum(["public", "private", "premium_exclusive"]).optional().default("public"),
       category: z2.string().optional().default("romance")
     });
-    const { title, settings, maxTokens, isPublic, category } = settingsSchema.parse(req.body);
+    const { title, settings, maxTokens, isPublic, accessType, category } = settingsSchema.parse(req.body);
     const userId = req.session.userId;
     if (!userId) {
       throw new Error("User not found");
@@ -2426,37 +3031,22 @@ var createStory2 = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    const storyLength = settings.length;
-    const actionCheck = await canPerformAction(userId, "generateStory", { storyLength });
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your story generation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for story generation",
-          code: "PAYMENT_REQUIRED"
+    if (accessType === "premium_exclusive") {
+      if (user.subscription !== "passion" && user.subscription !== "escape") {
+        return res.status(403).json({
+          message: "Premium story creation is only available for Passion and Escape subscribers",
+          code: "PREMIUM_REQUIRED",
+          isPremiumRequired: true
         });
       }
     }
-    console.log(`Attempting to generate story "${title}" for user ${userId}`);
+    const storyLength = settings.length;
     try {
-      const story = await createStory(title, settings, maxTokens, userId, isPublic, category);
+      const story = await createStory(title, settings, maxTokens, userId, isPublic, category, accessType);
       await trackStoryGeneration(userId);
       res.status(201).json(story);
     } catch (storyGenError) {
       console.error("Error in story generation service:", storyGenError);
-      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-        await User.findByIdAndUpdate(userId, { $inc: { credits: actionCheck.requiredCredits } });
-        console.log(`Refunded ${actionCheck.requiredCredits} credits to user ${userId} due to story generation failure`);
-      }
       throw storyGenError;
     }
   } catch (error) {
@@ -2574,27 +3164,7 @@ var continueStory2 = async (req, res) => {
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    const actionCheck = await canPerformAction(userId, "continueStory");
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your story continuation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for story continuation",
-          code: "PAYMENT_REQUIRED"
-        });
-      }
-    }
     const continuedStory = await continueStoryService(id, finalChoice, conclude);
-    await trackChapterGeneration(userId);
     res.status(200).json(continuedStory);
   } catch (error) {
     console.error("Error continuing story:", error);
@@ -2760,6 +3330,7 @@ var likeStory = async (req, res) => {
     }
     story.likes = (story.likes || 0) + 1;
     await story.save();
+    await trackStoryInteraction(id, "like");
     res.status(200).json({ message: "Story liked successfully", likes: story.likes });
   } catch (error) {
     console.error("Error liking story:", error);
@@ -2779,6 +3350,7 @@ var upvoteStory = async (req, res) => {
     }
     story.upvotes = (story.upvotes || 0) + 1;
     await story.save();
+    await trackStoryInteraction(id, "upvote");
     res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
   } catch (error) {
     console.error("Error upvoting story:", error);
@@ -2798,6 +3370,7 @@ var downvoteStory = async (req, res) => {
     }
     story.downvotes = (story.downvotes || 0) + 1;
     await story.save();
+    await trackStoryInteraction(id, "downvote");
     res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
   } catch (error) {
     console.error("Error downvoting story:", error);
@@ -2806,6 +3379,8 @@ var downvoteStory = async (req, res) => {
 };
 
 // server/routes/story.route.ts
+init_story_model();
+init_user_model();
 function determineVoiceGender(voiceName, labels) {
   if (labels && labels.gender && (labels.gender.toLowerCase() === "male" || labels.gender.toLowerCase() === "female")) {
     return labels.gender.toLowerCase();
@@ -2929,7 +3504,7 @@ router2.get("/voice-options", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch voice options" });
   }
 });
-router2.route("/generate").post(authMiddleware, createStory2);
+router2.route("/generate").post(authMiddleware, trackEngagement("story_created"), createStory2);
 router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 router2.get("/public", async (req, res) => {
   try {
@@ -3087,31 +3662,44 @@ router2.get("/by-category/:category", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch stories by category" });
   }
 });
-router2.route("/:id").get(getStory2);
-router2.route("/:id").put(authMiddleware, updateStory);
-router2.route("/:id").delete(authMiddleware, deleteStory2);
-router2.route("/:id/continue").post(authMiddleware, continueStory2);
-router2.route("/:id/audio").get(getStoryAudio);
-router2.route("/:id/chapters").get(getStoryChapters);
-router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
-router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
-router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
-router2.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
-router2.route("/:id/like").post(authMiddleware, likeStory);
-router2.route("/:id/upvote").post(authMiddleware, upvoteStory);
-router2.route("/:id/downvote").post(authMiddleware, downvoteStory);
 router2.get("/premium-stories", authMiddleware, async (req, res) => {
   try {
     const userId = req.session.userId;
     const user = await User.findById(userId);
-    if (!user || !user.isPremium) {
-      return res.status(403).json({ message: "Access denied. Premium subscription required." });
+    const hasGalleryAccess = user?.subscription === "passion" || user?.subscription === "escape";
+    if (!user || !hasGalleryAccess) {
+      return res.status(403).json({
+        message: "Access denied. Passion or Escape subscription required for premium gallery access.",
+        currentSubscription: user?.subscription || "none"
+      });
     }
     const currentDate = /* @__PURE__ */ new Date();
-    const premiumStories = await Story.find({
-      accessType: { $in: ["premium_early_access", "premium_exclusive"] },
-      premiumAccessDate: { $lte: currentDate }
-    }).sort({ createdAt: -1 }).limit(20);
+    let storyQuery = {};
+    let limit = 20;
+    if (user.subscription === "passion") {
+      storyQuery = {
+        accessType: "premium_early_access",
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 10;
+    } else if (user.subscription === "escape") {
+      storyQuery = {
+        accessType: { $in: ["premium_early_access", "premium_exclusive"] },
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 30;
+    } else {
+      storyQuery = {
+        accessType: { $in: ["premium_early_access", "premium_exclusive"] }
+      };
+    }
+    const premiumStories = await Story.find(storyQuery).sort({ createdAt: -1 }).limit(limit);
     const storiesWithUserNames = await Promise.all(
       premiumStories.map(async (story) => {
         try {
@@ -3144,6 +3732,19 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch premium stories" });
   }
 });
+router2.route("/:id").get(getStory2);
+router2.route("/:id").put(authMiddleware, updateStory);
+router2.route("/:id").delete(authMiddleware, deleteStory2);
+router2.route("/:id/continue").post(authMiddleware, continueStory2);
+router2.route("/:id/audio").get(getStoryAudio);
+router2.route("/:id/chapters").get(getStoryChapters);
+router2.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
+router2.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
+router2.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory2);
+router2.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
+router2.route("/:id/like").post(authMiddleware, likeStory);
+router2.route("/:id/upvote").post(authMiddleware, upvoteStory);
+router2.route("/:id/downvote").post(authMiddleware, downvoteStory);
 router2.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -3184,6 +3785,8 @@ var story_route_default = router2;
 
 // server/routes/admin.route.ts
 import { Router as Router3 } from "express";
+init_user_model();
+init_story_model();
 import { hash } from "bcrypt";
 var router3 = Router3();
 router3.get("/users", isAdmin, async (req, res) => {
@@ -3327,8 +3930,52 @@ var admin_route_default = router3;
 
 // server/routes/user.route.ts
 import { Router as Router4 } from "express";
+init_story_model();
+init_user_model();
 var router4 = Router4();
 router4.use(authMiddleware);
+router4.get("/debug-subscription", async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (user.isPremium && user.subscription === "free") {
+      let inferredPlan = "essential";
+      if (user.credits >= 70) {
+        inferredPlan = "escape";
+      } else if (user.credits >= 35) {
+        inferredPlan = "passion";
+      } else {
+        inferredPlan = "essential";
+      }
+      user.subscription = inferredPlan;
+      await user.save();
+      return res.json({
+        message: "Fixed subscription status",
+        before: "free",
+        after: inferredPlan,
+        userStatus: {
+          isPremium: user.isPremium,
+          subscription: user.subscription,
+          credits: user.credits
+        }
+      });
+    }
+    return res.json({
+      message: "Subscription status is correct",
+      userStatus: {
+        isPremium: user.isPremium,
+        subscription: user.subscription,
+        credits: user.credits
+      }
+    });
+  } catch (error) {
+    console.error("Error checking subscription:", error);
+    res.status(500).json({ message: "Failed to check subscription" });
+  }
+});
 router4.get("/stories", async (req, res) => {
   try {
     const userId = req.session.userId;
@@ -3400,176 +4047,25 @@ var stripe = new Stripe(stripeSecretKey, {
 });
 var stripe_default = stripe;
 
-// server/routes/payment.route.ts
+// server/services/payment.service.ts
+init_user_model();
 import { z as z3 } from "zod";
-var router5 = Router5();
-router5.post("/create-checkout-session", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ message: "User not authenticated" });
+var PaymentService = class {
+  async createSubscriptionCheckout(userId, planId, origin) {
+    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const schema = z3.object({
+      planId: z3.enum(["essential", "passion", "escape"])
+    });
+    const { planId: validatedPlanId } = schema.parse({ planId });
+    const selectedPlan = SUBSCRIPTION_PLANS2[validatedPlanId];
+    if (!selectedPlan) {
+      throw new Error("Invalid plan ID");
     }
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      throw new Error("User not found");
     }
-    const schema = z3.object({
-      plan: z3.enum(["standard", "premium"]).default("standard")
-    });
-    const { plan } = schema.parse(req.body);
-    console.log("plan", plan);
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    const planPrice = SUBSCRIPTION_PLANS2[plan].price;
-    const origin = req.headers.origin || "https://" + req.headers.host;
-    const session2 = await stripe_default.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            // Using Euro as per requirements
-            product_data: {
-              name: `${SUBSCRIPTION_PLANS2[plan].name} Subscription`,
-              description: SUBSCRIPTION_PLANS2[plan].description
-            },
-            unit_amount: planPrice
-          },
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      // For simplicity using one-time payments; in production use 'subscription'
-      customer_email: user.email,
-      success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
-      cancel_url: `${origin}/payment/cancel`,
-      metadata: {
-        userId,
-        plan,
-        type: "subscription_purchase"
-      }
-    });
-    res.json({ id: session2.id });
-  } catch (error) {
-    console.error("Error creating checkout session:", error);
-    res.status(500).json({ message: "Failed to create checkout session" });
-  }
-});
-router5.get("/success", async (req, res) => {
-  try {
-    const { session_id, plan } = req.query;
-    if (!session_id || typeof session_id !== "string") {
-      return res.status(400).json({ success: false, message: "Invalid session ID" });
-    }
-    const subscriptionPlan = typeof plan === "string" ? plan : "standard";
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    if (!["standard", "premium"].includes(subscriptionPlan)) {
-      return res.status(400).json({ success: false, message: "Invalid subscription plan" });
-    }
-    try {
-      const session2 = await stripe_default.checkout.sessions.retrieve(session_id);
-      if (session2.payment_status === "paid" || session2.status === "complete") {
-        const userId2 = req.session.userId || session2.metadata?.userId;
-        const purchasedPlan = session2.metadata?.plan || subscriptionPlan;
-        if (userId2) {
-          const user = await User.findById(userId2);
-          if (user) {
-            user.isPremium = true;
-            user.subscription = purchasedPlan;
-            let creditsToAdd = 0;
-            switch (purchasedPlan) {
-              case "standard":
-                creditsToAdd = 50;
-                break;
-              case "premium":
-                creditsToAdd = 200;
-                break;
-              default:
-                creditsToAdd = 0;
-            }
-            user.credits = (user.credits || 0) + creditsToAdd;
-            user.usageThisMonth = {
-              storiesGenerated: 0,
-              chaptersGenerated: 0,
-              audioMinutesUsed: 0,
-              lastResetDate: /* @__PURE__ */ new Date()
-            };
-            await user.save({ validateBeforeSave: false });
-            console.log(`User ${userId2} subscribed to ${purchasedPlan} plan via session: ${session_id}`);
-            return res.status(200).json({
-              success: true,
-              message: `Successfully subscribed to ${purchasedPlan} plan!`,
-              plan: purchasedPlan
-            });
-          }
-        }
-      }
-    } catch (stripeError) {
-      console.error("Error retrieving Stripe session:", stripeError);
-    }
-    const userId = req.session.userId;
-    if (userId) {
-      const user = await User.findById(userId);
-      if (user) {
-        user.isPremium = true;
-        user.subscription = subscriptionPlan;
-        let creditsToAdd = 0;
-        switch (subscriptionPlan) {
-          case "standard":
-            creditsToAdd = 50;
-            break;
-          case "premium":
-            creditsToAdd = 200;
-            break;
-          default:
-            creditsToAdd = 0;
-        }
-        user.credits = (user.credits || 0) + creditsToAdd;
-        user.usageThisMonth = {
-          storiesGenerated: 0,
-          chaptersGenerated: 0,
-          audioMinutesUsed: 0,
-          lastResetDate: /* @__PURE__ */ new Date()
-        };
-        await user.save();
-        console.log(`User ${userId} subscribed to ${subscriptionPlan} plan via direct session`);
-        return res.status(200).json({
-          success: true,
-          message: `Successfully subscribed to ${subscriptionPlan} plan!`,
-          plan: subscriptionPlan
-        });
-      }
-    }
-    return res.status(200).json({
-      success: true,
-      message: "Subscription successful!",
-      plan: subscriptionPlan
-    });
-  } catch (error) {
-    console.error("Error processing payment success:", error);
-    res.status(500).json({ success: false, message: "Failed to process payment success" });
-  }
-});
-router5.post("/create-credit-checkout", authMiddleware, async (req, res) => {
-  try {
-    const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    const schema = z3.object({
-      packageId: z3.enum(["starter", "popular", "premium"]).default("popular")
-    });
-    const { packageId } = schema.parse(req.body);
-    const selectedPackage = CREDIT_PACKAGES2[packageId];
-    if (!selectedPackage) {
-      return res.status(400).json({ message: "Invalid package ID" });
-    }
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    const priceInCents = selectedPackage.price;
-    const origin = req.headers.origin || "https://" + req.headers.host;
+    const priceInCents = selectedPlan.price;
     const clientReferenceId = `seduise_app_${userId}_${Date.now()}`;
     const session2 = await stripe_default.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -3577,7 +4073,54 @@ router5.post("/create-credit-checkout", authMiddleware, async (req, res) => {
         {
           price_data: {
             currency: "eur",
-            // Using Euro as per requirements
+            product_data: {
+              name: selectedPlan.name,
+              description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits} credits/month`
+            },
+            unit_amount: priceInCents,
+            recurring: {
+              interval: "month"
+            }
+          },
+          quantity: 1
+        }
+      ],
+      mode: "subscription",
+      customer_email: user.email,
+      client_reference_id: clientReferenceId,
+      success_url: `${origin}/payment/subscription-success?session_id={CHECKOUT_SESSION_ID}&plan=${validatedPlanId}`,
+      cancel_url: `${origin}/premium-upgrade`,
+      metadata: {
+        userId,
+        plan: validatedPlanId,
+        credits: selectedPlan.monthlyCredits.toString(),
+        type: "subscription_purchase"
+      }
+    });
+    return { id: session2.id };
+  }
+  async createCreditCheckout(userId, packageId, origin) {
+    const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const schema = z3.object({
+      packageId: z3.enum(["starter", "popular", "premium"]).default("popular")
+    });
+    const { packageId: validatedPackageId } = schema.parse({ packageId });
+    const selectedPackage = CREDIT_PACKAGES2[validatedPackageId];
+    if (!selectedPackage) {
+      throw new Error("Invalid package ID");
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const priceInCents = selectedPackage.price;
+    const clientReferenceId = `seduise_app_${userId}_${Date.now()}`;
+    const session2 = await stripe_default.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
             product_data: {
               name: selectedPackage.name,
               description: `${selectedPackage.credits} credits - ${selectedPackage.description}`
@@ -3590,46 +4133,26 @@ router5.post("/create-credit-checkout", authMiddleware, async (req, res) => {
       mode: "payment",
       customer_email: user.email,
       client_reference_id: clientReferenceId,
-      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${selectedPackage.credits}&package=${packageId}`,
+      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${selectedPackage.credits}&package=${validatedPackageId}`,
       cancel_url: `${origin}/credits`,
       metadata: {
         userId,
-        packageId,
+        packageId: validatedPackageId,
         credits: selectedPackage.credits.toString(),
         type: "credit_purchase"
       }
     });
-    res.json({ id: session2.id });
-  } catch (error) {
-    console.error("Error creating credit checkout session:", error);
-    if (error instanceof z3.ZodError) {
-      return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-    }
-    res.status(500).json({ message: "Failed to create checkout session" });
+    return { id: session2.id };
   }
-});
-router5.post("/credit-success", async (req, res) => {
-  try {
-    const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID || req.body && req.body.session_id;
-    const credits = req.query.credits || req.body && req.body.credits;
-    const packageId = req.query.package || req.body && req.body.package;
-    console.log("Credit success handler received:", {
-      session_id,
-      credits,
-      packageId,
-      method: req.method,
-      query: req.query,
-      body: req.body
-    });
-    if (!session_id) {
-      console.log("No session_id found, checking if user is authenticated");
-      if (req.session.userId) {
+  async processCreditSuccess(sessionId, credits, packageId, userId) {
+    if (!sessionId) {
+      if (userId) {
       } else {
-        return res.status(200).json({
+        return {
           success: true,
           message: "Credit purchase completed (demo mode)",
           demo: true
-        });
+        };
       }
     }
     let creditsToAdd = parseInt(credits) || 0;
@@ -3638,227 +4161,156 @@ router5.post("/credit-success", async (req, res) => {
       const packageKey = packageId;
       if (CREDIT_PACKAGES2[packageKey]) {
         creditsToAdd = CREDIT_PACKAGES2[packageKey].credits;
-        console.log(`Using credits from package: ${packageKey} = ${creditsToAdd}`);
       }
     }
     if (creditsToAdd <= 0) {
       creditsToAdd = 50;
-      console.log(`Using fallback credit amount: ${creditsToAdd}`);
     }
-    const userId = req.session.userId;
     if (userId) {
       const user = await User.findById(userId);
       if (user) {
         user.credits = (user.credits || 0) + creditsToAdd;
         await user.save();
-        console.log(`Added ${creditsToAdd} credits to user ${userId}`);
-        return res.status(200).json({
+        return {
           success: true,
           message: "Credits added successfully!",
           credits: user.credits
-        });
+        };
       }
     }
-    return res.status(200).json({ success: true, message: "Credit purchase successful!" });
-  } catch (error) {
-    console.error("Error processing credit purchase:", error);
-    res.status(500).json({ success: false, message: "Failed to process credit purchase" });
+    return { success: true, message: "Credit purchase successful!" };
   }
-});
-router5.post("/update-credits", async (req, res) => {
-  try {
-    const { credits } = req.body;
-    const userId = req.session.userId;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "User not authenticated" });
+  async updateUserCredits(userId, credits) {
+    if (!credits || isNaN(credits)) {
+      throw new Error("Invalid credit amount");
     }
-    if (!credits || isNaN(parseInt(credits))) {
-      return res.status(400).json({ success: false, message: "Invalid credit amount" });
-    }
-    const creditsToAdd = parseInt(credits);
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      throw new Error("User not found");
     }
-    user.credits = (user.credits || 0) + creditsToAdd;
+    user.credits = (user.credits || 0) + credits;
     await user.save();
-    console.log(`Added ${creditsToAdd} credits to user ${userId} via direct update`);
-    return res.status(200).json({
+    return {
       success: true,
       message: "Credits updated successfully",
       credits: user.credits
-    });
-  } catch (error) {
-    console.error("Error updating credits:", error);
-    res.status(500).json({ success: false, message: "Failed to update credits" });
+    };
   }
-});
-router5.get("/credit-success", async (req, res) => {
-  try {
-    const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID;
-    const credits = req.query.credits;
-    const packageId = req.query.package;
-    console.log("GET Credit success handler received:", {
-      session_id,
-      credits,
-      packageId,
-      query: req.query
-    });
-    if (session_id && typeof session_id === "string") {
-      try {
-        const session2 = await stripe_default.checkout.sessions.retrieve(session_id);
-        console.log("Retrieved Stripe session:", {
-          id: session2.id,
-          status: session2.status,
-          paymentStatus: session2.payment_status,
-          metadata: session2.metadata
-        });
-        const isPaymentSuccessful = session2.payment_status === "paid" || // Special case: sometimes Stripe marks status as complete
-        session2.status === "complete" && session2.payment_status !== "unpaid";
-        if (isPaymentSuccessful) {
-          console.log("Payment confirmed successful by Stripe");
-          let userId = session2.metadata?.userId || req.session.userId;
-          if (!userId && session2.client_reference_id) {
-            const refParts = session2.client_reference_id.split("_");
-            if (refParts.length >= 2 && refParts[0] === "user") {
-              userId = refParts[1];
-              console.log(`Extracted userId from client_reference_id: ${userId}`);
-            }
-          }
-          if (!userId) {
-            console.error("No user ID found in session or metadata");
-            return res.status(400).json({
-              success: false,
-              message: "User identification failed. Please contact support."
-            });
-          }
-          let creditsToAdd = 0;
-          if (session2.metadata?.credits) {
-            creditsToAdd = parseInt(session2.metadata.credits);
-          } else if (credits) {
-            creditsToAdd = parseInt(credits);
-          } else if (packageId || session2.metadata?.packageId) {
-            const pkgId = packageId || session2.metadata?.packageId;
-            const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-            const packageKey = pkgId;
-            if (CREDIT_PACKAGES2[packageKey]) {
-              creditsToAdd = CREDIT_PACKAGES2[packageKey].credits;
-            }
-          }
-          if (creditsToAdd <= 0) {
-            creditsToAdd = 20;
-            console.warn("Using fallback credit amount due to missing information");
-          }
-          const user = await User.findById(userId);
-          if (!user) {
-            console.error(`User ${userId} not found`);
-            return res.status(404).json({
-              success: false,
-              message: "User not found. Please contact support."
-            });
-          }
-          const previousCredits = user.credits || 0;
-          user.credits = previousCredits + creditsToAdd;
-          await user.save();
-          console.log(`Added ${creditsToAdd} credits to user ${userId} (previous: ${previousCredits}, new: ${user.credits})`);
-          return res.status(200).json({
-            success: true,
-            message: "Payment successful and credits added",
-            credits: creditsToAdd,
-            totalCredits: user.credits
-          });
-        } else {
-          console.warn(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
-          return res.status(402).json({
-            success: false,
-            message: "Payment not completed. Please complete the payment and try again."
-          });
-        }
-      } catch (stripeError) {
-        console.error("Error retrieving Stripe session:", stripeError);
-        return res.status(500).json({
-          success: false,
-          message: "Error verifying payment. Please contact support."
-        });
-      }
-    } else {
-      console.error("No valid session ID provided");
-      return res.status(400).json({
-        success: false,
-        message: "Invalid session ID"
-      });
-    }
-  } catch (error) {
-    console.error("Error processing credit success:", error);
-    return res.status(500).json({
-      success: false,
-      message: "An unexpected error occurred. Please contact support."
-    });
-  }
-});
-router5.post("/webhook", async (req, res) => {
-  console.log(`Webhook received [${(/* @__PURE__ */ new Date()).toISOString()}]`);
-  const signature = req.headers["stripe-signature"];
-  if (!signature || typeof signature !== "string") {
-    console.error("Webhook Error: No stripe-signature header provided");
-    return res.status(400).send("Webhook Error: No signature provided");
-  }
-  console.log(`Stripe signature received: ${signature.substring(0, 20)}...`);
-  let event;
-  try {
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!endpointSecret) {
-      console.warn("Webhook secret not configured - operating in development mode");
-      event = {
-        type: "checkout.session.completed",
-        data: { object: req.body },
-        id: "dev_" + Date.now()
-      };
-      console.log("Created development webhook event:", event.id);
-    } else {
-      console.log("Constructing webhook event with signature verification");
-      event = stripe_default.webhooks.constructEvent(
-        req.body,
-        signature,
-        endpointSecret
-      );
-      console.log(`Webhook verified: ${event.id} [${event.type}]`);
-    }
-  } catch (err) {
-    console.error(`Webhook signature verification failed:`, err);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-  if (event.type === "checkout.session.completed") {
-    const session2 = event.data.object;
-    console.log("Processing completed checkout session:", {
-      id: session2.id,
-      status: session2.status,
-      payment_status: session2.payment_status,
-      client_reference_id: session2.client_reference_id,
-      metadata: session2.metadata
-    });
+  async processSubscriptionSuccessWithStripeVerification(sessionId, plan, userId) {
+    const session2 = await stripe_default.checkout.sessions.retrieve(sessionId);
     const isPaymentSuccessful = session2.payment_status === "paid" || session2.status === "complete" && session2.payment_status !== "unpaid";
     if (!isPaymentSuccessful) {
-      console.warn(`Webhook received for incomplete payment: status=${session2.status}, payment_status=${session2.payment_status}`);
-      return res.status(400).send("Payment not completed");
+      throw new Error(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
     }
-    let userId = session2.metadata?.userId;
-    if (!userId && session2.client_reference_id) {
+    let actualUserId = session2.metadata?.userId || userId;
+    if (!actualUserId && session2.client_reference_id) {
       const refParts = session2.client_reference_id.split("_");
-      if (refParts.length >= 2 && refParts[0] === "user") {
-        userId = refParts[1];
-        console.log(`Extracted userId from client_reference_id: ${userId}`);
+      if (refParts.length >= 3 && refParts[0] === "seduise" && refParts[1] === "app") {
+        actualUserId = refParts[2];
       }
     }
-    if (!userId) {
-      console.error("User ID not found in session metadata or client reference");
-      return res.status(400).send("User ID not found in session data");
+    if (!actualUserId) {
+      throw new Error("User identification failed");
     }
-    try {
+    let actualPlan = session2.metadata?.plan || plan;
+    if (!actualPlan || !["essential", "passion", "escape"].includes(actualPlan)) {
+      throw new Error("Invalid subscription plan");
+    }
+    const user = await User.findById(actualUserId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const planDetails = SUBSCRIPTION_PLANS2[actualPlan];
+    if (!planDetails) {
+      throw new Error("Plan details not found");
+    }
+    user.isPremium = true;
+    user.subscription = actualPlan;
+    const creditsToAdd = planDetails.monthlyCredits;
+    const previousCredits = user.credits || 0;
+    user.credits = previousCredits + creditsToAdd;
+    user.usageThisMonth = {
+      storiesGenerated: 0,
+      chaptersGenerated: 0,
+      audioMinutesUsed: 0,
+      lastResetDate: /* @__PURE__ */ new Date()
+    };
+    await user.save();
+    return {
+      success: true,
+      message: "Subscription activated successfully",
+      plan: actualPlan,
+      credits: creditsToAdd,
+      totalCredits: user.credits
+    };
+  }
+  async processCreditSuccessWithStripeVerification(sessionId, credits, packageId, userId) {
+    const session2 = await stripe_default.checkout.sessions.retrieve(sessionId);
+    const isPaymentSuccessful = session2.payment_status === "paid" || session2.status === "complete" && session2.payment_status !== "unpaid";
+    if (!isPaymentSuccessful) {
+      throw new Error(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
+    }
+    let actualUserId = session2.metadata?.userId || userId;
+    if (!actualUserId && session2.client_reference_id) {
+      const refParts = session2.client_reference_id.split("_");
+      if (refParts.length >= 2 && refParts[0] === "user") {
+        actualUserId = refParts[1];
+      }
+    }
+    if (!actualUserId) {
+      throw new Error("User identification failed");
+    }
+    let creditsToAdd = 0;
+    if (session2.metadata?.credits) {
+      creditsToAdd = parseInt(session2.metadata.credits);
+    } else if (credits) {
+      creditsToAdd = parseInt(credits);
+    } else if (packageId || session2.metadata?.packageId) {
+      const pkgId = packageId || session2.metadata?.packageId;
+      const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+      const packageKey = pkgId;
+      if (CREDIT_PACKAGES2[packageKey]) {
+        creditsToAdd = CREDIT_PACKAGES2[packageKey].credits;
+      }
+    }
+    if (creditsToAdd <= 0) {
+      creditsToAdd = 20;
+    }
+    const user = await User.findById(actualUserId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const previousCredits = user.credits || 0;
+    user.credits = previousCredits + creditsToAdd;
+    await user.save();
+    return {
+      success: true,
+      message: "Payment successful and credits added",
+      credits: creditsToAdd,
+      totalCredits: user.credits
+    };
+  }
+  async processWebhookEvent(event) {
+    if (event.type === "checkout.session.completed") {
+      const session2 = event.data.object;
+      const isPaymentSuccessful = session2.payment_status === "paid" || session2.status === "complete" && session2.payment_status !== "unpaid";
+      if (!isPaymentSuccessful) {
+        throw new Error(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
+      }
+      let userId = session2.metadata?.userId;
+      if (!userId && session2.client_reference_id) {
+        const refParts = session2.client_reference_id.split("_");
+        if (refParts.length >= 2 && refParts[0] === "user") {
+          userId = refParts[1];
+        }
+      }
+      if (!userId) {
+        throw new Error("User ID not found in session metadata or client reference");
+      }
       const user = await User.findById(userId);
       if (!user) {
-        console.error(`User ${userId} not found`);
-        return res.status(404).send("User not found");
+        throw new Error(`User ${userId} not found`);
       }
       const purchaseType = session2.metadata?.type;
       if (purchaseType === "credit_purchase") {
@@ -3866,49 +4318,442 @@ router5.post("/webhook", async (req, res) => {
         if (creditsToAdd > 0) {
           user.credits = (user.credits || 0) + creditsToAdd;
           await user.save();
-          console.log(`Added ${creditsToAdd} credits to user ${userId}`);
+          return { message: `Added ${creditsToAdd} credits to user ${userId}` };
         } else {
-          console.error("Invalid credit amount");
+          throw new Error("Invalid credit amount");
         }
       } else if (purchaseType === "subscription_purchase") {
-        const plan = session2.metadata?.plan || "passion";
-        if (!["essential", "passion", "escape"].includes(plan)) {
-          console.error("Invalid subscription plan:", plan);
-          return res.status(400).send("Invalid subscription plan");
-        }
-        user.isPremium = true;
-        user.subscription = plan;
-        let creditsToAdd = 0;
-        switch (plan) {
-          case "standard":
-            creditsToAdd = 50;
-            break;
-          case "premium":
-            creditsToAdd = 200;
-            break;
-          default:
-            creditsToAdd = 0;
-        }
-        user.credits = (user.credits || 0) + creditsToAdd;
-        user.usageThisMonth = {
-          storiesGenerated: 0,
-          chaptersGenerated: 0,
-          audioMinutesUsed: 0,
-          lastResetDate: /* @__PURE__ */ new Date()
-        };
-        await user.save();
-        console.log(`User ${userId} subscribed to ${plan} plan via webhook`);
+        return { message: `Subscription purchase detected - will be processed via success page` };
       } else {
-        console.log(`Unknown purchase type: ${purchaseType}`);
+        return { message: `Unknown purchase type: ${purchaseType}` };
       }
+    }
+    return { message: "Event processed successfully" };
+  }
+  async verifyWebhookSignature(body, signature) {
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!endpointSecret) {
+      return {
+        type: "checkout.session.completed",
+        data: { object: body },
+        id: "dev_" + Date.now()
+      };
+    } else {
+      return stripe_default.webhooks.constructEvent(
+        body,
+        signature,
+        endpointSecret
+      );
+    }
+  }
+};
+var paymentService = new PaymentService();
+
+// server/controllers/payment.controller.ts
+import { z as z4 } from "zod";
+var PaymentController = class {
+  async createSubscriptionCheckout(req, res) {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const { planId } = req.body;
+      const origin = req.headers.origin || "https://" + req.headers.host;
+      const result = await paymentService.createSubscriptionCheckout(userId, planId, origin);
+      res.json(result);
     } catch (error) {
-      console.error("Error processing webhook:", error);
+      console.error("Error creating subscription checkout session:", error);
+      if (error instanceof z4.ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to create subscription checkout session" });
+    }
+  }
+  async createCreditCheckout(req, res) {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const { packageId } = req.body;
+      const origin = req.headers.origin || "https://" + req.headers.host;
+      const result = await paymentService.createCreditCheckout(userId, packageId, origin);
+      res.json(result);
+    } catch (error) {
+      console.error("Error creating credit checkout session:", error);
+      if (error instanceof z4.ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  }
+  async creditSuccessPost(req, res) {
+    try {
+      const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID || req.body && req.body.session_id;
+      const credits = req.query.credits || req.body && req.body.credits;
+      const packageId = req.query.package || req.body && req.body.package;
+      console.log("Credit success handler received:", {
+        session_id,
+        credits,
+        packageId,
+        method: req.method,
+        query: req.query,
+        body: req.body
+      });
+      const userId = req.session.userId;
+      const result = await paymentService.processCreditSuccess(
+        session_id,
+        credits,
+        packageId,
+        userId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error processing credit purchase:", error);
+      res.status(500).json({ success: false, message: "Failed to process credit purchase" });
+    }
+  }
+  async updateCredits(req, res) {
+    try {
+      const { credits } = req.body;
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "User not authenticated" });
+      }
+      const result = await paymentService.updateUserCredits(userId, parseInt(credits));
+      console.log(`Added ${credits} credits to user ${userId} via direct update`);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error updating credits:", error);
+      if (error instanceof Error) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: "Failed to update credits" });
+    }
+  }
+  async subscriptionSuccessGet(req, res) {
+    try {
+      const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID;
+      const plan = req.query.plan;
+      console.log("GET Subscription success handler received:", {
+        session_id,
+        plan,
+        query: req.query
+      });
+      if (!session_id || typeof session_id !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid session ID"
+        });
+      }
+      const userId = req.session.userId;
+      const result = await paymentService.processSubscriptionSuccessWithStripeVerification(
+        session_id,
+        plan,
+        userId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error processing subscription success:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("Payment not completed")) {
+          return res.status(402).json({
+            success: false,
+            message: "Payment not completed. Please complete the payment and try again."
+          });
+        }
+        if (error.message.includes("User identification failed")) {
+          return res.status(400).json({
+            success: false,
+            message: "User identification failed. Please contact support."
+          });
+        }
+        if (error.message.includes("User not found")) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found. Please contact support."
+          });
+        }
+      }
+      return res.status(500).json({
+        success: false,
+        message: "An unexpected error occurred. Please contact support."
+      });
+    }
+  }
+  async creditSuccessGet(req, res) {
+    try {
+      const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID;
+      const credits = req.query.credits;
+      const packageId = req.query.package;
+      console.log("GET Credit success handler received:", {
+        session_id,
+        credits,
+        packageId,
+        query: req.query
+      });
+      if (!session_id || typeof session_id !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid session ID"
+        });
+      }
+      const userId = req.session.userId;
+      const result = await paymentService.processCreditSuccessWithStripeVerification(
+        session_id,
+        credits,
+        packageId,
+        userId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error processing credit success:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("Payment not completed")) {
+          return res.status(402).json({
+            success: false,
+            message: "Payment not completed. Please complete the payment and try again."
+          });
+        }
+        if (error.message.includes("User identification failed")) {
+          return res.status(400).json({
+            success: false,
+            message: "User identification failed. Please contact support."
+          });
+        }
+        if (error.message.includes("User not found")) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found. Please contact support."
+          });
+        }
+        if (error.message.includes("Error retrieving Stripe session")) {
+          return res.status(500).json({
+            success: false,
+            message: "Error verifying payment. Please contact support."
+          });
+        }
+      }
+      return res.status(500).json({
+        success: false,
+        message: "An unexpected error occurred. Please contact support."
+      });
+    }
+  }
+  async webhook(req, res) {
+    console.log(`Webhook received [${(/* @__PURE__ */ new Date()).toISOString()}]`);
+    const signature = req.headers["stripe-signature"];
+    if (!signature || typeof signature !== "string") {
+      console.error("Webhook Error: No stripe-signature header provided");
+      return res.status(400).send("Webhook Error: No signature provided");
+    }
+    console.log(`Stripe signature received: ${signature.substring(0, 20)}...`);
+    try {
+      const event = await paymentService.verifyWebhookSignature(req.body, signature);
+      console.log(`Webhook verified: ${event.id} [${event.type}]`);
+      const result = await paymentService.processWebhookEvent(event);
+      console.log("Webhook processing result:", result.message);
+      res.json({ received: true });
+    } catch (error) {
+      console.error(`Webhook error:`, error);
+      if (error.message && error.message.includes("signature verification failed")) {
+        return res.status(400).send(`Webhook Error: ${error.message}`);
+      }
+      if (error instanceof Error) {
+        return res.status(500).send(`Error processing webhook: ${error.message}`);
+      }
       return res.status(500).send("Error processing webhook");
     }
   }
-  res.json({ received: true });
-});
+};
+var paymentController = new PaymentController();
+
+// server/routes/payment.route.ts
+var router5 = Router5();
+router5.post("/create-subscription-checkout", authMiddleware, paymentController.createSubscriptionCheckout.bind(paymentController));
+router5.post("/create-credit-checkout", authMiddleware, paymentController.createCreditCheckout.bind(paymentController));
+router5.post("/credit-success", paymentController.creditSuccessPost.bind(paymentController));
+router5.post("/update-credits", paymentController.updateCredits.bind(paymentController));
+router5.get("/credit-success", paymentController.creditSuccessGet.bind(paymentController));
+router5.get("/subscription-success", paymentController.subscriptionSuccessGet.bind(paymentController));
+router5.post("/webhook", paymentController.webhook.bind(paymentController));
 var payment_route_default = router5;
+
+// server/routes/badge.route.ts
+import { Router as Router6 } from "express";
+init_user_model();
+var router6 = Router6();
+router6.get("/definitions", async (req, res) => {
+  try {
+    const { category, rarity } = req.query;
+    let badges = Object.values(BADGE_DEFINITIONS);
+    if (category) {
+      badges = getBadgesByCategory(category);
+    }
+    if (rarity) {
+      badges = getBadgesByRarity(rarity);
+    }
+    res.json({
+      success: true,
+      badges,
+      total: badges.length
+    });
+  } catch (error) {
+    console.error("Error fetching badge definitions:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch badge definitions" });
+  }
+});
+router6.get("/user/:userId", authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.session.userId;
+    if (userId !== requestingUserId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view your own badges"
+      });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+    const badgeSummary = await badgeService.getUserBadgeSummary(userId);
+    const userStats = await badgeService.getUserStats(userId);
+    res.json({
+      success: true,
+      badges: user.badges || [],
+      summary: badgeSummary,
+      stats: userStats
+    });
+  } catch (error) {
+    console.error("Error fetching user badges:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch user badges" });
+  }
+});
+router6.post("/check/:userId", authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.session.userId;
+    if (userId !== requestingUserId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only check your own badges"
+      });
+    }
+    const result = await engagementTracker.checkBadgesNow(userId);
+    res.json({
+      success: true,
+      message: result.newBadges.length > 0 ? `Congratulations! You earned ${result.newBadges.length} new badges!` : "No new badges earned at this time.",
+      newBadges: result.newBadges,
+      errors: result.errors
+    });
+  } catch (error) {
+    console.error("Error checking user badges:", error);
+    res.status(500).json({ success: false, message: "Failed to check badges" });
+  }
+});
+router6.get("/leaderboard", async (req, res) => {
+  try {
+    const { category = "all", limit = 10 } = req.query;
+    const users = await User.find({ badges: { $exists: true, $ne: [] } }).select("name badges").limit(parseInt(limit));
+    const leaderboard = users.map((user) => {
+      const badges = user.badges || [];
+      const badgeCounts = {
+        total: badges.length,
+        legendary: badges.filter((b) => b.rarity === "legendary").length,
+        epic: badges.filter((b) => b.rarity === "epic").length,
+        rare: badges.filter((b) => b.rarity === "rare").length,
+        common: badges.filter((b) => b.rarity === "common").length
+      };
+      const score = badgeCounts.legendary * 100 + badgeCounts.epic * 25 + badgeCounts.rare * 5 + badgeCounts.common * 1;
+      return {
+        userId: user._id,
+        name: user.name,
+        badgeCounts,
+        score,
+        recentBadges: badges.sort((a, b) => new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime()).slice(0, 3)
+      };
+    }).sort((a, b) => b.score - a.score);
+    res.json({
+      success: true,
+      leaderboard,
+      total: leaderboard.length
+    });
+  } catch (error) {
+    console.error("Error fetching badge leaderboard:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch leaderboard" });
+  }
+});
+router6.post("/admin/daily-check", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required"
+      });
+    }
+    runDailyBadgeCheck().catch((error) => {
+      console.error("Error in daily badge check:", error);
+    });
+    res.json({
+      success: true,
+      message: "Daily badge check initiated"
+    });
+  } catch (error) {
+    console.error("Error initiating daily badge check:", error);
+    res.status(500).json({ success: false, message: "Failed to initiate daily badge check" });
+  }
+});
+router6.get("/stats", async (req, res) => {
+  try {
+    const totalBadgeDefinitions = Object.keys(BADGE_DEFINITIONS).length;
+    const userCount = await User.countDocuments({ badges: { $exists: true, $ne: [] } });
+    const badgeStats = await User.aggregate([
+      { $match: { badges: { $exists: true, $ne: [] } } },
+      { $unwind: "$badges" },
+      { $group: {
+        _id: "$badges.rarity",
+        count: { $sum: 1 }
+      } },
+      { $sort: { count: -1 } }
+    ]);
+    const mostAwardedBadges = await User.aggregate([
+      { $match: { badges: { $exists: true, $ne: [] } } },
+      { $unwind: "$badges" },
+      { $group: {
+        _id: "$badges.id",
+        name: { $first: "$badges.name" },
+        count: { $sum: 1 }
+      } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+    res.json({
+      success: true,
+      stats: {
+        totalBadgeDefinitions,
+        usersWithBadges: userCount,
+        badgesByRarity: badgeStats,
+        mostAwardedBadges
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching badge stats:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch badge stats" });
+  }
+});
+var badge_route_default = router6;
 
 // server/routes.ts
 import mongoose from "mongoose";
@@ -3918,6 +4763,7 @@ async function registerRoutes(app2) {
   app2.use("/api/user", user_route_default);
   app2.use("/api/admin", admin_route_default);
   app2.use("/api/payment", payment_route_default);
+  app2.use("/api/badges", badge_route_default);
   app2.get("/api/speech/voices", async (req, res) => {
     try {
       const voices = await elevenlabs.getVoices();
@@ -4071,10 +4917,10 @@ async function registerRoutes(app2) {
     }
     let creditsDeducted = 0;
     try {
-      const { text, voiceId, storyId } = z4.object({
-        text: z4.string(),
-        voiceId: z4.string(),
-        storyId: z4.string().optional()
+      const { text, voiceId, storyId } = z5.object({
+        text: z5.string(),
+        voiceId: z5.string(),
+        storyId: z5.string().optional()
       }).parse(req.body);
       console.log(`Speech generation request received - Voice: ${voiceId}, Text length: ${text.length} chars, Story ID: ${storyId || "none"}`);
       const strippedText = text.replace(/\s+/g, "");
@@ -4093,26 +4939,6 @@ async function registerRoutes(app2) {
       }
       processedText = processedText.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\n{3,}/g, "\n\n").replace(/\s{3,}/g, " ").trim();
       const estimatedAudioLengthMinutes = Math.ceil(processedText.length / 750);
-      const actionCheck = await canPerformAction(userId, "generateAudio", { audioLengthMinutes: estimatedAudioLengthMinutes });
-      if (!actionCheck.canProceed) {
-        return res.status(actionCheck.subscriptionLimitReached ? 403 : 402).json({
-          message: actionCheck.message || "You've reached your audio generation limit",
-          code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-          requiredCredits: actionCheck.requiredCredits,
-          currentCredits: actionCheck.currentCredits,
-          isPremiumRequired: actionCheck.subscriptionLimitReached
-        });
-      }
-      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-        const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-        if (!deducted) {
-          return res.status(402).json({
-            message: "Failed to deduct credits for audio generation",
-            code: "PAYMENT_REQUIRED"
-          });
-        }
-        creditsDeducted = actionCheck.requiredCredits;
-      }
       let processedVoiceId = voiceId;
       if (voiceId === "George") {
         processedVoiceId = "VR6AewLTigWG4xSOukaG";
@@ -4163,7 +4989,6 @@ async function registerRoutes(app2) {
             }
           }
         }
-        await trackAudioGeneration(userId, estimatedAudioLengthMinutes);
         res.json({
           audioUrl,
           fallback: isFallback,
@@ -4171,10 +4996,6 @@ async function registerRoutes(app2) {
         });
       } catch (error) {
         console.error("ElevenLabs API error during generation:", error);
-        if (creditsDeducted > 0) {
-          await deductCredits(userId, -creditsDeducted);
-          console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to audio generation failure.`);
-        }
         if (error instanceof Error && (error.message.includes("401") || error.message.includes("Unauthorized") || error.message.includes("api-key") || error.message.includes("authentication"))) {
           return res.status(401).json({
             message: "Speech generation failed due to API authentication issues",
@@ -4190,10 +5011,6 @@ async function registerRoutes(app2) {
       }
     } catch (error) {
       console.error("Error in speech generation request parsing/initial checks:", error);
-      if (creditsDeducted > 0) {
-        await deductCredits(userId, -creditsDeducted);
-        console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to pre-API generation failure.`);
-      }
       if (error instanceof Error) {
         res.status(500).json({
           message: "Failed to generate speech",
@@ -4211,9 +5028,9 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/speech/test", async (req, res) => {
     try {
-      const { text, voiceId } = z4.object({
-        text: z4.string(),
-        voiceId: z4.string()
+      const { text, voiceId } = z5.object({
+        text: z5.string(),
+        voiceId: z5.string()
       }).parse(req.body);
       console.log(`Test speech generation - Voice: ${voiceId}, Text length: ${text.length} chars`);
       let processedVoiceId = voiceId;

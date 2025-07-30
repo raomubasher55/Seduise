@@ -15,8 +15,8 @@ import storyRoutes from "./routes/story.route";
 import adminRoutes from "./routes/admin.route";
 import userRoutes from "./routes/user.route";
 import paymentRoutes from "./routes/payment.route";
+import badgeRoutes from "./routes/badge.route";
 import mongoose from "mongoose";
-import { canPerformAction, deductCredits, trackAudioGeneration } from "./services/subscription.service";
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes - all prefixed with /api
   
@@ -32,6 +32,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Payment routes
   app.use("/api/payment", paymentRoutes);
+  
+  // Badge routes
+  app.use("/api/badges", badgeRoutes);
 
 
 
@@ -248,30 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate estimated audio length in minutes (rough estimate: 150 words/minute, 5 chars/word) -> 750 chars/minute
       const estimatedAudioLengthMinutes = Math.ceil(processedText.length / 750);
 
-      // Check subscription limits and credit balance for audio generation
-      const actionCheck = await canPerformAction(userId, 'generateAudio', { audioLengthMinutes: estimatedAudioLengthMinutes });
-
-      if (!actionCheck.canProceed) {
-        return res.status(actionCheck.subscriptionLimitReached ? 403 : 402).json({
-          message: actionCheck.message || "You've reached your audio generation limit",
-          code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-          requiredCredits: actionCheck.requiredCredits,
-          currentCredits: actionCheck.currentCredits,
-          isPremiumRequired: actionCheck.subscriptionLimitReached
-        });
-      }
-
-      // Deduct credits if necessary (if subscription limit reached and user has credits)
-      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-        const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-        if (!deducted) {
-          return res.status(402).json({
-            message: "Failed to deduct credits for audio generation",
-            code: "PAYMENT_REQUIRED"
-          });
-        }
-        creditsDeducted = actionCheck.requiredCredits; // Mark credits as deducted
-      }
+     
 
       let processedVoiceId = voiceId;
       if (voiceId === "George") {
@@ -332,8 +312,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Track audio generation after successful generation
-        await trackAudioGeneration(userId, estimatedAudioLengthMinutes);
 
         res.json({
           audioUrl,
@@ -343,11 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error: any) {
         console.error("ElevenLabs API error during generation:", error);
 
-        // Refund credits if an error occurred after deduction
-        if (creditsDeducted > 0) {
-          await deductCredits(userId, -creditsDeducted); // Pass negative to add back
-          console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to audio generation failure.`);
-        }
+      
 
         if (error instanceof Error &&
           (error.message.includes('401') ||
@@ -371,10 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in speech generation request parsing/initial checks:", error);
 
       // Refund credits if an error occurred before API call but after deduction
-      if (creditsDeducted > 0) {
-        await deductCredits(userId, -creditsDeducted); // Pass negative to add back
-        console.log(`Refunded ${creditsDeducted} credits to user ${userId} due to pre-API generation failure.`);
-      }
+    
 
       if (error instanceof Error) {
         res.status(500).json({

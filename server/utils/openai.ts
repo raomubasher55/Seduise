@@ -3,7 +3,7 @@ import OpenAI from "openai";
 // Using Novita.ai as our story generation engine
 const novitaAI = new OpenAI({
   baseURL: "https://api.novita.ai/v3/openai",
-  apiKey: "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI",
+  apiKey: process.env.OPENAI_KEY || "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI",
 });
 const stream = false; // Change to `true` if you want streaming responses
 

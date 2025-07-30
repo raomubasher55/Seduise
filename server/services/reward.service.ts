@@ -1,7 +1,15 @@
 import { User } from "../models/user.model";
 import { Story } from "../models/story.model";
+import { badgeService } from "./badge.service";
+import { getBadgeById } from "../constants/badges";
 
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use badgeService.processUserBadges() instead
+ */
 export async function awardBadge(userId: string, badgeName: string): Promise<boolean> {
+  console.warn('awardBadge is deprecated. Use badgeService.processUserBadges() for automatic badge awarding.');
+  
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -9,15 +17,36 @@ export async function awardBadge(userId: string, badgeName: string): Promise<boo
       return false;
     }
 
-    if (!user.badges.includes(badgeName)) {
-      user.badges.push(badgeName);
-      await user.save();
-      console.log(`Awarded badge "${badgeName}" to user ${userId}.`);
-      return true;
-    } else {
-      console.log(`User ${userId} already has badge "${badgeName}".`);
-      return false;
+    // Check if using old string format or new badge system
+    if (typeof badgeName === 'string' && !getBadgeById(badgeName)) {
+      // Legacy string badge - convert to new format
+      const legacyBadge = {
+        id: badgeName.toLowerCase().replace(/\s+/g, '_'),
+        name: badgeName,
+        description: `Legacy badge: ${badgeName}`,
+        icon: '🏆',
+        color: '#FFD700',
+        rarity: 'common' as const,
+        awardedAt: new Date()
+      };
+
+      if (!user.badges) {
+        user.badges = [];
+      }
+
+      const existingBadge = user.badges.find(badge => 
+        badge.name === badgeName || badge.id === legacyBadge.id
+      );
+
+      if (!existingBadge) {
+        user.badges.push(legacyBadge);
+        await user.save();
+        console.log(`Awarded legacy badge "${badgeName}" to user ${userId}.`);
+        return true;
+      }
     }
+
+    return false;
   } catch (error) {
     console.error(`Error awarding badge "${badgeName}" to user ${userId}:`, error);
     return false;

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ interface Story {
 
 export default function PremiumGallery() {
   const { user, isLoading: isUserLoading } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: stories, isLoading, error } = useQuery<Story[]>({
     queryKey: ['premiumStories'],
@@ -75,21 +76,76 @@ export default function PremiumGallery() {
     );
   }
 
+  const getTierInfo = () => {
+    if (user?.subscription === 'passion') {
+      return {
+        title: 'Premium Gallery - Passion Access',
+        description: 'Early access stories that will become public later',
+        badge: 'Partial Access',
+        color: 'from-purple-500 to-indigo-500'
+      };
+    } else if (user?.subscription === 'escape') {
+      return {
+        title: 'Premium Gallery - Escape Access',
+        description: 'Full access to all exclusive premium content',
+        badge: 'Full Access',
+        color: 'from-yellow-500 to-orange-500'
+      };
+    }
+    return {
+      title: 'Premium Story Gallery',
+      description: 'Exclusive stories for our valued premium subscribers',
+      badge: 'Premium',
+      color: 'from-purple-500 to-pink-500'
+    };
+  };
+
+  const tierInfo = getTierInfo();
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold mb-4">Premium Story Gallery</h1>
-        <p className="text-lg text-muted-foreground">
-          Exclusive stories for our valued premium subscribers.
+        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          {tierInfo.title}
+        </h1>
+        <p className="text-lg text-muted-foreground mb-4">
+          {tierInfo.description}
         </p>
+        <div className="flex justify-center">
+          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r ${tierInfo.color} text-white`}>
+            {tierInfo.badge}
+          </span>
+        </div>
       </div>
 
       {stories && stories.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {stories.map((story) => (
-            <StoryCard key={story._id} story={story} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {stories.map((story) => (
+              <StoryCard key={story._id} story={story} />
+            ))}
+          </div>
+          
+          {user?.subscription === 'passion' && (
+            <div className="mt-12">
+              <Card className="bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border-yellow-500/20 p-6 text-center">
+                <CardHeader>
+                  <CardTitle className="text-xl bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                    Want More Premium Content?
+                  </CardTitle>
+                  <CardDescription>
+                    Upgrade to Escape for full access to all exclusive premium stories
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600">
+                    <Link href="/premium-upgrade">Upgrade to Escape</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-16">
           <p className="text-xl text-muted-foreground">No premium stories available yet. Check back soon!</p>

@@ -26,14 +26,14 @@ import CookiePolicy from "@/pages/CookiePolicy";
 import TermsOfUse from "@/pages/TermsOfUse";
 
 // Subscription and Payment Pages
-import SubscriptionPage from "@/pages/SubscriptionPage";
 import CreditsPage from "@/pages/CreditsPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/PaymentCancelPage";
 import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
+import PaymentSubscriptionSuccess from "@/pages/PaymentSubscriptionSuccess";
 import PremiumGallery from "./pages/PremiumGallery";
-import SubscriptionPlans from "./components/SubscriptionPlans";
+import PremiumUpgrade from "./pages/PremiumUpgrade";
 
 function App() {
   return (
@@ -85,7 +85,7 @@ function App() {
               </Route>
 
               <Route path="/premium-gallery">
-                <ProtectedRoute premiumOnly={true}>
+                <ProtectedRoute minimumTier="passion">
                   <PremiumGallery />
                 </ProtectedRoute>
               </Route>
@@ -98,22 +98,21 @@ function App() {
                 )}
               </Route>
               
-              {/* <Route path="/premium">
+              <Route path="/premium-upgrade">
                 <ProtectedRoute>
                   <PremiumUpgrade />
                 </ProtectedRoute>
-              </Route> */}
+              </Route>
               
-              <Route path="/subscription">
+              {/* <Route path="/subscription">
                 <ProtectedRoute>
                   <SubscriptionPage />
                 </ProtectedRoute>
-              </Route>
+              </Route> */}
               
               <Route path="/credits">
                 <ProtectedRoute>
                   <CreditsPage />
-                  {/* <SubscriptionPlans/> */}
                 </ProtectedRoute>
               </Route>
               
@@ -131,6 +130,10 @@ function App() {
                 {/* <ProtectedRoute> */}
                   <PaymentCreditSuccess />
                 {/* </ProtectedRoute> */}
+              </Route>
+
+              <Route path="/payment/subscription-success">
+                <PaymentSubscriptionSuccess />
               </Route>
               
               <Route path="/payment/cancel">

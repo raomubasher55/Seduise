@@ -4,6 +4,7 @@ import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continu
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
+import { trackEngagement, trackStoryInteraction } from "../middleware/engagement.middleware";
 
 // Helper function to determine voice gender based on name and labels
 function determineVoiceGender(voiceName: string, labels?: Record<string, string>): string {
@@ -118,7 +119,7 @@ router.get("/voice-options", async (req, res) => {
 });
 
 // Story CRUD operations
-router.route("/generate").post(authMiddleware, createStory);
+router.route("/generate").post(authMiddleware, trackEngagement('story_created'), createStory);
 router.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 
 // Get all public stories
@@ -303,38 +304,58 @@ router.get("/by-category/:category", async (req, res) => {
   }
 });
 
-// Story-specific routes with ID parameter
-router.route("/:id").get(getStory);
-router.route("/:id").put(authMiddleware, updateStory);
-router.route("/:id").delete(authMiddleware, deleteStory);
-router.route("/:id/continue").post(authMiddleware, continueStory);
-router.route("/:id/audio").get(getStoryAudio);
-router.route("/:id/chapters").get(getStoryChapters);
-router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
-router.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
-router.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory);
-router.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
-router.route("/:id/like").post(authMiddleware, likeStory);
-router.route("/:id/upvote").post(authMiddleware, upvoteStory);
-router.route("/:id/downvote").post(authMiddleware, downvoteStory);
-
-// Get all premium stories (only for premium users)
+// Get all premium stories (only for passion/escape subscribers) - MUST be before parameterized routes
 router.get("/premium-stories", authMiddleware, async (req, res) => {
   try {
     const userId = req.session.userId;
     const user = await User.findById(userId);
 
-    if (!user || !user.isPremium) {
-      return res.status(403).json({ message: "Access denied. Premium subscription required." });
+    // Check if user has premium gallery access (passion or escape subscription)
+    const hasGalleryAccess = user?.subscription === 'passion' || user?.subscription === 'escape';
+    
+    if (!user || !hasGalleryAccess) {
+      return res.status(403).json({ 
+        message: "Access denied. Passion or Escape subscription required for premium gallery access.",
+        currentSubscription: user?.subscription || 'none'
+      });
     }
 
     const currentDate = new Date();
-    const premiumStories = await Story.find({
-      accessType: { $in: ['premium_early_access', 'premium_exclusive'] },
-      premiumAccessDate: { $lte: currentDate }
-    })
+    let storyQuery: any = {};
+    let limit = 20;
+
+    // Tier-based content filtering
+    if (user.subscription === 'passion') {
+      // Passion users get partial access - only early access stories
+      storyQuery = {
+        accessType: 'premium_early_access',
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 10;
+    } else if (user.subscription === 'escape') {
+      // Escape users get full access - all premium content
+      storyQuery = {
+        accessType: { $in: ['premium_early_access', 'premium_exclusive'] },
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 30;
+    } else {
+      // Fallback for other premium users
+      storyQuery = {
+        accessType: { $in: ['premium_early_access', 'premium_exclusive'] }
+      };
+    }
+
+
+    const premiumStories = await Story.find(storyQuery)
       .sort({ createdAt: -1 })
-      .limit(20); // Limit to 20 premium stories
+      .limit(limit);
 
     // Populate user names for each story
     const storiesWithUserNames = await Promise.all(
@@ -370,6 +391,21 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch premium stories" });
   }
 });
+
+// Story-specific routes with ID parameter
+router.route("/:id").get(getStory);
+router.route("/:id").put(authMiddleware, updateStory);
+router.route("/:id").delete(authMiddleware, deleteStory);
+router.route("/:id/continue").post(authMiddleware, continueStory);
+router.route("/:id/audio").get(getStoryAudio);
+router.route("/:id/chapters").get(getStoryChapters);
+router.route("/:id/chapters/:chapterNumber").get(getStoryChapter);
+router.route("/:id/chapters/:chapterNumber/choices").get(getChapterChoices);
+router.route("/:id/chapters/:chapterNumber/choice").post(authMiddleware, continueStory);
+router.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlockChapter);
+router.route("/:id/like").post(authMiddleware, likeStory);
+router.route("/:id/upvote").post(authMiddleware, upvoteStory);
+router.route("/:id/downvote").post(authMiddleware, downvoteStory);
 
 // Toggle story visibility
 router.patch("/:id/visibility", authMiddleware, async (req, res) => {

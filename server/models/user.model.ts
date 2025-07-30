@@ -17,7 +17,7 @@ const userSchema = new Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   subscription: { 
     type: String, 
-    enum: ["free", "standard", "premium"], 
+    enum: ["free", "essential", "passion", "escape"], 
     default: "free" 
   },
   isPremium: { type: Boolean, default: false }, // True for any paid plan
@@ -43,7 +43,15 @@ const userSchema = new Schema({
   googleId: { type: String, sparse: true, unique: true },
   profilePicture: { type: String },
   authProvider: { type: String, enum: ["local", "google"], default: "local" },
-  badges: [{ type: String }] // Array of strings to store badge names/IDs
+  badges: [{
+    id: String,
+    name: String,
+    description: String,
+    icon: String,
+    color: String,
+    rarity: { type: String, enum: ['common', 'rare', 'epic', 'legendary'] },
+    awardedAt: { type: Date, default: Date.now }
+  }]
 });
 
 userSchema.index({ email: 1 }, { unique: true });

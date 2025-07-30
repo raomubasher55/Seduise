@@ -11,16 +11,48 @@ import path from "path";
 import fs from "fs";
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
-import { 
-  canPerformAction, 
-  deductCredits, 
-  trackStoryGeneration,
-  trackAudioGeneration,
-  trackChapterGeneration
-} from "../services/subscription.service";
+import { trackStoryInteraction } from "../middleware/engagement.middleware";
 
+// Function to track story generation for subscription limits
+const trackStoryGeneration = async (userId: string) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error('User not found for tracking story generation');
+      return;
+    }
 
+    // Initialize usage tracking if it doesn't exist
+    if (!user.usageThisMonth) {
+      user.usageThisMonth = {
+        storiesGenerated: 0,
+        chaptersGenerated: 0,
+        audioMinutesUsed: 0,
+        lastResetDate: new Date()
+      };
+    }
 
+    // Check if we need to reset monthly usage (if it's a new month)
+    const now = new Date();
+    const lastReset = new Date(user.usageThisMonth.lastResetDate);
+    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+      user.usageThisMonth = {
+        storiesGenerated: 1,
+        chaptersGenerated: 0,
+        audioMinutesUsed: 0,
+        lastResetDate: now
+      };
+    } else {
+      // Increment story count
+      user.usageThisMonth.storiesGenerated += 1;
+    }
+
+    await user.save();
+    console.log(`Tracked story generation for user ${userId}. Total this month: ${user.usageThisMonth.storiesGenerated}`);
+  } catch (error) {
+    console.error('Error tracking story generation:', error);
+  }
+};
 
 export const createStory = async (req: Request, res: Response) => {
   try {
@@ -29,10 +61,11 @@ export const createStory = async (req: Request, res: Response) => {
       settings: storySettingsSchema,
       maxTokens: z.number().optional(),
       isPublic: z.boolean().optional().default(false),
+      accessType: z.enum(['public', 'private', 'premium_exclusive']).optional().default('public'),
       category: z.string().optional().default("romance")
     });
 
-    const { title, settings, maxTokens, isPublic, category } = settingsSchema.parse(req.body);
+    const { title, settings, maxTokens, isPublic, accessType, category } = settingsSchema.parse(req.body);
     const userId = req.session.userId;
     if (!userId) {
       throw new Error("User not found");
@@ -44,46 +77,26 @@ export const createStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Check if non-premium user is trying to make public story
-    // if (isPublic && !user.isPremium) {
-    //   return res.status(403).json({
-    //     message: "Only premium users can create public stories",
-    //     code: "PREMIUM_REQUIRED",
-    //     isPremiumRequired: true
-    //   });
-    // }
-    
-    // Check subscription limits and credit balance
-    // Get the story length from settings to calculate the correct credit cost
-    const storyLength = settings.length;
-    const actionCheck = await canPerformAction(userId, 'generateStory', { storyLength });
-    
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your story generation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    
-    // If subscription limit reached but has credits, deduct them
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for story generation",
-          code: "PAYMENT_REQUIRED"
+    // Check if user is trying to create premium content without proper subscription
+    if (accessType === 'premium_exclusive') {
+      if (user.subscription !== 'passion' && user.subscription !== 'escape') {
+        return res.status(403).json({
+          message: "Premium story creation is only available for Passion and Escape subscribers",
+          code: "PREMIUM_REQUIRED",
+          isPremiumRequired: true
         });
       }
     }
     
-    console.log(`Attempting to generate story "${title}" for user ${userId}`);
+    // Check subscription limits and credit balance
+    // Get the story length from settings to calculate the correct credit cost
+    const storyLength = settings.length;
+    
+    
     
     try {
       // Generate the story with detailed error handling
-      const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category);
+      const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category, accessType);
       
       // Track story generation for subscription limits
       await trackStoryGeneration(userId);
@@ -91,11 +104,7 @@ export const createStory = async (req: Request, res: Response) => {
       res.status(201).json(story);
     } catch (storyGenError) {
       console.error("Error in story generation service:", storyGenError);
-      // Refund credits if story generation fails
-      if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-        await User.findByIdAndUpdate(userId, { $inc: { credits: actionCheck.requiredCredits } });
-        console.log(`Refunded ${actionCheck.requiredCredits} credits to user ${userId} due to story generation failure`);
-      }
+    
       throw storyGenError; // Re-throw to be caught by outer catch block
     }
   } catch (error) {
@@ -248,35 +257,11 @@ export const continueStory = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "User not authenticated" });
     }
     
-    // Check subscription limits and credit balance for chapter generation
-    const actionCheck = await canPerformAction(userId, 'continueStory');
-    
-    if (!actionCheck.canProceed) {
-      return res.status(403).json({
-        message: actionCheck.message || "You've reached your story continuation limit",
-        code: actionCheck.subscriptionLimitReached ? "SUBSCRIPTION_LIMIT_REACHED" : "INSUFFICIENT_CREDITS",
-        requiredCredits: actionCheck.requiredCredits,
-        currentCredits: actionCheck.currentCredits,
-        isPremiumRequired: actionCheck.subscriptionLimitReached
-      });
-    }
-    
-    // If subscription limit reached but has credits, deduct them
-    if (actionCheck.subscriptionLimitReached && actionCheck.requiredCredits) {
-      const deducted = await deductCredits(userId, actionCheck.requiredCredits);
-      if (!deducted) {
-        return res.status(402).json({
-          message: "Failed to deduct credits for story continuation",
-          code: "PAYMENT_REQUIRED"
-        });
-      }
-    }
+   
     
     // Continue the story, passing the selectedChoice
     const continuedStory = await continueStoryService(id, finalChoice, conclude);
     
-    // Track chapter generation for subscription limits
-    await trackChapterGeneration(userId);
     
     res.status(200).json(continuedStory);
   } catch (error) {
@@ -493,6 +478,9 @@ export const likeStory = async (req: Request, res: Response) => {
     story.likes = (story.likes || 0) + 1;
     await story.save();
 
+    // Track engagement for badge system
+    await trackStoryInteraction(id, 'like');
+
     res.status(200).json({ message: "Story liked successfully", likes: story.likes });
   } catch (error) {
     console.error("Error liking story:", error);
@@ -518,6 +506,9 @@ export const upvoteStory = async (req: Request, res: Response) => {
     story.upvotes = (story.upvotes || 0) + 1;
     await story.save();
 
+    // Track engagement for badge system
+    await trackStoryInteraction(id, 'upvote');
+
     res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
   } catch (error) {
     console.error("Error upvoting story:", error);
@@ -542,6 +533,9 @@ export const downvoteStory = async (req: Request, res: Response) => {
 
     story.downvotes = (story.downvotes || 0) + 1;
     await story.save();
+
+    // Track engagement for badge system
+    await trackStoryInteraction(id, 'downvote');
 
     res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
   } catch (error) {

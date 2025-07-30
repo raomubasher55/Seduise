@@ -1,11 +1,64 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { Story } from "../models/story.model";
+import { User } from "../models/user.model";
 
 const router = Router();
 
 // All these routes require authentication
 router.use(authMiddleware);
+
+// Debug endpoint to check and fix user subscription status
+router.get("/debug-subscription", async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if user is premium but subscription is still "free"
+    if (user.isPremium && user.subscription === "free") {
+      // Infer subscription based on credits (this is a temporary fix)
+      let inferredPlan = "essential"; // default
+      if (user.credits >= 70) {
+        inferredPlan = "escape";
+      } else if (user.credits >= 35) {
+        inferredPlan = "passion";
+      } else {
+        inferredPlan = "essential";
+      }
+      
+      // Update the user's subscription
+      user.subscription = inferredPlan;
+      await user.save();
+      
+      return res.json({
+        message: "Fixed subscription status",
+        before: "free",
+        after: inferredPlan,
+        userStatus: {
+          isPremium: user.isPremium,
+          subscription: user.subscription,
+          credits: user.credits
+        }
+      });
+    }
+
+    return res.json({
+      message: "Subscription status is correct",
+      userStatus: {
+        isPremium: user.isPremium,
+        subscription: user.subscription,
+        credits: user.credits
+      }
+    });
+  } catch (error) {
+    console.error("Error checking subscription:", error);
+    res.status(500).json({ message: "Failed to check subscription" });
+  }
+});
 
 // Get all stories for the current user
 router.get("/stories", async (req, res) => {

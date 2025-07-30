@@ -14,9 +14,12 @@ export default function CreditsPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold mb-4">Credits</h1>
+        <h1 className="text-4xl font-bold mb-4">Buy Additional Credits</h1>
         <p className="text-lg text-muted-foreground">
-          Purchase credits to generate more stories and audio narrations
+          Top up your account with extra credits when you've used your monthly allowance
+        </p>
+        <p className="text-sm text-muted-foreground mt-2">
+          💡 Need a monthly plan? <a href="/premium-upgrade" className="text-primary hover:underline">Check out our subscriptions</a>
         </p>
       </div>
 
@@ -30,9 +33,9 @@ export default function CreditsPage() {
           </div>
 
           <div className="mb-10">
-            <h2 className="text-2xl font-bold mb-4 text-center">Purchase Credit Packages</h2>
+            <h2 className="text-2xl font-bold mb-4 text-center">One-Time Credit Packages</h2>
             <p className="text-center text-muted-foreground mb-8">
-              Need more credits? Choose a package that suits your needs
+              Credits never expire and can be used anytime • Perfect for topping up your account
             </p>
             
             <CreditPackages 
