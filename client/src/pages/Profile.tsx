@@ -162,17 +162,52 @@ export default function Profile() {
               }`}>
                 {user.role === "admin" ? "Admin" : "User"}
               </span>
-              
-              <span className={`px-3 py-1 rounded-full text-xs flex items-center ${
-                isPremium ? "bg-[#D9B08C] text-gray-900" : "bg-gray-700 text-gray-200"
+            </div>
+
+            {/* Subscription Information */}
+            <div className="w-full mb-4">
+              <div className={`p-4 rounded-lg border-2 text-center ${
+                user.subscription === 'intimacy' ? 'bg-gradient-to-r from-[#8B1E3F]/20 to-[#D9B08C]/20 border-[#8B1E3F]' :
+                user.subscription === 'seduction' ? 'bg-gradient-to-r from-[#D9B08C]/20 to-[#8B1E3F]/20 border-[#D9B08C]' :
+                user.subscription === 'essentiel' ? 'bg-[#D9B08C]/10 border-[#D9B08C]/50' :
+                'bg-gray-700/20 border-gray-600'
               }`}>
-                {isPremium ? (
-                  <>
-                    <Crown className="mr-1" size={12} />
-                    Premium
-                  </>
-                ) : "Free"}
-              </span>
+                <div className="flex items-center justify-center mb-2">
+                  {isPremium && <Crown className="mr-2" size={16} />}
+                  <span className="font-semibold text-sm">
+                    {user.subscription === 'intimacy' ? 'Intimacy Plan' :
+                     user.subscription === 'seduction' ? 'Seduction Plan' :
+                     user.subscription === 'essentiel' ? 'Essential Plan' :
+                     'Free Plan'}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400 mb-3">
+                  {user.subscription === 'intimacy' ? 'The Ultimate Experience Without Limits' :
+                   user.subscription === 'seduction' ? 'Your Pleasure Rendezvous' :
+                   user.subscription === 'essentiel' ? 'Pleasure at Your Own Pace' :
+                   'Explore Without Commitment'}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-black/20 p-2 rounded">
+                    <div className="font-semibold text-[#D9B08C]">{user.textCredits || 0}</div>
+                    <div className="text-gray-400">Text Credits</div>
+                  </div>
+                  <div className="bg-black/20 p-2 rounded">
+                    <div className="font-semibold text-[#8B1E3F]">{user.audioCredits || 0}</div>
+                    <div className="text-gray-400">Audio Credits</div>
+                  </div>
+                </div>
+                {!isPremium && (
+                  <Button 
+                    size="sm" 
+                    className="mt-3 w-full bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C]"
+                    onClick={() => navigate('/premium-upgrade')}
+                  >
+                    <Crown size={14} className="mr-1" />
+                    Upgrade to Premium
+                  </Button>
+                )}
+              </div>
             </div>
             
             <div className="w-full grid grid-cols-2 gap-4 mb-6">
@@ -304,6 +339,117 @@ export default function Profile() {
                   }, 0))}
                 </div>
                 <div className="text-xs text-gray-400">Minutes Created</div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Subscription Management */}
+          <Card className="bg-[#1E1E1E] p-6 mt-6">
+            <h3 className="text-xl font-semibold mb-6 flex items-center">
+              <Crown className="mr-2" size={20} />
+              Subscription & Credits
+            </h3>
+            
+            <div className="space-y-4">
+              {/* Current Plan Display */}
+              <div className={`p-4 rounded-lg border ${
+                user.subscription === 'intimacy' ? 'bg-gradient-to-r from-[#8B1E3F]/10 to-[#D9B08C]/10 border-[#8B1E3F]' :
+                user.subscription === 'seduction' ? 'bg-gradient-to-r from-[#D9B08C]/10 to-[#8B1E3F]/10 border-[#D9B08C]' :
+                user.subscription === 'essentiel' ? 'bg-[#D9B08C]/5 border-[#D9B08C]/50' :
+                'bg-gray-700/10 border-gray-600'
+              }`}>
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <h4 className="font-semibold text-lg">
+                      {user.subscription === 'intimacy' ? 'Intimacy Plan' :
+                       user.subscription === 'seduction' ? 'Seduction Plan' :
+                       user.subscription === 'essentiel' ? 'Essential Plan' :
+                       'Free Plan'}
+                    </h4>
+                    <p className="text-sm text-gray-400">
+                      {user.subscription === 'intimacy' ? 'The Ultimate Experience Without Limits' :
+                       user.subscription === 'seduction' ? 'Your Pleasure Rendezvous' :
+                       user.subscription === 'essentiel' ? 'Pleasure at Your Own Pace' :
+                       'Explore Without Commitment'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">
+                      {user.subscription === 'intimacy' ? '€24.99' :
+                       user.subscription === 'seduction' ? '€11.99' :
+                       user.subscription === 'essentiel' ? '€5.99' :
+                       'Free'}
+                    </div>
+                    {isPremium && <div className="text-xs text-gray-400">per month</div>}
+                  </div>
+                </div>
+                
+                {/* Plan Features */}
+                <div className="text-sm text-gray-300 mb-3">
+                  {user.subscription === 'intimacy' && (
+                    <div>✨ 25 text stories • 24 audio credits • Full premium access • Exclusive features</div>
+                  )}
+                  {user.subscription === 'seduction' && (
+                    <div>✨ 12 text stories • 12 audio credits • Premium access • Advanced features</div>
+                  )}
+                  {user.subscription === 'essentiel' && (
+                    <div>✨ 5 text stories • 6 audio credits • Basic premium access</div>
+                  )}
+                  {user.subscription === 'free' && (
+                    <div>✨ 2 text stories • 1 audio credit • Public stories only</div>
+                  )}
+                </div>
+
+                {/* Credits Display */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-black/20 p-3 rounded text-center">
+                    <div className="text-xl font-bold text-[#D9B08C]">{user.textCredits || 0}</div>
+                    <div className="text-xs text-gray-400">Text Credits</div>
+                  </div>
+                  <div className="bg-black/20 p-3 rounded text-center">
+                    <div className="text-xl font-bold text-[#8B1E3F]">{user.audioCredits || 0}</div>
+                    <div className="text-xs text-gray-400">Audio Credits</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!isPremium ? (
+                  <Button 
+                    className="flex-1 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C]"
+                    onClick={() => navigate('/premium-upgrade')}
+                  >
+                    <Crown size={16} className="mr-2" />
+                    Upgrade to Premium
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline"
+                      className="flex-1 border-[#D9B08C] text-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E]"
+                      onClick={() => navigate('/premium-upgrade')}
+                    >
+                      Change Plan
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="flex-1 border-gray-600 hover:bg-gray-700"
+                      onClick={() => navigate('/credits')}
+                    >
+                      Buy More Credits
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Subscription Status */}
+              <div className="text-xs text-gray-500 text-center">
+                {isPremium ? (
+                  <span>Your subscription is active and will renew automatically</span>
+                ) : (
+                  <span>Join thousands of users creating amazing stories with premium features</span>
+                )}
               </div>
             </div>
           </Card>

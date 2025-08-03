@@ -118,17 +118,17 @@ const StoryCard = ({ story }: StoryCardProps) => {
             </div>
             <div className="flex items-center">
               <button onClick={handleLike} disabled={likeMutation.isPending}>
-                <Heart className="h-4 w-4 text-[#A93B5B] mr-1" fill={story.likes > 0 ? "#A93B5B" : "none"} />
+                <Heart className="h-4 w-4 text-[#A93B5B] mr-1" fill={story.hasLiked ? "#A93B5B" : "none"} />
               </button>
               <span className="text-xs text-gray-400">{story.likes}</span>
             </div>
             <div className="flex items-center space-x-2">
               <button onClick={handleUpvote} disabled={upvoteMutation.isPending}>
-                <ThumbsUp className="h-4 w-4 text-blue-400" fill={story.upvotes > 0 ? "#60A5FA" : "none"} />
+                <ThumbsUp className="h-4 w-4 text-blue-400" fill={story.hasUpvoted ? "#60A5FA" : "none"} />
               </button>
               <span className="text-xs text-gray-400">{story.upvotes}</span>
               <button onClick={handleDownvote} disabled={downvoteMutation.isPending}>
-                <ThumbsDown className="h-4 w-4 text-red-400" fill={story.downvotes > 0 ? "#F87171" : "none"} />
+                <ThumbsDown className="h-4 w-4 text-red-400" fill={story.hasDownvoted ? "#F87171" : "none"} />
               </button>
               <span className="text-xs text-gray-400">{story.downvotes}</span>
             </div>

@@ -4,7 +4,8 @@
 
 make dist/public/assets/audio
 
-
+<!-- remind -->
+1) chagne loader
 
 
 

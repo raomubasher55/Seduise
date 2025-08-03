@@ -55,7 +55,7 @@ const Header = () => {
           <nav className="hidden md:flex space-x-6">
             <NavLink href="/discover" current={location} label="Discover" />
             <NavLink href="/create" current={location} label="Create" />
-            {(user?.subscription === 'passion' || user?.subscription === 'escape') && <NavLink href="/premium-gallery" current={location} label="Premium Gallery" />}
+            {(user?.subscription === 'seduction' || user?.subscription === 'intimacy') && <NavLink href="/premium-gallery" current={location} label="Premium Gallery" />}
             {/* <NavLink href="/community" current={location} label="Community" /> */}
             {/* <NavLink href="#role-play" current={location} label="Role-Play" /> */}
           </nav>
@@ -90,7 +90,11 @@ const Header = () => {
                     <circle cx="12" cy="12" r="8" />
                     <path d="M9.5 9 h5 l-5 6 h5" />
                   </svg>
-                  <span className="font-medium text-amber-500">{user?.credits || 0}</span>
+                  <div className="flex items-center gap-1 font-medium text-amber-500">
+                    <span className="text-xs">T:{user?.textCredits || 0}</span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-xs">A:{user?.audioCredits || 0}</span>
+                  </div>
                 </Button>
               </Link>
             )}
@@ -125,7 +129,7 @@ const Header = () => {
                         <circle cx="12" cy="12" r="8" />
                         <path d="M9.5 9 h5 l-5 6 h5" />
                       </svg>
-                      Credits: {user?.credits || 0}
+                      T:{user?.textCredits || 0} A:{user?.audioCredits || 0}
                     </Link>
                   </DropdownMenuItem>
                   {/* {!isPremium && (
@@ -185,7 +189,7 @@ const Header = () => {
             <nav className="flex flex-col space-y-4">
               <MobileNavLink href="/discover" label="Discover" onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/create" label="Create" onClick={() => setMobileMenuOpen(false)} />
-              {(user?.subscription === 'passion' || user?.subscription === 'escape') && <MobileNavLink href="/premium-gallery" label="Premium Gallery" onClick={() => setMobileMenuOpen(false)} />}
+              {(user?.subscription === 'seduction' || user?.subscription === 'intimacy') && <MobileNavLink href="/premium-gallery" label="Premium Gallery" onClick={() => setMobileMenuOpen(false)} />}
               {/* <MobileNavLink href="/community" label="Community" onClick={() => setMobileMenuOpen(false)} /> */}
               {/* <MobileNavLink href="#role-play" label="Role-Play" onClick={() => setMobileMenuOpen(false)} /> */}
               
@@ -213,7 +217,7 @@ const Header = () => {
                         <circle cx="12" cy="12" r="8" />
                         <path d="M9.5 9 h5 l-5 6 h5" />
                       </svg>
-                      <span>Credits: {user?.credits || 0}</span>
+                      <span>T:{user?.textCredits || 0} A:{user?.audioCredits || 0}</span>
                     </div>
                   } 
                   onClick={() => setMobileMenuOpen(false)} 

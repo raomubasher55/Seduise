@@ -77,26 +77,61 @@ export const createStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Check if user is trying to create premium content without proper subscription
+    // Check premium story creation permissions based on subscription tier
     if (accessType === 'premium_exclusive') {
-      if (user.subscription !== 'passion' && user.subscription !== 'escape') {
+      // Only seduction and intimacy subscribers can create premium_exclusive stories
+      if (user.subscription !== 'seduction' && user.subscription !== 'intimacy') {
         return res.status(403).json({
-          message: "Premium story creation is only available for Passion and Escape subscribers",
-          code: "PREMIUM_REQUIRED",
-          isPremiumRequired: true
+          message: "Exclusive premium story creation is only available for Seduction and Intimacy subscribers",
+          code: "PREMIUM_EXCLUSIVE_REQUIRED",
+          isPremiumRequired: true,
+          requiredPlans: ['seduction', 'intimacy'],
+          currentPlan: user.subscription,
+          upgradeMessage: "Upgrade to Seduction or Intimacy plan to create exclusive premium stories"
         });
       }
     }
     
-    // Check subscription limits and credit balance
-    // Get the story length from settings to calculate the correct credit cost
+    if (accessType === 'premium_early_access') {
+      // All premium subscribers (essentiel, seduction, intimacy) can create early access stories
+      const allowedPlans = ['essentiel', 'seduction', 'intimacy'];
+      if (!allowedPlans.includes(user.subscription)) {
+        return res.status(403).json({
+          message: "Premium story creation requires a premium subscription",
+          code: "PREMIUM_REQUIRED", 
+          isPremiumRequired: true,
+          requiredPlans: allowedPlans,
+          currentPlan: user.subscription,
+          upgradeMessage: "Upgrade to any premium plan to create premium stories"
+        });
+      }
+    }
+    
+    // Check subscription limits and text credit balance
+    // Get the story length from settings to calculate the correct text credit cost
     const storyLength = settings.length;
+    
+    // Calculate text credit cost based on story length
+    let textCreditCost = 1; // Default cost
+    if (storyLength === 2) textCreditCost = 1; // Short story
+    else if (storyLength === 3) textCreditCost = 2; // Medium story  
+    else if (storyLength === 4) textCreditCost = 4; // Long story
+    
+    // Check if user has enough text credits
+    if (user.textCredits < textCreditCost) {
+      return res.status(402).json({
+        message: `Insufficient text credits. You need ${textCreditCost} text credits but only have ${user.textCredits}.`,
+        code: "INSUFFICIENT_TEXT_CREDITS",
+        required: textCreditCost,
+        available: user.textCredits
+      });
+    }
     
     
     
     try {
-      // Generate the story with detailed error handling
-      const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category, accessType);
+      // Generate the story with detailed error handling, passing text credit cost
+      const story = await createStoryService(title, settings, maxTokens, userId, isPublic, category, accessType, textCreditCost);
       
       // Track story generation for subscription limits
       await trackStoryGeneration(userId);
@@ -117,26 +152,26 @@ export const createStory = async (req: Request, res: Response) => {
       });
     }
 
-    // Check for credit insufficient error
-    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+    // Check for text credit insufficient error
+    if (error instanceof Error && error.message.includes("Insufficient text credits")) {
       return res.status(402).json({
         message: error.message,
-        code: "INSUFFICIENT_CREDITS",
+        code: "INSUFFICIENT_TEXT_CREDITS",
         isPremiumRequired: false
       });
     }
     
-    // Check for old story limit error (fallback for backward compatibility)
-    if (error instanceof Error && error.message.includes("Free users can only create 3 stories")) {
-      return res.status(403).json({
-        message: "You don't have enough credits to generate this story. Please purchase additional credits or upgrade to premium.",
-        code: "INSUFFICIENT_CREDITS",
+    // Check for audio credit insufficient error
+    if (error instanceof Error && error.message.includes("Insufficient audio credits")) {
+      return res.status(402).json({
+        message: error.message,
+        code: "INSUFFICIENT_AUDIO_CREDITS",
         isPremiumRequired: false
       });
     }
 
-    // Check for insufficient credits
-    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+    // Legacy credit error handling
+    if (error instanceof Error && (error.message === "INSUFFICIENT_CREDITS" || error.message.includes("Insufficient credits"))) {
       return res.status(402).json({
         message: "You don't have enough credits to generate a story. Please purchase more credits.",
         code: "INSUFFICIENT_CREDITS"
@@ -195,8 +230,48 @@ export const getStory = async (req: Request, res: Response) => {
       }
     }
     
+    // Add user interaction states if user is authenticated
+    const userId = req.session?.userId;
+    let storyWithInteractions = story.toObject();
+    
+    if (userId) {
+      // Initialize interaction arrays if they don't exist
+      const likedBy = story.likedBy || [];
+      const upvotedBy = story.upvotedBy || [];
+      const downvotedBy = story.downvotedBy || [];
+      
+      // Add user interaction state
+      storyWithInteractions = {
+        ...storyWithInteractions,
+        hasLiked: likedBy.includes(userId),
+        hasUpvoted: upvotedBy.includes(userId),
+        hasDownvoted: downvotedBy.includes(userId)
+      };
+    } else {
+      // Add default interaction states for non-authenticated users
+      storyWithInteractions = {
+        ...storyWithInteractions,
+        hasLiked: false,
+        hasUpvoted: false,
+        hasDownvoted: false
+      };
+    }
+    
+    // Populate author information if available
+    if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+      try {
+        const author = await User.findById(story.userId).select("name badges");
+        if (author) {
+          storyWithInteractions.userName = author.name;
+          storyWithInteractions.authorBadges = author.badges || [];
+        }
+      } catch (err) {
+        console.error("Error fetching author info:", err);
+      }
+    }
+    
     res.setHeader('Cache-Control', 'no-cache');
-    res.status(200).json(story);
+    res.status(200).json(storyWithInteractions);
   } catch (error) {
     console.error("Error getting story:", error);
     res.status(500).json({ message: "Failed to get story" });
@@ -267,11 +342,11 @@ export const continueStory = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error continuing story:", error);
     
-    // Check for insufficient credits
-    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+    // Check for insufficient text credits
+    if (error instanceof Error && (error.message === "INSUFFICIENT_TEXT_CREDITS" || error.message.includes("Insufficient text credits"))) {
       return res.status(402).json({
-        message: "You don't have enough credits to continue this story. Please purchase more credits.",
-        code: "INSUFFICIENT_CREDITS"
+        message: "You don't have enough text credits to continue this story. Please purchase more text credits.",
+        code: "INSUFFICIENT_TEXT_CREDITS"
       });
     }
     
@@ -439,13 +514,19 @@ export const unlockChapter = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // Check if the user has enough credits
-    if (user.credits < chapter.creditsCost) {
-      return res.status(402).json({ message: "Insufficient credits to unlock this chapter" });
+    // Check if the user has enough text credits (chapters are text content)
+    const textCreditCost = chapter.textCreditsCost || chapter.creditsCost || 1; // Fallback for legacy data
+    if (user.textCredits < textCreditCost) {
+      return res.status(402).json({ 
+        message: `Insufficient text credits to unlock this chapter. Required: ${textCreditCost}, Available: ${user.textCredits}`,
+        code: "INSUFFICIENT_TEXT_CREDITS",
+        required: textCreditCost,
+        available: user.textCredits
+      });
     }
 
-    // Deduct credits and add the chapter to the user's unlocked chapters
-    user.credits -= chapter.creditsCost;
+    // Deduct text credits and add the chapter to the user's unlocked chapters
+    user.textCredits -= textCreditCost;
     user.unlockedChapters.push({ storyId: story._id, chapterNumber: chapterNum });
     await user.save();
 
@@ -459,7 +540,7 @@ export const unlockChapter = async (req: Request, res: Response) => {
 export const likeStory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.session.userId; // Assuming user is authenticated
+    const userId = req.session.userId;
 
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -471,17 +552,32 @@ export const likeStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Story not found" });
     }
 
-    // Check if user has already liked this story (optional, but good practice)
-    // You might want to store user IDs who liked a story in an array on the story model
-    // For simplicity, we'll just increment for now.
+    // Initialize arrays if they don't exist
+    if (!story.likedBy) story.likedBy = [];
 
-    story.likes = (story.likes || 0) + 1;
+    // Check if user has already liked this story
+    const hasLiked = story.likedBy.includes(userId);
+
+    if (hasLiked) {
+      // Remove like (toggle off)
+      story.likedBy = story.likedBy.filter(uid => uid !== userId);
+      story.likes = Math.max(0, (story.likes || 0) - 1);
+    } else {
+      // Add like (toggle on)
+      story.likedBy.push(userId);
+      story.likes = (story.likes || 0) + 1;
+      
+      // Track engagement for badge system only when adding like
+      await trackStoryInteraction(id, 'like');
+    }
+
     await story.save();
 
-    // Track engagement for badge system
-    await trackStoryInteraction(id, 'like');
-
-    res.status(200).json({ message: "Story liked successfully", likes: story.likes });
+    res.status(200).json({ 
+      message: hasLiked ? "Story unliked successfully" : "Story liked successfully", 
+      likes: story.likes,
+      hasLiked: !hasLiked
+    });
   } catch (error) {
     console.error("Error liking story:", error);
     res.status(500).json({ message: "Failed to like story" });
@@ -503,13 +599,42 @@ export const upvoteStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Story not found" });
     }
 
-    story.upvotes = (story.upvotes || 0) + 1;
+    // Initialize arrays if they don't exist
+    if (!story.upvotedBy) story.upvotedBy = [];
+    if (!story.downvotedBy) story.downvotedBy = [];
+
+    // Check if user has already upvoted or downvoted this story
+    const hasUpvoted = story.upvotedBy.includes(userId);
+    const hasDownvoted = story.downvotedBy.includes(userId);
+
+    if (hasUpvoted) {
+      // Remove upvote (toggle off)
+      story.upvotedBy = story.upvotedBy.filter(uid => uid !== userId);
+      story.upvotes = Math.max(0, (story.upvotes || 0) - 1);
+    } else {
+      // Add upvote (toggle on)
+      story.upvotedBy.push(userId);
+      story.upvotes = (story.upvotes || 0) + 1;
+      
+      // If user had downvoted, remove the downvote
+      if (hasDownvoted) {
+        story.downvotedBy = story.downvotedBy.filter(uid => uid !== userId);
+        story.downvotes = Math.max(0, (story.downvotes || 0) - 1);
+      }
+      
+      // Track engagement for badge system only when adding upvote
+      await trackStoryInteraction(id, 'upvote');
+    }
+
     await story.save();
 
-    // Track engagement for badge system
-    await trackStoryInteraction(id, 'upvote');
-
-    res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
+    res.status(200).json({ 
+      message: hasUpvoted ? "Story upvote removed successfully" : "Story upvoted successfully", 
+      upvotes: story.upvotes,
+      downvotes: story.downvotes,
+      hasUpvoted: !hasUpvoted,
+      hasDownvoted: hasDownvoted && !hasUpvoted ? false : story.downvotedBy.includes(userId)
+    });
   } catch (error) {
     console.error("Error upvoting story:", error);
     res.status(500).json({ message: "Failed to upvote story" });
@@ -531,13 +656,42 @@ export const downvoteStory = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Story not found" });
     }
 
-    story.downvotes = (story.downvotes || 0) + 1;
+    // Initialize arrays if they don't exist
+    if (!story.upvotedBy) story.upvotedBy = [];
+    if (!story.downvotedBy) story.downvotedBy = [];
+
+    // Check if user has already upvoted or downvoted this story
+    const hasUpvoted = story.upvotedBy.includes(userId);
+    const hasDownvoted = story.downvotedBy.includes(userId);
+
+    if (hasDownvoted) {
+      // Remove downvote (toggle off)
+      story.downvotedBy = story.downvotedBy.filter(uid => uid !== userId);
+      story.downvotes = Math.max(0, (story.downvotes || 0) - 1);
+    } else {
+      // Add downvote (toggle on)
+      story.downvotedBy.push(userId);
+      story.downvotes = (story.downvotes || 0) + 1;
+      
+      // If user had upvoted, remove the upvote
+      if (hasUpvoted) {
+        story.upvotedBy = story.upvotedBy.filter(uid => uid !== userId);
+        story.upvotes = Math.max(0, (story.upvotes || 0) - 1);
+      }
+      
+      // Track engagement for badge system only when adding downvote
+      await trackStoryInteraction(id, 'downvote');
+    }
+
     await story.save();
 
-    // Track engagement for badge system
-    await trackStoryInteraction(id, 'downvote');
-
-    res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
+    res.status(200).json({ 
+      message: hasDownvoted ? "Story downvote removed successfully" : "Story downvoted successfully", 
+      upvotes: story.upvotes,
+      downvotes: story.downvotes,
+      hasUpvoted: hasUpvoted && !hasDownvoted ? false : story.upvotedBy.includes(userId),
+      hasDownvoted: !hasDownvoted
+    });
   } catch (error) {
     console.error("Error downvoting story:", error);
     res.status(500).json({ message: "Failed to downvote story" });

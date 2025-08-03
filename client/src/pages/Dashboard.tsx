@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { queryClient } from "@/lib/queryClient";
 import { Clock, Search, Eye, EyeOff, Plus, Trash2, Heart, Edit, BookOpen, Coins } from "lucide-react";
 import CreditDisplay from "@/components/CreditDisplay";
+import { PremiumUpgradeDialog } from "@/components/PremiumUpgradeDialog";
 
 interface Story {
   _id: string;
@@ -33,6 +34,20 @@ export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
+
+  // Check if user has credits
+  const hasCredits = ((user?.textCredits || 0) > 0) || ((user?.audioCredits || 0) > 0);
+  const isPremium = !!user?.isPremium;
+
+  // Handle create story click with credit check
+  const handleCreateStoryClick = () => {
+    if (!isPremium && !hasCredits) {
+      setShowPremiumDialog(true);
+    } else {
+      navigate("/create");
+    }
+  };
 
   // Get user stories
   const { data: stories = [], isLoading, error } = useQuery<Story[]>({
@@ -187,7 +202,7 @@ export default function Dashboard() {
             </div>
             <Button 
               className="bg-[#8B1E3F] hover:bg-[#A93B5B] flex items-center w-full sm:w-auto"
-              onClick={() => navigate("/create")}
+              onClick={handleCreateStoryClick}
             >
               <Plus className="mr-2" size={16} />
               Create New Story
@@ -197,7 +212,8 @@ export default function Dashboard() {
         
         <div>
           <CreditDisplay 
-            credits={user?.credits || 0}
+            textCredits={user?.textCredits || 0}
+            audioCredits={user?.audioCredits || 0}
             isPremium={user?.isPremium}
             onTopUp={() => navigate('/credits')}
           />
@@ -225,7 +241,7 @@ export default function Dashboard() {
                   ? "No stories match your search criteria. Try a different search term." 
                   : "You haven't created any stories yet."}
               </p>
-              <Button onClick={() => navigate("/create")}>Create Your First Story</Button>
+              <Button onClick={handleCreateStoryClick}>Create Your First Story</Button>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -241,6 +257,17 @@ export default function Dashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Premium Upgrade Dialog */}
+      <PremiumUpgradeDialog
+        isOpen={showPremiumDialog}
+        onClose={() => setShowPremiumDialog(false)}
+        trigger="insufficient_credits"
+        currentCredits={{
+          text: user?.textCredits || 0,
+          audio: user?.audioCredits || 0
+        }}
+      />
     </div>
   );
 }

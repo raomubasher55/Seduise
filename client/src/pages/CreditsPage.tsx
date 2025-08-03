@@ -27,7 +27,8 @@ export default function CreditsPage() {
         <>
           <div className="flex justify-center mb-12">
             <CreditDisplay 
-              credits={user.credits || 0} 
+              textCredits={user.textCredits || 0}
+              audioCredits={user.audioCredits || 0}
               isPremium={user.isPremium}
             />
           </div>
@@ -67,13 +68,26 @@ export default function CreditsPage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-lg font-semibold">Credit Costs</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Story generation (short): {CREDIT_COSTS.generateStory.short} credit(s)</li>
-                      <li>• Story generation (medium): {CREDIT_COSTS.generateStory.medium} credit(s)</li>
-                      <li>• Story generation (long): {CREDIT_COSTS.generateStory.long} credit(s)</li>
-                      <li>• Chapter continuation: 1 credit</li>
-                      <li>• Audio narration: {CREDIT_COSTS.audioMinute} credit(s) per minute</li>
-                    </ul>
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="text-sm font-medium text-[#D9B08C] mb-1">Text Credits</h4>
+                        <ul className="text-sm text-muted-foreground space-y-1 ml-2">
+                          <li>• Short story: {CREDIT_COSTS.text.generateStory.short} credit</li>
+                          <li>• Medium story: {CREDIT_COSTS.text.generateStory.medium} credits</li>
+                          <li>• Long story: {CREDIT_COSTS.text.generateStory.long} credits</li>
+                          <li>• Chapter continuation: {CREDIT_COSTS.text.continueStory} credit</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-[#8B1E3F] mb-1">Audio Credits</h4>
+                        <ul className="text-sm text-muted-foreground space-y-1 ml-2">
+                          <li>• Short audio (~2.5 min): {CREDIT_COSTS.audio.generateAudio.short} credits</li>
+                          <li>• Medium audio (~5 min): {CREDIT_COSTS.audio.generateAudio.medium} credits</li>
+                          <li>• Long audio (~8-10 min): {CREDIT_COSTS.audio.generateAudio.long} credits</li>
+                          <li>• Per minute rate: {CREDIT_COSTS.audio.perMinute} credit</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-lg font-semibold">Expiration</h3>

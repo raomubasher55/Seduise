@@ -237,10 +237,15 @@ export class BadgeService {
             awardedAt: new Date()
           });
 
-          // Apply rewards
+          // Apply rewards - distribute credits between text and audio
           if (award.rewards?.credits) {
-            user.credits = (user.credits || 0) + award.rewards.credits;
-            console.log(`Awarded ${award.rewards.credits} credits for badge: ${badgeDefinition.name}`);
+            // Split credits: 70% text, 30% audio for badge rewards
+            const textCredits = Math.floor(award.rewards.credits * 0.7);
+            const audioCredits = Math.floor(award.rewards.credits * 0.3);
+            
+            user.textCredits = (user.textCredits || 0) + textCredits;
+            user.audioCredits = (user.audioCredits || 0) + audioCredits;
+            console.log(`Awarded ${textCredits} text credits and ${audioCredits} audio credits for badge: ${badgeDefinition.name}`);
           }
 
           if (award.rewards?.premium_days) {

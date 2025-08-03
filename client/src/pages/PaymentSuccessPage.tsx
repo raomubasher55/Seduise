@@ -210,7 +210,7 @@ const PaymentSuccessPage = () => {
               </p>
               <p className="text-gray-400">
                 {user ? 
-                  `Your credits have been added to your account. New balance: ${user.credits} credits.` :
+                  `Your credits have been added to your account. New balance: ${user.textCredits || 0} text + ${user.audioCredits || 0} audio credits.` :
                   'Your credits have been added to your account balance.'}
               </p>
             </div>

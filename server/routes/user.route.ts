@@ -21,13 +21,13 @@ router.get("/debug-subscription", async (req, res) => {
     // Check if user is premium but subscription is still "free"
     if (user.isPremium && user.subscription === "free") {
       // Infer subscription based on credits (this is a temporary fix)
-      let inferredPlan = "essential"; // default
+      let inferredPlan = "essentiel"; // default
       if (user.credits >= 70) {
         inferredPlan = "escape";
       } else if (user.credits >= 35) {
         inferredPlan = "passion";
       } else {
-        inferredPlan = "essential";
+        inferredPlan = "essentiel";
       }
       
       // Update the user's subscription

@@ -5,35 +5,21 @@ import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 import { awardBadge } from "./reward.service";
 
-export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance", accessType: string = "public") => {
+export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance", accessType: string = "public", textCreditCost: number = 1) => {
     const user = await User.findById(userId);
     if (!user) {
         throw new Error("User not found");
     }
     
-    // Calculate story generation cost based on length
-    let STORY_GENERATION_COST = 1; // Default cost
-    if (settings.length === 3) { // Medium story
-        STORY_GENERATION_COST = 2;
-    } else if (settings.length === 4) { // Long story
-        STORY_GENERATION_COST = 4;
+    // Remove testing override - users should manage their own credits
+    
+    // Check if user has enough text credits
+    if (user.textCredits < textCreditCost) {
+        throw new Error(`Insufficient text credits. This story requires ${textCreditCost} text credits, but you only have ${user.textCredits} text credits available. Please purchase additional text credits or upgrade to premium.`);
     }
     
-    // Ensure user has enough credits for testing purposes
-    // Update credits to minimum of 5 if needed
-    if (user.credits < 5) {
-        console.log(`User had ${user.credits} credits. Updating to 5 credits for testing.`);
-        user.credits = 5;
-        await user.save();
-    }
-    
-    // Check if user has enough credits (after potential update)
-    if (user.credits < STORY_GENERATION_COST) {
-        throw new Error(`Insufficient credits. This story requires ${STORY_GENERATION_COST} credits, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
-    }
-    
-    // Deduct credits before generating story
-    user.credits -= STORY_GENERATION_COST;
+    // Deduct text credits before generating story
+    user.textCredits -= textCreditCost;
     await user.save();
     
     // Validate and process narration voice - ensure we have a valid voice ID
@@ -102,7 +88,8 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         summary: chapterSummary,
         createdAt: new Date(),
         wordCount: cleanedContent.split(' ').length,
-        creditsCost: STORY_GENERATION_COST
+        textCreditsCost: textCreditCost,
+        audioCreditsCost: 2 // Default audio cost for first chapter
     };
 
     // Create the story in the database with chapter structure
@@ -114,6 +101,8 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
         isPublic: accessType === 'public',
         accessType: accessType,
         category,
+        textCreditsCost: textCreditCost,
+        audioCreditsCost: 2, // Default audio cost for story
         chapters: [firstChapter],
         currentChapter: 1,
         totalChapters: 1,
@@ -126,9 +115,9 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
     user.stories.push(story._id);
     await user.save();
 
-    // Award "First Story" badge if this is the user's first story
+    // Award "Storyteller" badge if this is the user's first story
     if (user.stories.length === 1) {
-        await awardBadge(userId, "First Story");
+        await awardBadge(userId, "Storyteller");
     }
     
     // After story is saved, attempt to generate audio
@@ -156,14 +145,14 @@ export const continueStoryService = async (id: string, finalChoice?: string, con
         throw new Error("User not found");
     }
     
-    // Check if user has enough credits
-    const CONTINUATION_COST = 1; // Each continuation costs 1 credit
-    if (user.credits < CONTINUATION_COST) {
-        throw new Error(`Insufficient credits. Continuing this story requires ${CONTINUATION_COST} credit, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
+    // Check if user has enough text credits
+    const TEXT_CONTINUATION_COST = 1; // Each continuation costs 1 text credit
+    if (user.textCredits < TEXT_CONTINUATION_COST) {
+        throw new Error(`Insufficient text credits. Continuing this story requires ${TEXT_CONTINUATION_COST} text credit, but you only have ${user.textCredits} text credits available. Please purchase additional text credits or upgrade to premium.`);
     }
     
-    // Deduct credits before generating continuation
-    user.credits -= CONTINUATION_COST;
+    // Deduct text credits before generating continuation
+    user.textCredits -= TEXT_CONTINUATION_COST;
     await user.save();
     
     try {
@@ -222,7 +211,8 @@ export const continueStoryService = async (id: string, finalChoice?: string, con
             summary: chapterSummary,
             createdAt: new Date(),
             wordCount: continuation.split(' ').length,
-            creditsCost: CONTINUATION_COST,
+            textCreditsCost: TEXT_CONTINUATION_COST,
+            audioCreditsCost: 2, // Default audio cost for new chapter
             choices: choices // Add generated choices to the new chapter
         };
         
@@ -249,7 +239,8 @@ export const continueStoryService = async (id: string, finalChoice?: string, con
                 summary: firstChapterSummary,
                 createdAt: story.createdAt,
                 wordCount: story.content ? story.content.split(' ').length : 0,
-                creditsCost: story.creditsCost
+                textCreditsCost: story.textCreditsCost || story.creditsCost || 1, // Fallback for legacy data
+                audioCreditsCost: story.audioCreditsCost || 2 // Default audio cost
             };
             story.chapters = [firstChapter, newChapter];
             story.isChapterBased = true;
@@ -270,8 +261,8 @@ export const continueStoryService = async (id: string, finalChoice?: string, con
         await story.save();
         return story;
     } catch (error) {
-        // If continuation fails, refund the credits
-        user.credits += CONTINUATION_COST;
+        // If continuation fails, refund the text credits
+        user.textCredits += TEXT_CONTINUATION_COST;
         await user.save();
         console.error("Error in continueStoryService:", error);
         throw error;

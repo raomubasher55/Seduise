@@ -8,7 +8,7 @@ export class PaymentService {
     
     // Validate the plan ID
     const schema = z.object({
-      planId: z.enum(['essential', 'passion', 'escape'])
+      planId: z.enum(['essentiel', 'seduction', 'intimacy'])
     });
 
     const { planId: validatedPlanId } = schema.parse({ planId });
@@ -41,7 +41,7 @@ export class PaymentService {
             currency: 'eur',
             product_data: {
               name: selectedPlan.name,
-              description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits} credits/month`,
+              description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits.text} text + ${selectedPlan.monthlyCredits.audio} audio credits/month`,
             },
             unit_amount: priceInCents,
             recurring: {
@@ -59,7 +59,8 @@ export class PaymentService {
       metadata: {
         userId: userId,
         plan: validatedPlanId,
-        credits: selectedPlan.monthlyCredits.toString(),
+        textCredits: selectedPlan.monthlyCredits.text.toString(),
+        audioCredits: selectedPlan.monthlyCredits.audio.toString(),
         type: 'subscription_purchase'
       },
     });
@@ -232,7 +233,7 @@ export class PaymentService {
     // Get plan from metadata or URL parameter
     let actualPlan = session.metadata?.plan || plan;
     
-    if (!actualPlan || !['essential', 'passion', 'escape'].includes(actualPlan)) {
+    if (!actualPlan || !['essentiel', 'seduction', 'intimacy'].includes(actualPlan)) {
       throw new Error('Invalid subscription plan');
     }
     
@@ -240,6 +241,20 @@ export class PaymentService {
     const user = await User.findById(actualUserId);
     if (!user) {
       throw new Error('User not found');
+    }
+    
+    // Check if this session has already been processed to prevent duplicate credits
+    if (user.processedSessions && user.processedSessions.includes(sessionId)) {
+      return {
+        success: true,
+        message: 'Subscription already processed',
+        plan: actualPlan,
+        alreadyProcessed: true,
+        textCredits: 0,
+        audioCredits: 0,
+        totalTextCredits: user.textCredits,
+        totalAudioCredits: user.audioCredits
+      };
     }
     
     // Get subscription plan details
@@ -254,16 +269,23 @@ export class PaymentService {
     user.isPremium = true;
     user.subscription = actualPlan;
     
+    // Add this session to processed sessions to prevent duplicate processing
+    if (!user.processedSessions) {
+      user.processedSessions = [];
+    }
+    user.processedSessions.push(sessionId);
+    
     // Add monthly credits based on the plan
     const creditsToAdd = planDetails.monthlyCredits;
-    const previousCredits = user.credits || 0;
-    user.credits = previousCredits + creditsToAdd;
+    user.textCredits = (user.textCredits || 0) + creditsToAdd.text;
+    user.audioCredits = (user.audioCredits || 0) + creditsToAdd.audio;
     
     // Reset usage tracking for the new month
     user.usageThisMonth = {
       storiesGenerated: 0,
       chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      textCreditsUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: new Date()
     };
     
@@ -273,8 +295,10 @@ export class PaymentService {
       success: true,
       message: 'Subscription activated successfully',
       plan: actualPlan,
-      credits: creditsToAdd,
-      totalCredits: user.credits
+      textCredits: creditsToAdd.text,
+      audioCredits: creditsToAdd.audio,
+      totalTextCredits: user.textCredits,
+      totalAudioCredits: user.audioCredits
     };
   }
 
@@ -338,6 +362,23 @@ export class PaymentService {
     if (!user) {
       throw new Error('User not found');
     }
+    
+    // Check if this session has already been processed to prevent duplicate credits
+    if (user.processedSessions && user.processedSessions.includes(sessionId)) {
+      return {
+        success: true,
+        message: 'Credits already processed',
+        alreadyProcessed: true,
+        credits: 0,
+        totalCredits: user.credits || 0
+      };
+    }
+    
+    // Add this session to processed sessions to prevent duplicate processing
+    if (!user.processedSessions) {
+      user.processedSessions = [];
+    }
+    user.processedSessions.push(sessionId);
     
     // Add credits to the user's account
     const previousCredits = user.credits || 0;

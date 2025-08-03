@@ -28,11 +28,12 @@ export const userSchema = z.object({
   phone: z.string().optional(),
   role: z.enum(["admin", "user"]),
   isPremium: z.boolean().default(false),
-  credits: z.number().default(10),
+  textCredits: z.number().default(2),
+  audioCredits: z.number().default(1),
   stories: z.array(z.string()).default([]),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
-  subscription: z.enum(["free", "essential", "passion", "escape"]).default("free"),
+  subscription: z.enum(["free", "essentiel", "seduction", "intimacy"]).default("free"),
   authProvider: z.enum(["local", "google"]).default("local")
 });
 
@@ -57,7 +58,8 @@ export const chapterSchema = z.object({
   audioUrl: z.string().optional(),
   createdAt: z.date().optional(),
   wordCount: z.number().optional(),
-  creditsCost: z.number().default(1),
+  textCreditsCost: z.number().default(1),
+  audioCreditsCost: z.number().default(2),
   choices: z.array(choiceSchema).optional() // Add choices to chapter schema
 });
 
@@ -77,8 +79,11 @@ export const storySchema = z.object({
   imageUrl: z.string().optional(),
   likes: z.number().default(0),
   plays: z.number().default(0),
+  upvotes: z.number().default(0),
+  downvotes: z.number().default(0),
   category: z.string().default("romance"),
-  creditsCost: z.number().default(1),
+  textCreditsCost: z.number().default(1),
+  audioCreditsCost: z.number().default(2),
   chapters: z.array(chapterSchema).default([]),
   currentChapter: z.number().default(1),
   totalChapters: z.number().default(1),
@@ -86,7 +91,14 @@ export const storySchema = z.object({
   isPremiumContent: z.boolean().default(false),
   accessType: z.enum(['public', 'premium_early_access', 'premium_exclusive']).default('public'),
   premiumAccessDate: z.date().optional(),
-  publicReleaseDate: z.date().optional()
+  publicReleaseDate: z.date().optional(),
+  // User interaction state (populated at runtime)
+  hasLiked: z.boolean().optional(),
+  hasUpvoted: z.boolean().optional(),
+  hasDownvoted: z.boolean().optional(),
+  // Additional properties for community features
+  userName: z.string().optional(),
+  authorBadges: z.array(z.any()).optional()
 });
 
 export type Story = z.infer<typeof storySchema>;

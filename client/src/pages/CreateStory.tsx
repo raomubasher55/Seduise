@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { VoiceOption } from "@/types";
 import { apiRequest } from "@/lib/queryClient";
 import { VoiceSelector } from "../components/VoiceSelector";
+import { PremiumUpgradeDialog } from "../components/PremiumUpgradeDialog";
 
 const TIME_PERIODS = ["Contemporary", "Medieval", "Victorian", "Future", "Fantasy Realm"];
 const LOCATIONS = ["Urban City", "Beach Resort", "Mountain Retreat", "Luxury Estate", "Exotic Island"];
@@ -75,6 +76,7 @@ const CreateStory = () => {
   });
   const [titleError, setTitleError] = useState<string>("");
   const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"setting" | "characters" | "style" | "voice">("setting");
   const [explicitLevel, setExplicitLevel] = useState(50);
   const [creditsWarningShown, setCreditsWarningShown] = useState(false);
@@ -126,25 +128,12 @@ const CreateStory = () => {
       navigate(`/story/${data._id}`);
     },
     onError: (error: any) => {
-      // Check if this is a credit-related error
-      if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
-        toast({
-          title: "Not Enough Credits",
-          description: error.response?.data?.message || "You don't have enough credits to create this story. Purchase additional credits or upgrade to premium.",
-          variant: "destructive",
-          duration: 5000,
-        });
-        setShowUpgradeAlert(true);
-      }
-      // Still support the old story limit error code for backward compatibility
-      else if (error.response?.data?.code === "STORY_LIMIT_REACHED") {
-        toast({
-          title: "Not Enough Credits",
-          description: "You don't have enough credits to create this story. Purchase additional credits or upgrade to premium.",
-          variant: "destructive",
-          duration: 5000,
-        });
-        setShowUpgradeAlert(true);
+      // Check if this is a credit-related error by examining the error message
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("Insufficient text credits") || 
+          errorMessage.includes("Insufficient credits") ||
+          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+        setShowPremiumDialog(true);
       } else {
         toast({
           title: "Error",
@@ -176,23 +165,7 @@ const CreateStory = () => {
     }
 
     if (!isPremium && !hasCredits && !creditsWarningShown) {
-      toast({
-        title: "Insufficient Credits",
-        description: (
-          <div className="flex flex-col space-y-2">
-            <p>You don't have enough credits to generate a story.</p>
-            <Button
-              size="sm"
-              onClick={() => navigate('/credits')}
-              className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
-            >
-              Purchase Credits
-            </Button>
-          </div>
-        ),
-        variant: "destructive",
-        duration: 5000,
-      });
+      setShowPremiumDialog(true);
       setCreditsWarningShown(true);
       return;
     }
@@ -649,23 +622,43 @@ const CreateStory = () => {
                 <p className="text-sm text-gray-400">Only visible to you</p>
               </div>
 
-              {/* Premium Option - Only for Passion/Escape users */}
-              {(user?.subscription === 'passion' || user?.subscription === 'escape') && (
+              {/* Premium Early Access Option - For all premium users */}
+              {(user?.subscription === 'essentiel' || user?.subscription === 'seduction' || user?.subscription === 'intimacy') && (
                 <div
-                  onClick={() => setAccessType('premium_exclusive')}
+                  onClick={() => setAccessType('premium_early_access')}
                   className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
-                    accessType === 'premium_exclusive' 
-                      ? 'border-yellow-500 bg-yellow-500/10' 
-                      : 'border-yellow-600/50 hover:border-yellow-500/70'
+                    accessType === 'premium_early_access' 
+                      ? 'border-[#D9B08C] bg-[#D9B08C]/10' 
+                      : 'border-[#D9B08C]/50 hover:border-[#D9B08C]/70'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-white">Premium</h4>
-                    <span className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 rounded">
+                    <span className="text-xs bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] text-white px-2 py-1 rounded">
+                      PREMIUM
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">Available in premium gallery</p>
+                </div>
+              )}
+
+              {/* Premium Exclusive Option - Only for Seduction/Intimacy users */}
+              {(user?.subscription === 'seduction' || user?.subscription === 'intimacy') && (
+                <div
+                  onClick={() => setAccessType('premium_exclusive')}
+                  className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                    accessType === 'premium_exclusive' 
+                      ? 'border-[#8B1E3F] bg-[#8B1E3F]/10' 
+                      : 'border-[#8B1E3F]/50 hover:border-[#8B1E3F]/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-white">Exclusive</h4>
+                    <span className="text-xs bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C] text-white px-2 py-1 rounded">
                       EXCLUSIVE
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400">Only in premium gallery</p>
+                  <p className="text-sm text-gray-400">Only for top-tier subscribers</p>
                 </div>
               )}
             </div>
@@ -674,21 +667,38 @@ const CreateStory = () => {
             <div className="mt-3 text-sm text-gray-400">
               {accessType === 'public' && "Your story will appear in the public community section for all users to enjoy."}
               {accessType === 'private' && "Your story will only be visible to you in your personal dashboard."}
-              {accessType === 'premium_exclusive' && "Your story will only appear in the premium gallery for Passion and Escape subscribers."}
+              {accessType === 'premium_early_access' && "Your story will appear in the premium gallery for all premium subscribers."}
+              {accessType === 'premium_exclusive' && "Your story will only appear in the premium gallery for Seduction and Intimacy subscribers."}
             </div>
             
-            {/* Upgrade prompt for non-premium users who try to select premium */}
-            {accessType === 'premium_exclusive' && user?.subscription !== 'passion' && user?.subscription !== 'escape' && (
-              <div className="mt-3 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
-                <p className="text-sm text-yellow-200">
-                  Premium story creation is available for Passion and Escape subscribers only.
+            {/* Upgrade prompt for non-premium users who try to select premium early access */}
+            {accessType === 'premium_early_access' && !['essentiel', 'seduction', 'intimacy'].includes(user?.subscription || '') && (
+              <div className="mt-3 p-3 bg-[#D9B08C]/10 border border-[#D9B08C]/30 rounded-lg">
+                <p className="text-sm text-[#F0E6DC]">
+                  Premium story creation requires a premium subscription.
                 </p>
                 <Button 
                   size="sm" 
-                  className="mt-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                  className="mt-2 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C]"
                   onClick={() => navigate('/premium-upgrade')}
                 >
                   Upgrade to Premium
+                </Button>
+              </div>
+            )}
+
+            {/* Upgrade prompt for non-exclusive users who try to select premium exclusive */}
+            {accessType === 'premium_exclusive' && !['seduction', 'intimacy'].includes(user?.subscription || '') && (
+              <div className="mt-3 p-3 bg-[#8B1E3F]/10 border border-[#8B1E3F]/30 rounded-lg">
+                <p className="text-sm text-[#F0E6DC]">
+                  Exclusive story creation is available for Seduction and Intimacy subscribers only.
+                </p>
+                <Button 
+                  size="sm" 
+                  className="mt-2 bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C] hover:from-[#D9B08C] hover:to-[#8B1E3F]"
+                  onClick={() => navigate('/premium-upgrade')}
+                >
+                  Upgrade to Seduction/Intimacy
                 </Button>
               </div>
             )}
@@ -727,6 +737,17 @@ const CreateStory = () => {
           </div>
         </div>
       </section>
+
+      {/* Premium Upgrade Dialog */}
+      <PremiumUpgradeDialog
+        isOpen={showPremiumDialog}
+        onClose={() => setShowPremiumDialog(false)}
+        trigger="insufficient_credits"
+        currentCredits={{
+          text: user?.textCredits || 0,
+          audio: user?.audioCredits || 0
+        }}
+      />
     </div>
   );
 };

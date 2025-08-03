@@ -33,23 +33,29 @@ var init_user_model = __esm({
       role: { type: String, enum: ["admin", "user"], default: "user" },
       subscription: {
         type: String,
-        enum: ["free", "essential", "passion", "escape"],
+        enum: ["free", "essentiel", "seduction", "intimacy"],
         default: "free"
       },
       isPremium: { type: Boolean, default: false },
       // True for any paid plan
-      credits: { type: Number, default: 10 },
-      // Default 10 credits for new users
+      // Separate credit system
+      textCredits: { type: Number, default: 2 },
+      // Credits for text generation
+      audioCredits: { type: Number, default: 1 },
+      // Credits for audio generation
       // Subscription usage tracking
       usageThisMonth: {
         storiesGenerated: { type: Number, default: 0 },
         chaptersGenerated: { type: Number, default: 0 },
-        audioMinutesUsed: { type: Number, default: 0 },
+        textCreditsUsed: { type: Number, default: 0 },
+        audioCreditsUsed: { type: Number, default: 0 },
         lastResetDate: { type: Date, default: Date.now }
       },
       // For Stripe integration
       stripeCustomerId: { type: String },
       stripeSubscriptionId: { type: String },
+      processedSessions: [{ type: String }],
+      // Track processed Stripe session IDs
       stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
       unlockedChapters: [{
         storyId: { type: Schema.Types.ObjectId, ref: "Story" },
@@ -111,7 +117,8 @@ var init_story_model = __esm({
       audioUrl: { type: String },
       createdAt: { type: Date, default: Date.now },
       wordCount: { type: Number },
-      creditsCost: { type: Number, default: 1 }
+      textCreditsCost: { type: Number, default: 1 },
+      audioCreditsCost: { type: Number, default: 2 }
     });
     storySchema = new Schema2({
       title: { type: String, required: true },
@@ -129,7 +136,8 @@ var init_story_model = __esm({
       upvotes: { type: Number, default: 0 },
       downvotes: { type: Number, default: 0 },
       category: { type: String, default: "romance" },
-      creditsCost: { type: Number, default: 1 },
+      textCreditsCost: { type: Number, default: 1 },
+      audioCreditsCost: { type: Number, default: 2 },
       chapters: { type: [chapterSchema], default: [] },
       currentChapter: { type: Number, default: 1 },
       totalChapters: { type: Number, default: 1 },
@@ -141,7 +149,14 @@ var init_story_model = __esm({
         default: "public"
       },
       premiumAccessDate: { type: Date },
-      publicReleaseDate: { type: Date }
+      publicReleaseDate: { type: Date },
+      // Track user interactions to prevent duplicate votes
+      likedBy: [{ type: String }],
+      // Array of user IDs who liked this story
+      upvotedBy: [{ type: String }],
+      // Array of user IDs who upvoted this story
+      downvotedBy: [{ type: String }]
+      // Array of user IDs who downvoted this story
     }, { timestamps: true });
     storySchema.index({ id: 1 }, { unique: false });
     Story = model2("Story", storySchema);
@@ -151,46 +166,59 @@ var init_story_model = __esm({
 // server/constants/plans.ts
 var plans_exports = {};
 __export(plans_exports, {
+  AUDIO_CREDIT_PACKAGES: () => AUDIO_CREDIT_PACKAGES,
+  COMBO_CREDIT_PACKAGES: () => COMBO_CREDIT_PACKAGES,
   CREDIT_COSTS: () => CREDIT_COSTS,
-  CREDIT_PACKAGES: () => CREDIT_PACKAGES,
   STORY_LENGTHS: () => STORY_LENGTHS,
   SUBSCRIPTION_PLANS: () => SUBSCRIPTION_PLANS,
-  getActionCreditCost: () => getActionCreditCost,
+  TEXT_CREDIT_PACKAGES: () => TEXT_CREDIT_PACKAGES,
+  getAudioCreditCost: () => getAudioCreditCost,
+  getMonthlyCredits: () => getMonthlyCredits,
+  getTextCreditCost: () => getTextCreditCost,
   getUserLimits: () => getUserLimits,
   hasReachedLimit: () => hasReachedLimit
 });
 function getUserLimits(subscriptionType) {
   return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.discovery.monthlyLimits;
 }
+function getMonthlyCredits(subscriptionType) {
+  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyCredits || SUBSCRIPTION_PLANS.discovery.monthlyCredits;
+}
 function hasReachedLimit(usageThisMonth, subscriptionType, checkType) {
   const limits = getUserLimits(subscriptionType);
+  const monthlyCredits = getMonthlyCredits(subscriptionType);
   switch (checkType) {
     case "stories":
       return usageThisMonth.storiesGenerated >= limits.stories;
+    case "textCredits":
+      return usageThisMonth.textCreditsUsed >= monthlyCredits.text;
     case "audioCredits":
-      return usageThisMonth.audioCreditsUsed >= limits.audioCredits;
+      return usageThisMonth.audioCreditsUsed >= monthlyCredits.audio;
     default:
       return false;
   }
 }
-function getActionCreditCost(action, params) {
+function getTextCreditCost(action, storyLength) {
   if (action === "generateStory") {
-    if (params?.storyLength) {
-      if (params.storyLength === STORY_LENGTHS.short.id) {
-        return CREDIT_COSTS.generateStory.short;
-      } else if (params.storyLength === STORY_LENGTHS.medium.id) {
-        return CREDIT_COSTS.generateStory.medium;
-      } else if (params.storyLength === STORY_LENGTHS.long.id) {
-        return CREDIT_COSTS.generateStory.long;
-      }
-    }
-    return CREDIT_COSTS.generateStory.medium;
-  } else if (action === "generateAudio" && params?.minutes) {
-    return Math.ceil(params.minutes * CREDIT_COSTS.audioMinute);
+    if (storyLength === 2) return CREDIT_COSTS.text.generateStory.short;
+    else if (storyLength === 3) return CREDIT_COSTS.text.generateStory.medium;
+    else if (storyLength === 4) return CREDIT_COSTS.text.generateStory.long;
+    return CREDIT_COSTS.text.generateStory.medium;
+  } else if (action === "continueStory") {
+    return CREDIT_COSTS.text.continueStory;
   }
-  return 0;
+  return 1;
 }
-var SUBSCRIPTION_PLANS, CREDIT_PACKAGES, CREDIT_COSTS, STORY_LENGTHS;
+function getAudioCreditCost(storyLength, minutes) {
+  if (minutes) {
+    return Math.ceil(minutes / 2.5);
+  }
+  if (storyLength === 2) return CREDIT_COSTS.audio.generateAudio.short;
+  else if (storyLength === 3) return CREDIT_COSTS.audio.generateAudio.medium;
+  else if (storyLength === 4) return CREDIT_COSTS.audio.generateAudio.long;
+  return CREDIT_COSTS.audio.generateAudio.medium;
+}
+var SUBSCRIPTION_PLANS, TEXT_CREDIT_PACKAGES, AUDIO_CREDIT_PACKAGES, COMBO_CREDIT_PACKAGES, CREDIT_COSTS, STORY_LENGTHS;
 var init_plans = __esm({
   "server/constants/plans.ts"() {
     "use strict";
@@ -202,123 +230,208 @@ var init_plans = __esm({
         // Free
         billingPeriod: "free",
         description: "Explore Without Commitment",
-        monthlyCredits: 10,
+        monthlyCredits: {
+          text: 2,
+          audio: 1
+        },
         monthlyLimits: {
           stories: 2,
           audioCredits: 1
         },
         features: [
-          "Create up to 2 personalized stories (text)",
-          "1 free audio",
-          "Standard voice",
-          "No access to the premium library",
-          "Perfect to explore the world of Seduice for free"
+          "\u{1F58B} Create up to 2 personalized stories (text)",
+          "\u{1F3A7} 1 free audio (\u2248 1 to 2 min)",
+          "\u{1F399} Standard voice",
+          "\u{1F4DA} No access to the premium library",
+          "\u2728 Perfect to explore the world of Seduice for free, in both text and voice"
         ]
       },
-      essential: {
-        id: "essential",
-        name: "Essential",
+      essentiel: {
+        id: "essentiel",
+        name: "Essentiel",
         price: 599,
         // €5.99 (in cents)
         billingPeriod: "monthly",
         description: "Pleasure at Your Own Pace",
-        monthlyCredits: 15,
+        monthlyCredits: {
+          text: 5,
+          audio: 6
+        },
         popular: true,
         monthlyLimits: {
           stories: 5,
           audioCredits: 6
         },
         features: [
-          "Create up to 5 personalized stories (text)",
-          "6 audio credits",
-          "Natural-sounding voices",
-          "No access to the premium library",
-          "A soft and regular introduction to your intimate desires"
+          "\u{1F58B} Create up to 5 personalized stories (text)",
+          "\u{1F3A7} 6 audio credits (\u2248 15 minutes total)",
+          "\u{1F399} Natural-sounding voices",
+          "\u{1F4DA} No access to the premium library",
+          "\u{1F510} A soft and regular introduction to your intimate desires"
         ]
       },
-      passion: {
-        id: "passion",
-        name: "Passion",
+      seduction: {
+        id: "seduction",
+        name: "Seduction",
         price: 1199,
         // €11.99 (in cents)
         billingPeriod: "monthly",
         description: "Your Pleasure Rendezvous",
-        monthlyCredits: 35,
+        monthlyCredits: {
+          text: 12,
+          audio: 12
+        },
         monthlyLimits: {
           stories: 12,
           audioCredits: 12
         },
         features: [
-          "Create up to 12 personalized stories (text)",
-          "12 audio credits",
-          "Expressive & realistic voices",
-          "Partial access to the premium audio library",
-          "New stories added monthly",
-          "Let your desires unfold like an intimate audio series"
+          "\u{1F58B} Create up to 12 personalized stories (text)",
+          "\u{1F3A7} 12 audio credits (\u2248 30 minutes)",
+          "\u{1F399} Expressive & realistic voices",
+          "\u{1F4DA} Partial access to the premium audio library",
+          "\u{1F381} New stories added monthly",
+          "\u{1F4AB} Let your desires unfold like an intimate audio series"
         ]
       },
-      escape: {
-        id: "escape",
-        name: "Escape",
+      intimacy: {
+        id: "intimacy",
+        name: "Intimacy",
         price: 2499,
         // €24.99 (in cents)
         billingPeriod: "monthly",
         description: "The Ultimate Experience Without Limits",
-        monthlyCredits: 70,
+        monthlyCredits: {
+          text: 25,
+          audio: 24
+        },
         bestValue: true,
         monthlyLimits: {
           stories: 25,
           audioCredits: 24
         },
         features: [
-          "Create up to 25 personalized stories (text)",
-          "24 audio credits",
-          "Expressive & immersive voices",
-          "Full access to the premium audio library",
-          "Tailored suggestions and exclusive stories",
-          "Priority support & early feature access"
+          "\u{1F58B} Create up to 25 personalized stories (text)",
+          "\u{1F3A7} 24 audio credits (\u2248 60 minutes)",
+          "\u{1F399} Expressive & immersive voices",
+          "\u{1F4DA} Full access to the premium audio library",
+          "\u{1F48C} Tailored suggestions and exclusive stories",
+          "\u{1F534} The Ultimate Experience Without Limits"
         ]
       }
     };
-    CREDIT_PACKAGES = {
-      starter: {
-        id: "starter",
-        name: "Starter Pack",
-        credits: 20,
-        price: 399,
-        // €3.99 (in cents)
-        description: "Perfect for trying more stories"
+    TEXT_CREDIT_PACKAGES = {
+      text_starter: {
+        id: "text_starter",
+        name: "Text Pack - Starter",
+        credits: 15,
+        price: 299,
+        // €2.99 (in cents)
+        description: "Perfect for more story creation"
       },
-      popular: {
-        id: "popular",
-        name: "Popular Pack",
-        credits: 50,
-        price: 899,
-        // €8.99 (in cents)
+      text_popular: {
+        id: "text_popular",
+        name: "Text Pack - Popular",
+        credits: 40,
+        price: 699,
+        // €6.99 (in cents)
         popular: true,
-        description: "Most popular credit top-up"
+        description: "Most popular text credits pack"
       },
-      premium: {
-        id: "premium",
-        name: "Power Pack",
-        credits: 100,
-        price: 1599,
-        // €15.99 (in cents)
+      text_premium: {
+        id: "text_premium",
+        name: "Text Pack - Premium",
+        credits: 80,
+        price: 1199,
+        // €11.99 (in cents)
         bestValue: true,
-        description: "Maximum credits for heavy users"
+        description: "Maximum text credits for heavy writers"
+      }
+    };
+    AUDIO_CREDIT_PACKAGES = {
+      audio_starter: {
+        id: "audio_starter",
+        name: "Audio Pack - Starter",
+        credits: 10,
+        price: 499,
+        // €4.99 (in cents)
+        description: "Perfect for more audio experiences"
+      },
+      audio_popular: {
+        id: "audio_popular",
+        name: "Audio Pack - Popular",
+        credits: 25,
+        price: 999,
+        // €9.99 (in cents)
+        popular: true,
+        description: "Most popular audio credits pack"
+      },
+      audio_premium: {
+        id: "audio_premium",
+        name: "Audio Pack - Premium",
+        credits: 50,
+        price: 1799,
+        // €17.99 (in cents)
+        bestValue: true,
+        description: "Maximum audio credits for audio lovers"
+      }
+    };
+    COMBO_CREDIT_PACKAGES = {
+      combo_starter: {
+        id: "combo_starter",
+        name: "Combo Pack - Starter",
+        textCredits: 10,
+        audioCredits: 8,
+        price: 599,
+        // €5.99 (in cents)
+        description: "Best value starter combo pack"
+      },
+      combo_popular: {
+        id: "combo_popular",
+        name: "Combo Pack - Popular",
+        textCredits: 25,
+        audioCredits: 20,
+        price: 1299,
+        // €12.99 (in cents)
+        popular: true,
+        description: "Best value combo pack"
+      },
+      combo_premium: {
+        id: "combo_premium",
+        name: "Combo Pack - Premium",
+        textCredits: 50,
+        audioCredits: 40,
+        price: 2299,
+        // €22.99 (in cents)
+        bestValue: true,
+        description: "Ultimate combo pack for power users"
       }
     };
     CREDIT_COSTS = {
-      generateStory: {
-        short: 1,
-        // Short story (2-3 minutes audio)
-        medium: 2,
-        // Medium story (4-5 minutes audio)
-        long: 4
-        // Long story (8-9 minutes audio)
+      text: {
+        generateStory: {
+          short: 1,
+          // Short story
+          medium: 2,
+          // Medium story
+          long: 4
+          // Long story
+        },
+        continueStory: 1
+        // Continue/add chapter
       },
-      audioMinute: 0.3
-      // Cost per minute of audio (€3 for 10 minutes → 0.3 per minute)
+      audio: {
+        generateAudio: {
+          short: 2,
+          // ~2.5 minutes audio
+          medium: 3,
+          // ~5 minutes audio
+          long: 5
+          // ~8-10 minutes audio
+        },
+        perMinute: 1
+        // 1 audio credit per ~2.5 minutes
+      }
     };
     STORY_LENGTHS = {
       short: {
@@ -347,7 +460,7 @@ var init_plans = __esm({
 });
 
 // server/index.ts
-import dotenv7 from "dotenv";
+import dotenv8 from "dotenv";
 import express2 from "express";
 import path6 from "path";
 
@@ -1421,9 +1534,11 @@ init_story_model();
 
 // server/utils/openai.ts
 import OpenAI from "openai";
-var novitaAI = new OpenAI({
-  baseURL: "https://api.novita.ai/v3/openai",
-  apiKey: process.env.OPENAI_KEY || "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI"
+import dotenv5 from "dotenv";
+dotenv5.config();
+var geminiAI = new OpenAI({
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+  apiKey: process.env.GEMINI_API || "AIzaSyB_t3pkKT_GvB4vPYNkrdALSajq5N0Sbu4"
 });
 var stream = false;
 async function generateStory(options) {
@@ -1466,44 +1581,43 @@ Incorporate these specific setting details into your narrative.` : "";
 Ensure the protagonist has these specific characteristics.` : "";
   const loveInterestPrompt = loveInterestDescription ? `Love interest description: ${loveInterestDescription}
 Incorporate these specific details about the love interest.` : "";
-  const systemPrompt = `You are an expert erotic fiction writer known for creating tasteful, sensual narratives.
-Generate an erotic story with the following parameters:
+  const systemPrompt = `You must return ONLY valid JSON. No explanations, no title suggestions, no additional text.
+
+Create an erotic story with these parameters:
 - Time Period: ${timePeriod}
 - Location: ${location}
 - Atmosphere: ${atmosphere}
-- Protagonist Gender: ${protagonistGender}
-- Partner Gender: ${partnerGender}
+- Protagonist: ${protagonistGender}
+- Partner: ${partnerGender}
 - Relationship: ${relationship}
-- Writing Tone: ${writingTone}
-${targetWordCount} This is critical for producing the correct audio duration.
-${explicitLevelDescription}
-${titlePrompt}
+- Tone: ${writingTone}
+- ${targetWordCount}
+- ${explicitLevelDescription}
+- ${titlePrompt}
 
 ${settingPrompt}
 ${protagonistPrompt}
 ${loveInterestPrompt}
 
-IMPORTANT: Make the story incomplete/unfinished, ending with a cliffhanger at the end of a complete sentence or scene. End at a natural pause point that creates anticipation for the next chapter. DO NOT end mid-sentence or mid-word.
-
-Your story should be tasteful, sensual, and focus on the emotional and physical connection between characters.
-Include vivid descriptions and engaging dialogue. Start with setting the scene and gradually build tension.
-
-Format your response as JSON with the following structure:
+MANDATORY JSON FORMAT (nothing else):
 {
-  "title": "${title || "Story Title"}",
-  "content": "Full story with proper paragraphs and formatting"
-}`;
-  const userPrompt = "Generate a high-quality erotic story based on the parameters.";
+  "title": "Story Title Here",
+  "content": "Complete story content with vivid descriptions, dialogue, and sensual elements. End with cliffhanger."
+}
+
+DO NOT include title options, explanations, or any text outside the JSON object.`;
+  const userPrompt = "Create the erotic story now. Return ONLY the JSON object with title and content. No explanations, no title suggestions, no additional text.";
   try {
-    console.log("Generating story with Novita.ai deepseek model...");
-    const completion = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    console.log("Generating story with Google Gemini model...");
+    const completion = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
       max_tokens: maxTokens,
-      temperature: 0.8,
+      temperature: 0.7,
+      // Slightly lower for more consistent JSON output
       stream
     });
     if (stream) {
@@ -1542,42 +1656,44 @@ Format your response as JSON with the following structure:
       }
     } else {
       let responseText = completion.choices[0].message.content || '{"title": "Untitled", "content": "Story generation failed."}';
-      responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
+      responseText = responseText.replace(/```json\s*/g, "").replace(/```\s*$/g, "").trim();
       try {
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        let jsonStr = jsonMatch ? jsonMatch[0] : responseText;
-        jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").replace(/\\n/g, "\\n").replace(/\\'/g, "\\'").replace(/\\"/g, '\\"').replace(/\\&/g, "\\&").replace(/\\r/g, "\\r").replace(/\\t/g, "\\t").replace(/\\b/g, "\\b").replace(/\\f/g, "\\f").replace(/\n/g, " ");
+        let jsonStr = responseText;
         try {
           const result = JSON.parse(jsonStr);
-          let finalContent = result.content || responseText;
-          if (finalContent.includes("{") && finalContent.includes("}")) {
-            finalContent = finalContent.replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
-          }
-          const lastChar = finalContent.slice(-1);
-          const lastFewChars = finalContent.slice(-3);
-          if (!['."', '!"', '?"', '"'].some((ending) => lastFewChars.includes(ending))) {
-            const sentences = finalContent.split(/[.!?]+/);
-            if (sentences.length > 1) {
-              sentences.pop();
-              finalContent = sentences.join(".") + ".";
-            }
-          }
           return {
             title: title || result.title || "Untitled Story",
-            content: finalContent
+            content: result.content || "Story generation failed"
           };
         } catch (nestedJsonError) {
           console.error("Error parsing cleaned JSON:", nestedJsonError);
+          let content = responseText;
+          content = content.replace(/^.*?Here are a few title options.*?(?=\n\n|\n[A-Z])/is, "").replace(/^\* \*\*.*?\*\*.*$/gm, "").replace(/^Here's? (?:the|a) story.*?$/gm, "").replace(/^Based on.*?$/gm, "").replace(/^.*?ranging in tone.*?$/gm, "").replace(/^\s*[\*\-\+]\s+.*$/gm, "").replace(/^\s*$\n/gm, "").trim();
+          const storyMatch = content.match(/(The\s+(?:turquoise|crystal|warm|golden|sun|beach|water|wind|island).*?)$/is) || content.match(/(I\s+(?:was|had|found|saw|felt).*?)$/is) || content.match(/([A-Z][a-z]+.*?(?:water|sun|beach|resort|island|paradise|garden).*?)$/is);
+          if (storyMatch) {
+            content = storyMatch[1].trim();
+          }
           return {
             title: title || "Untitled Story",
-            content: responseText
+            content
           };
         }
       } catch (jsonError) {
-        console.error("Error parsing JSON response from Novita:", jsonError);
+        console.error("Error parsing JSON response from Gemini:", jsonError);
+        let content = responseText;
+        const afterTitleOptions = content.split(/Here are a few title options.*?\n/i)[1];
+        if (afterTitleOptions) {
+          const storyStart = afterTitleOptions.search(/The\s+(?:turquoise|crystal|warm|sun|water)/i);
+          if (storyStart !== -1) {
+            content = afterTitleOptions.substring(storyStart);
+          } else {
+            content = afterTitleOptions.replace(/^\* \*\*.*?\*\*.*$/gm, "").trim();
+          }
+        }
+        content = content.replace(/^\* \*\*.*?\*\*.*$/gm, "").replace(/^\s*$/gm, "").trim();
         return {
           title: title || "Untitled Story",
-          content: responseText
+          content
         };
       }
     }
@@ -1588,8 +1704,8 @@ Format your response as JSON with the following structure:
 }
 async function generateChapterSummary(content, chapterNumber) {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: `Generate a brief, tasteful summary (1-2 sentences) for Chapter ${chapterNumber} of an erotic story. Focus on the key events and emotional developments without being overly explicit.` },
         { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 800)}...` }
@@ -1608,18 +1724,46 @@ async function generateChapterSummary(content, chapterNumber) {
 }
 async function generateChapterTitle(content, chapterNumber) {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
-      messages: [
-        { role: "system", content: `Generate a captivating, descriptive title for Chapter ${chapterNumber} of an erotic story. The title should be 2-6 words and capture the essence of what happens in this chapter. Focus on the key action, emotion, or scene.` },
-        { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 500)}...` }
-      ],
-      max_tokens: 30,
-      temperature: 0.7
-    });
-    let title = response.choices[0].message.content?.replace(/"/g, "").trim() || `Chapter ${chapterNumber}`;
-    title = title.replace(/^Chapter \d+:?\s*/i, "").trim();
-    if (!title) title = `Chapter ${chapterNumber}`;
+    console.log("=== USING NEW CHAPTER TITLE FUNCTION ===");
+    const keywords = content.toLowerCase();
+    let title = `Chapter ${chapterNumber}`;
+    if (keywords.includes("beach") || keywords.includes("sand") || keywords.includes("ocean")) {
+      title = "Seaside Encounter";
+    } else if (keywords.includes("garden") || keywords.includes("flower")) {
+      title = "Garden Romance";
+    } else if (keywords.includes("cottage") || keywords.includes("cabin")) {
+      title = "Intimate Hideaway";
+    } else if (keywords.includes("sunset") || keywords.includes("sunrise")) {
+      title = "Golden Hour";
+    } else if (keywords.includes("wine") || keywords.includes("dinner")) {
+      title = "Evening Desires";
+    } else if (keywords.includes("kiss") || keywords.includes("lips")) {
+      title = "First Touch";
+    } else if (keywords.includes("dance") || keywords.includes("music")) {
+      title = "Rhythmic Passion";
+    } else if (keywords.includes("rain") || keywords.includes("storm")) {
+      title = "Storm of Desire";
+    } else if (keywords.includes("fire") || keywords.includes("flame")) {
+      title = "Burning Passion";
+    } else if (keywords.includes("moonlight") || keywords.includes("night")) {
+      title = "Moonlit Embrace";
+    } else if (keywords.includes("morning") || keywords.includes("dawn")) {
+      title = "Dawn Awakening";
+    } else if (keywords.includes("secret") || keywords.includes("hidden")) {
+      title = "Secret Moments";
+    } else {
+      const defaultTitles = [
+        "Unexpected Meeting",
+        "Growing Attraction",
+        "Passionate Encounter",
+        "Intimate Connection",
+        "Deepening Bond",
+        "Tender Moments",
+        "Rising Heat",
+        "Sweet Surrender"
+      ];
+      title = defaultTitles[(chapterNumber - 1) % defaultTitles.length] || `Chapter ${chapterNumber}`;
+    }
     return title;
   } catch (error) {
     console.error("Error generating chapter title:", error);
@@ -1628,8 +1772,8 @@ async function generateChapterTitle(content, chapterNumber) {
 }
 async function generateTitleSuggestions(content) {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: "Generate 5 captivating, sensual titles for this erotic story. Keep them concise (2-5 words). Respond in JSON format with an array of titles." },
         { role: "user", content: `Story content (first paragraph): ${content.substring(0, 300)}...` }
@@ -1683,8 +1827,8 @@ async function generateTitleSuggestions(content) {
 }
 async function generateChoices(chapterContent) {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.` },
         { role: "user", content: `Current chapter ends with: ${chapterContent.slice(-500)}` }
@@ -1777,8 +1921,8 @@ async function continueStory(existingContent, settings, selectedChoice) {
     ${choicePrompt}
     
     Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Here's the existing story content:
@@ -1875,8 +2019,8 @@ async function concludeStory(existingContent, settings, selectedChoice) {
     ${choicePrompt}
     
     Your conclusion should provide a sense of closure and resolution.`;
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Here's the existing story content:
@@ -2090,7 +2234,7 @@ var BADGE_DEFINITIONS = {
       timeframe: "all_time"
     },
     rewards: {
-      credits: 10
+      credits: 0
     }
   },
   "prolific_writer": {
@@ -2267,26 +2411,15 @@ async function checkAndAwardTopAuthor() {
 }
 
 // server/services/story.service.ts
-var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance", accessType = "public") => {
+var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance", accessType = "public", textCreditCost = 1) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
   }
-  let STORY_GENERATION_COST = 1;
-  if (settings.length === 3) {
-    STORY_GENERATION_COST = 2;
-  } else if (settings.length === 4) {
-    STORY_GENERATION_COST = 4;
+  if (user.textCredits < textCreditCost) {
+    throw new Error(`Insufficient text credits. This story requires ${textCreditCost} text credits, but you only have ${user.textCredits} text credits available. Please purchase additional text credits or upgrade to premium.`);
   }
-  if (user.credits < 5) {
-    console.log(`User had ${user.credits} credits. Updating to 5 credits for testing.`);
-    user.credits = 5;
-    await user.save();
-  }
-  if (user.credits < STORY_GENERATION_COST) {
-    throw new Error(`Insufficient credits. This story requires ${STORY_GENERATION_COST} credits, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
-  }
-  user.credits -= STORY_GENERATION_COST;
+  user.textCredits -= textCreditCost;
   await user.save();
   if (settings.narrationVoiceId) {
     console.log(`Using provided voice ID: ${settings.narrationVoiceId}`);
@@ -2340,7 +2473,9 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
     summary: chapterSummary,
     createdAt: /* @__PURE__ */ new Date(),
     wordCount: cleanedContent.split(" ").length,
-    creditsCost: STORY_GENERATION_COST
+    textCreditsCost: textCreditCost,
+    audioCreditsCost: 2
+    // Default audio cost for first chapter
   };
   const story = new Story({
     title: title || generatedTitle,
@@ -2351,6 +2486,9 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
     isPublic: accessType === "public",
     accessType,
     category,
+    textCreditsCost: textCreditCost,
+    audioCreditsCost: 2,
+    // Default audio cost for story
     chapters: [firstChapter],
     currentChapter: 1,
     totalChapters: 1,
@@ -2360,7 +2498,7 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
   user.stories.push(story._id);
   await user.save();
   if (user.stories.length === 1) {
-    await awardBadge(userId, "First Story");
+    await awardBadge(userId, "Storyteller");
   }
   try {
     console.log(`Will generate audio for story ${story._id} with voice ${settings.narrationVoice} (ID: ${settings.narrationVoiceId})`);
@@ -2378,11 +2516,11 @@ var continueStoryService = async (id, finalChoice, conclude) => {
   if (!user) {
     throw new Error("User not found");
   }
-  const CONTINUATION_COST = 1;
-  if (user.credits < CONTINUATION_COST) {
-    throw new Error(`Insufficient credits. Continuing this story requires ${CONTINUATION_COST} credit, but you only have ${user.credits} credits available. Please purchase additional credits or upgrade to premium.`);
+  const TEXT_CONTINUATION_COST = 1;
+  if (user.textCredits < TEXT_CONTINUATION_COST) {
+    throw new Error(`Insufficient text credits. Continuing this story requires ${TEXT_CONTINUATION_COST} text credit, but you only have ${user.textCredits} text credits available. Please purchase additional text credits or upgrade to premium.`);
   }
-  user.credits -= CONTINUATION_COST;
+  user.textCredits -= TEXT_CONTINUATION_COST;
   await user.save();
   try {
     console.log(`Continuing story ${id}`);
@@ -2424,7 +2562,9 @@ var continueStoryService = async (id, finalChoice, conclude) => {
       summary: chapterSummary,
       createdAt: /* @__PURE__ */ new Date(),
       wordCount: continuation.split(" ").length,
-      creditsCost: CONTINUATION_COST,
+      textCreditsCost: TEXT_CONTINUATION_COST,
+      audioCreditsCost: 2,
+      // Default audio cost for new chapter
       choices
       // Add generated choices to the new chapter
     };
@@ -2448,7 +2588,10 @@ var continueStoryService = async (id, finalChoice, conclude) => {
         summary: firstChapterSummary,
         createdAt: story.createdAt,
         wordCount: story.content ? story.content.split(" ").length : 0,
-        creditsCost: story.creditsCost
+        textCreditsCost: story.textCreditsCost || story.creditsCost || 1,
+        // Fallback for legacy data
+        audioCreditsCost: story.audioCreditsCost || 2
+        // Default audio cost
       };
       story.chapters = [firstChapter, newChapter];
       story.isChapterBased = true;
@@ -2461,7 +2604,7 @@ var continueStoryService = async (id, finalChoice, conclude) => {
     await story.save();
     return story;
   } catch (error) {
-    user.credits += CONTINUATION_COST;
+    user.textCredits += TEXT_CONTINUATION_COST;
     await user.save();
     console.error("Error in continueStoryService:", error);
     throw error;
@@ -2510,11 +2653,12 @@ var userSchema2 = z.object({
   phone: z.string().optional(),
   role: z.enum(["admin", "user"]),
   isPremium: z.boolean().default(false),
-  credits: z.number().default(10),
+  textCredits: z.number().default(2),
+  audioCredits: z.number().default(1),
   stories: z.array(z.string()).default([]),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
-  subscription: z.enum(["free", "essential", "passion", "escape"]).default("free"),
+  subscription: z.enum(["free", "essentiel", "seduction", "intimacy"]).default("free"),
   authProvider: z.enum(["local", "google"]).default("local")
 });
 var insertUserSchema = userSchema2.omit({ id: true });
@@ -2531,7 +2675,8 @@ var chapterSchema2 = z.object({
   audioUrl: z.string().optional(),
   createdAt: z.date().optional(),
   wordCount: z.number().optional(),
-  creditsCost: z.number().default(1),
+  textCreditsCost: z.number().default(1),
+  audioCreditsCost: z.number().default(2),
   choices: z.array(choiceSchema).optional()
   // Add choices to chapter schema
 });
@@ -2549,8 +2694,11 @@ var storySchema2 = z.object({
   imageUrl: z.string().optional(),
   likes: z.number().default(0),
   plays: z.number().default(0),
+  upvotes: z.number().default(0),
+  downvotes: z.number().default(0),
   category: z.string().default("romance"),
-  creditsCost: z.number().default(1),
+  textCreditsCost: z.number().default(1),
+  audioCreditsCost: z.number().default(2),
   chapters: z.array(chapterSchema2).default([]),
   currentChapter: z.number().default(1),
   totalChapters: z.number().default(1),
@@ -2558,7 +2706,14 @@ var storySchema2 = z.object({
   isPremiumContent: z.boolean().default(false),
   accessType: z.enum(["public", "premium_early_access", "premium_exclusive"]).default("public"),
   premiumAccessDate: z.date().optional(),
-  publicReleaseDate: z.date().optional()
+  publicReleaseDate: z.date().optional(),
+  // User interaction state (populated at runtime)
+  hasLiked: z.boolean().optional(),
+  hasUpvoted: z.boolean().optional(),
+  hasDownvoted: z.boolean().optional(),
+  // Additional properties for community features
+  userName: z.string().optional(),
+  authorBadges: z.array(z.any()).optional()
 });
 var insertStorySchema = storySchema2.omit({ _id: true });
 var commentSchema = z.object({
@@ -2755,8 +2910,11 @@ var BadgeService = class {
             awardedAt: /* @__PURE__ */ new Date()
           });
           if (award.rewards?.credits) {
-            user.credits = (user.credits || 0) + award.rewards.credits;
-            console.log(`Awarded ${award.rewards.credits} credits for badge: ${badgeDefinition.name}`);
+            const textCredits = Math.floor(award.rewards.credits * 0.7);
+            const audioCredits = Math.floor(award.rewards.credits * 0.3);
+            user.textCredits = (user.textCredits || 0) + textCredits;
+            user.audioCredits = (user.audioCredits || 0) + audioCredits;
+            console.log(`Awarded ${textCredits} text credits and ${audioCredits} audio credits for badge: ${badgeDefinition.name}`);
           }
           if (award.rewards?.premium_days) {
             console.log(`Badge would award ${award.rewards.premium_days} premium days: ${badgeDefinition.name}`);
@@ -3032,17 +3190,45 @@ var createStory2 = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     if (accessType === "premium_exclusive") {
-      if (user.subscription !== "passion" && user.subscription !== "escape") {
+      if (user.subscription !== "seduction" && user.subscription !== "intimacy") {
         return res.status(403).json({
-          message: "Premium story creation is only available for Passion and Escape subscribers",
+          message: "Exclusive premium story creation is only available for Seduction and Intimacy subscribers",
+          code: "PREMIUM_EXCLUSIVE_REQUIRED",
+          isPremiumRequired: true,
+          requiredPlans: ["seduction", "intimacy"],
+          currentPlan: user.subscription,
+          upgradeMessage: "Upgrade to Seduction or Intimacy plan to create exclusive premium stories"
+        });
+      }
+    }
+    if (accessType === "premium_early_access") {
+      const allowedPlans = ["essentiel", "seduction", "intimacy"];
+      if (!allowedPlans.includes(user.subscription)) {
+        return res.status(403).json({
+          message: "Premium story creation requires a premium subscription",
           code: "PREMIUM_REQUIRED",
-          isPremiumRequired: true
+          isPremiumRequired: true,
+          requiredPlans: allowedPlans,
+          currentPlan: user.subscription,
+          upgradeMessage: "Upgrade to any premium plan to create premium stories"
         });
       }
     }
     const storyLength = settings.length;
+    let textCreditCost = 1;
+    if (storyLength === 2) textCreditCost = 1;
+    else if (storyLength === 3) textCreditCost = 2;
+    else if (storyLength === 4) textCreditCost = 4;
+    if (user.textCredits < textCreditCost) {
+      return res.status(402).json({
+        message: `Insufficient text credits. You need ${textCreditCost} text credits but only have ${user.textCredits}.`,
+        code: "INSUFFICIENT_TEXT_CREDITS",
+        required: textCreditCost,
+        available: user.textCredits
+      });
+    }
     try {
-      const story = await createStory(title, settings, maxTokens, userId, isPublic, category, accessType);
+      const story = await createStory(title, settings, maxTokens, userId, isPublic, category, accessType, textCreditCost);
       await trackStoryGeneration(userId);
       res.status(201).json(story);
     } catch (storyGenError) {
@@ -3058,21 +3244,21 @@ var createStory2 = async (req, res) => {
         code: "VALIDATION_ERROR"
       });
     }
-    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+    if (error instanceof Error && error.message.includes("Insufficient text credits")) {
       return res.status(402).json({
         message: error.message,
-        code: "INSUFFICIENT_CREDITS",
+        code: "INSUFFICIENT_TEXT_CREDITS",
         isPremiumRequired: false
       });
     }
-    if (error instanceof Error && error.message.includes("Free users can only create 3 stories")) {
-      return res.status(403).json({
-        message: "You don't have enough credits to generate this story. Please purchase additional credits or upgrade to premium.",
-        code: "INSUFFICIENT_CREDITS",
+    if (error instanceof Error && error.message.includes("Insufficient audio credits")) {
+      return res.status(402).json({
+        message: error.message,
+        code: "INSUFFICIENT_AUDIO_CREDITS",
         isPremiumRequired: false
       });
     }
-    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+    if (error instanceof Error && (error.message === "INSUFFICIENT_CREDITS" || error.message.includes("Insufficient credits"))) {
       return res.status(402).json({
         message: "You don't have enough credits to generate a story. Please purchase more credits.",
         code: "INSUFFICIENT_CREDITS"
@@ -3112,8 +3298,39 @@ var getStory2 = async (req, res) => {
         }
       }
     }
+    const userId = req.session?.userId;
+    let storyWithInteractions = story.toObject();
+    if (userId) {
+      const likedBy = story.likedBy || [];
+      const upvotedBy = story.upvotedBy || [];
+      const downvotedBy = story.downvotedBy || [];
+      storyWithInteractions = {
+        ...storyWithInteractions,
+        hasLiked: likedBy.includes(userId),
+        hasUpvoted: upvotedBy.includes(userId),
+        hasDownvoted: downvotedBy.includes(userId)
+      };
+    } else {
+      storyWithInteractions = {
+        ...storyWithInteractions,
+        hasLiked: false,
+        hasUpvoted: false,
+        hasDownvoted: false
+      };
+    }
+    if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+      try {
+        const author = await User.findById(story.userId).select("name badges");
+        if (author) {
+          storyWithInteractions.userName = author.name;
+          storyWithInteractions.authorBadges = author.badges || [];
+        }
+      } catch (err) {
+        console.error("Error fetching author info:", err);
+      }
+    }
     res.setHeader("Cache-Control", "no-cache");
-    res.status(200).json(story);
+    res.status(200).json(storyWithInteractions);
   } catch (error) {
     console.error("Error getting story:", error);
     res.status(500).json({ message: "Failed to get story" });
@@ -3168,10 +3385,10 @@ var continueStory2 = async (req, res) => {
     res.status(200).json(continuedStory);
   } catch (error) {
     console.error("Error continuing story:", error);
-    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+    if (error instanceof Error && (error.message === "INSUFFICIENT_TEXT_CREDITS" || error.message.includes("Insufficient text credits"))) {
       return res.status(402).json({
-        message: "You don't have enough credits to continue this story. Please purchase more credits.",
-        code: "INSUFFICIENT_CREDITS"
+        message: "You don't have enough text credits to continue this story. Please purchase more text credits.",
+        code: "INSUFFICIENT_TEXT_CREDITS"
       });
     }
     if (error instanceof Error && error.message === "Story not found") {
@@ -3305,10 +3522,16 @@ var unlockChapter = async (req, res) => {
     if (!chapter) {
       return res.status(404).json({ message: "Chapter not found" });
     }
-    if (user.credits < chapter.creditsCost) {
-      return res.status(402).json({ message: "Insufficient credits to unlock this chapter" });
+    const textCreditCost = chapter.textCreditsCost || chapter.creditsCost || 1;
+    if (user.textCredits < textCreditCost) {
+      return res.status(402).json({
+        message: `Insufficient text credits to unlock this chapter. Required: ${textCreditCost}, Available: ${user.textCredits}`,
+        code: "INSUFFICIENT_TEXT_CREDITS",
+        required: textCreditCost,
+        available: user.textCredits
+      });
     }
-    user.credits -= chapter.creditsCost;
+    user.textCredits -= textCreditCost;
     user.unlockedChapters.push({ storyId: story._id, chapterNumber: chapterNum });
     await user.save();
     res.status(200).json({ message: "Chapter unlocked successfully" });
@@ -3328,10 +3551,22 @@ var likeStory = async (req, res) => {
     if (!story) {
       return res.status(404).json({ message: "Story not found" });
     }
-    story.likes = (story.likes || 0) + 1;
+    if (!story.likedBy) story.likedBy = [];
+    const hasLiked = story.likedBy.includes(userId);
+    if (hasLiked) {
+      story.likedBy = story.likedBy.filter((uid) => uid !== userId);
+      story.likes = Math.max(0, (story.likes || 0) - 1);
+    } else {
+      story.likedBy.push(userId);
+      story.likes = (story.likes || 0) + 1;
+      await trackStoryInteraction(id, "like");
+    }
     await story.save();
-    await trackStoryInteraction(id, "like");
-    res.status(200).json({ message: "Story liked successfully", likes: story.likes });
+    res.status(200).json({
+      message: hasLiked ? "Story unliked successfully" : "Story liked successfully",
+      likes: story.likes,
+      hasLiked: !hasLiked
+    });
   } catch (error) {
     console.error("Error liking story:", error);
     res.status(500).json({ message: "Failed to like story" });
@@ -3348,10 +3583,30 @@ var upvoteStory = async (req, res) => {
     if (!story) {
       return res.status(404).json({ message: "Story not found" });
     }
-    story.upvotes = (story.upvotes || 0) + 1;
+    if (!story.upvotedBy) story.upvotedBy = [];
+    if (!story.downvotedBy) story.downvotedBy = [];
+    const hasUpvoted = story.upvotedBy.includes(userId);
+    const hasDownvoted = story.downvotedBy.includes(userId);
+    if (hasUpvoted) {
+      story.upvotedBy = story.upvotedBy.filter((uid) => uid !== userId);
+      story.upvotes = Math.max(0, (story.upvotes || 0) - 1);
+    } else {
+      story.upvotedBy.push(userId);
+      story.upvotes = (story.upvotes || 0) + 1;
+      if (hasDownvoted) {
+        story.downvotedBy = story.downvotedBy.filter((uid) => uid !== userId);
+        story.downvotes = Math.max(0, (story.downvotes || 0) - 1);
+      }
+      await trackStoryInteraction(id, "upvote");
+    }
     await story.save();
-    await trackStoryInteraction(id, "upvote");
-    res.status(200).json({ message: "Story upvoted successfully", upvotes: story.upvotes });
+    res.status(200).json({
+      message: hasUpvoted ? "Story upvote removed successfully" : "Story upvoted successfully",
+      upvotes: story.upvotes,
+      downvotes: story.downvotes,
+      hasUpvoted: !hasUpvoted,
+      hasDownvoted: hasDownvoted && !hasUpvoted ? false : story.downvotedBy.includes(userId)
+    });
   } catch (error) {
     console.error("Error upvoting story:", error);
     res.status(500).json({ message: "Failed to upvote story" });
@@ -3368,10 +3623,30 @@ var downvoteStory = async (req, res) => {
     if (!story) {
       return res.status(404).json({ message: "Story not found" });
     }
-    story.downvotes = (story.downvotes || 0) + 1;
+    if (!story.upvotedBy) story.upvotedBy = [];
+    if (!story.downvotedBy) story.downvotedBy = [];
+    const hasUpvoted = story.upvotedBy.includes(userId);
+    const hasDownvoted = story.downvotedBy.includes(userId);
+    if (hasDownvoted) {
+      story.downvotedBy = story.downvotedBy.filter((uid) => uid !== userId);
+      story.downvotes = Math.max(0, (story.downvotes || 0) - 1);
+    } else {
+      story.downvotedBy.push(userId);
+      story.downvotes = (story.downvotes || 0) + 1;
+      if (hasUpvoted) {
+        story.upvotedBy = story.upvotedBy.filter((uid) => uid !== userId);
+        story.upvotes = Math.max(0, (story.upvotes || 0) - 1);
+      }
+      await trackStoryInteraction(id, "downvote");
+    }
     await story.save();
-    await trackStoryInteraction(id, "downvote");
-    res.status(200).json({ message: "Story downvoted successfully", downvotes: story.downvotes });
+    res.status(200).json({
+      message: hasDownvoted ? "Story downvote removed successfully" : "Story downvoted successfully",
+      upvotes: story.upvotes,
+      downvotes: story.downvotes,
+      hasUpvoted: hasUpvoted && !hasDownvoted ? false : story.upvotedBy.includes(userId),
+      hasDownvoted: !hasDownvoted
+    });
   } catch (error) {
     console.error("Error downvoting story:", error);
     res.status(500).json({ message: "Failed to downvote story" });
@@ -3509,6 +3784,7 @@ router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 router2.get("/public", async (req, res) => {
   try {
     const currentDate = /* @__PURE__ */ new Date();
+    const userId = req.session?.userId;
     const publicStories = await Story.find({
       $or: [
         { accessType: "public" },
@@ -3518,25 +3794,39 @@ router2.get("/public", async (req, res) => {
     const storiesWithUserNames = await Promise.all(
       publicStories.map(async (story) => {
         try {
+          const likedBy = story.likedBy || [];
+          const upvotedBy = story.upvotedBy || [];
+          const downvotedBy = story.downvotedBy || [];
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
             const user = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
               userName: user ? user.name : "Anonymous",
-              authorBadges: user ? user.badges : []
+              authorBadges: user ? user.badges : [],
+              // Add user interaction state
+              hasLiked: userId ? likedBy.includes(userId) : false,
+              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+              hasDownvoted: userId ? downvotedBy.includes(userId) : false
             };
           } else {
             return {
               ...story.toObject(),
               userName: "Anonymous",
-              authorBadges: []
+              authorBadges: [],
+              // Add user interaction state
+              hasLiked: userId ? likedBy.includes(userId) : false,
+              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+              hasDownvoted: userId ? downvotedBy.includes(userId) : false
             };
           }
         } catch (err) {
           return {
             ...story.toObject(),
             userName: "Anonymous",
-            authorBadges: []
+            authorBadges: [],
+            hasLiked: false,
+            hasUpvoted: false,
+            hasDownvoted: false
           };
         }
       })
@@ -3666,17 +3956,18 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
   try {
     const userId = req.session.userId;
     const user = await User.findById(userId);
-    const hasGalleryAccess = user?.subscription === "passion" || user?.subscription === "escape";
+    const hasGalleryAccess = ["essentiel", "seduction", "intimacy"].includes(user?.subscription || "");
     if (!user || !hasGalleryAccess) {
       return res.status(403).json({
-        message: "Access denied. Passion or Escape subscription required for premium gallery access.",
-        currentSubscription: user?.subscription || "none"
+        message: "Access denied. Premium subscription required for premium gallery access.",
+        currentSubscription: user?.subscription || "none",
+        requiredSubscriptions: ["essentiel", "seduction", "intimacy"]
       });
     }
     const currentDate = /* @__PURE__ */ new Date();
     let storyQuery = {};
     let limit = 20;
-    if (user.subscription === "passion") {
+    if (user.subscription === "essentiel") {
       storyQuery = {
         accessType: "premium_early_access",
         $or: [
@@ -3685,7 +3976,16 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
         ]
       };
       limit = 10;
-    } else if (user.subscription === "escape") {
+    } else if (user.subscription === "seduction") {
+      storyQuery = {
+        accessType: { $in: ["premium_early_access", "premium_exclusive"] },
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 20;
+    } else if (user.subscription === "intimacy") {
       storyQuery = {
         accessType: { $in: ["premium_early_access", "premium_exclusive"] },
         $or: [
@@ -3696,8 +3996,9 @@ router2.get("/premium-stories", authMiddleware, async (req, res) => {
       limit = 30;
     } else {
       storyQuery = {
-        accessType: { $in: ["premium_early_access", "premium_exclusive"] }
+        accessType: "premium_early_access"
       };
+      limit = 5;
     }
     const premiumStories = await Story.find(storyQuery).sort({ createdAt: -1 }).limit(limit);
     const storiesWithUserNames = await Promise.all(
@@ -3942,13 +4243,13 @@ router4.get("/debug-subscription", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     if (user.isPremium && user.subscription === "free") {
-      let inferredPlan = "essential";
+      let inferredPlan = "essentiel";
       if (user.credits >= 70) {
         inferredPlan = "escape";
       } else if (user.credits >= 35) {
         inferredPlan = "passion";
       } else {
-        inferredPlan = "essential";
+        inferredPlan = "essentiel";
       }
       user.subscription = inferredPlan;
       await user.save();
@@ -4034,8 +4335,8 @@ import { Router as Router5 } from "express";
 
 // server/config/stripe.ts
 import Stripe from "stripe";
-import dotenv5 from "dotenv";
-dotenv5.config();
+import dotenv6 from "dotenv";
+dotenv6.config();
 var stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 if (!stripeSecretKey) {
   console.error("CRITICAL ERROR: Missing STRIPE_SECRET_KEY environment variable.");
@@ -4054,7 +4355,7 @@ var PaymentService = class {
   async createSubscriptionCheckout(userId, planId, origin) {
     const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const schema = z3.object({
-      planId: z3.enum(["essential", "passion", "escape"])
+      planId: z3.enum(["essentiel", "seduction", "intimacy"])
     });
     const { planId: validatedPlanId } = schema.parse({ planId });
     const selectedPlan = SUBSCRIPTION_PLANS2[validatedPlanId];
@@ -4075,7 +4376,7 @@ var PaymentService = class {
             currency: "eur",
             product_data: {
               name: selectedPlan.name,
-              description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits} credits/month`
+              description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits.text} text + ${selectedPlan.monthlyCredits.audio} audio credits/month`
             },
             unit_amount: priceInCents,
             recurring: {
@@ -4093,19 +4394,20 @@ var PaymentService = class {
       metadata: {
         userId,
         plan: validatedPlanId,
-        credits: selectedPlan.monthlyCredits.toString(),
+        textCredits: selectedPlan.monthlyCredits.text.toString(),
+        audioCredits: selectedPlan.monthlyCredits.audio.toString(),
         type: "subscription_purchase"
       }
     });
     return { id: session2.id };
   }
   async createCreditCheckout(userId, packageId, origin) {
-    const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const schema = z3.object({
       packageId: z3.enum(["starter", "popular", "premium"]).default("popular")
     });
     const { packageId: validatedPackageId } = schema.parse({ packageId });
-    const selectedPackage = CREDIT_PACKAGES2[validatedPackageId];
+    const selectedPackage = CREDIT_PACKAGES[validatedPackageId];
     if (!selectedPackage) {
       throw new Error("Invalid package ID");
     }
@@ -4157,10 +4459,10 @@ var PaymentService = class {
     }
     let creditsToAdd = parseInt(credits) || 0;
     if (creditsToAdd <= 0 && packageId) {
-      const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+      const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
       const packageKey = packageId;
-      if (CREDIT_PACKAGES2[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES2[packageKey].credits;
+      if (CREDIT_PACKAGES[packageKey]) {
+        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
       }
     }
     if (creditsToAdd <= 0) {
@@ -4213,12 +4515,24 @@ var PaymentService = class {
       throw new Error("User identification failed");
     }
     let actualPlan = session2.metadata?.plan || plan;
-    if (!actualPlan || !["essential", "passion", "escape"].includes(actualPlan)) {
+    if (!actualPlan || !["essentiel", "seduction", "intimacy"].includes(actualPlan)) {
       throw new Error("Invalid subscription plan");
     }
     const user = await User.findById(actualUserId);
     if (!user) {
       throw new Error("User not found");
+    }
+    if (user.processedSessions && user.processedSessions.includes(sessionId)) {
+      return {
+        success: true,
+        message: "Subscription already processed",
+        plan: actualPlan,
+        alreadyProcessed: true,
+        textCredits: 0,
+        audioCredits: 0,
+        totalTextCredits: user.textCredits,
+        totalAudioCredits: user.audioCredits
+      };
     }
     const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const planDetails = SUBSCRIPTION_PLANS2[actualPlan];
@@ -4227,13 +4541,18 @@ var PaymentService = class {
     }
     user.isPremium = true;
     user.subscription = actualPlan;
+    if (!user.processedSessions) {
+      user.processedSessions = [];
+    }
+    user.processedSessions.push(sessionId);
     const creditsToAdd = planDetails.monthlyCredits;
-    const previousCredits = user.credits || 0;
-    user.credits = previousCredits + creditsToAdd;
+    user.textCredits = (user.textCredits || 0) + creditsToAdd.text;
+    user.audioCredits = (user.audioCredits || 0) + creditsToAdd.audio;
     user.usageThisMonth = {
       storiesGenerated: 0,
       chaptersGenerated: 0,
-      audioMinutesUsed: 0,
+      textCreditsUsed: 0,
+      audioCreditsUsed: 0,
       lastResetDate: /* @__PURE__ */ new Date()
     };
     await user.save();
@@ -4241,8 +4560,10 @@ var PaymentService = class {
       success: true,
       message: "Subscription activated successfully",
       plan: actualPlan,
-      credits: creditsToAdd,
-      totalCredits: user.credits
+      textCredits: creditsToAdd.text,
+      audioCredits: creditsToAdd.audio,
+      totalTextCredits: user.textCredits,
+      totalAudioCredits: user.audioCredits
     };
   }
   async processCreditSuccessWithStripeVerification(sessionId, credits, packageId, userId) {
@@ -4268,10 +4589,10 @@ var PaymentService = class {
       creditsToAdd = parseInt(credits);
     } else if (packageId || session2.metadata?.packageId) {
       const pkgId = packageId || session2.metadata?.packageId;
-      const { CREDIT_PACKAGES: CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+      const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
       const packageKey = pkgId;
-      if (CREDIT_PACKAGES2[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES2[packageKey].credits;
+      if (CREDIT_PACKAGES[packageKey]) {
+        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
       }
     }
     if (creditsToAdd <= 0) {
@@ -4281,6 +4602,19 @@ var PaymentService = class {
     if (!user) {
       throw new Error("User not found");
     }
+    if (user.processedSessions && user.processedSessions.includes(sessionId)) {
+      return {
+        success: true,
+        message: "Credits already processed",
+        alreadyProcessed: true,
+        credits: 0,
+        totalCredits: user.credits || 0
+      };
+    }
+    if (!user.processedSessions) {
+      user.processedSessions = [];
+    }
+    user.processedSessions.push(sessionId);
     const previousCredits = user.credits || 0;
     user.credits = previousCredits + creditsToAdd;
     await user.save();
@@ -5222,8 +5556,8 @@ import { nanoid as nanoid2 } from "nanoid";
 
 // server/config/database.ts
 import mongoose2 from "mongoose";
-import dotenv6 from "dotenv";
-dotenv6.config();
+import dotenv7 from "dotenv";
+dotenv7.config();
 var connectDB = async () => {
   try {
     try {
@@ -5247,7 +5581,7 @@ var connectDB = async () => {
 var database_default = connectDB;
 
 // server/index.ts
-dotenv7.config();
+dotenv8.config();
 var app = express2();
 database_default();
 app.use(session({

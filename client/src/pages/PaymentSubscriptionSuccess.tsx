@@ -38,7 +38,14 @@ export default function PaymentSubscriptionSuccess() {
           
           if (!result.success) {
             console.error('Subscription processing failed:', result);
+          } else if (result.alreadyProcessed) {
+            console.log('Subscription already processed - no duplicate credits added');
+          } else {
+            console.log(`Subscription processed successfully - added ${result.textCredits} text + ${result.audioCredits} audio credits`);
           }
+          
+          // Wait a bit for database to update
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         // Refresh user data to get updated status
@@ -55,34 +62,34 @@ export default function PaymentSubscriptionSuccess() {
 
   const getPlanDetails = (planId: string) => {
     const plans = {
-      essential: {
+      essentiel: {
         name: 'Essential',
         description: 'Pleasure at Your Own Pace',
-        monthlyCredits: 15,
+        monthlyCredits: { text: 5, audio: 6 },
         color: 'from-pink-500 to-purple-500'
       },
-      passion: {
-        name: 'Passion', 
+      seduction: {
+        name: 'Seduction', 
         description: 'Your Pleasure Rendezvous',
-        monthlyCredits: 35,
+        monthlyCredits: { text: 12, audio: 12 },
         color: 'from-purple-500 to-indigo-500'
       },
-      escape: {
-        name: 'Escape',
+      intimacy: {
+        name: 'Intimacy',
         description: 'The Ultimate Experience Without Limits',
-        monthlyCredits: 70,
+        monthlyCredits: { text: 25, audio: 24 },
         color: 'from-yellow-500 to-orange-500'
       }
     };
-    return plans[planId as keyof typeof plans] || plans.essential;
+    return plans[planId as keyof typeof plans] || plans.essentiel;
   };
 
   if (isProcessing) {
     return (
-      <div className="container mx-auto px-4 py-16 max-w-2xl">
+      <div className="min-h-screen bg-gradient-to-br from-[#1E1E1E] to-[#3D315B] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Processing your subscription...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D9B08C] mx-auto mb-4"></div>
+          <p className="text-[#F0E6DC]">Processing your subscription...</p>
         </div>
       </div>
     );
@@ -91,149 +98,155 @@ export default function PaymentSubscriptionSuccess() {
   const planDetails = subscriptionDetails ? getPlanDetails(subscriptionDetails.plan) : null;
 
   return (
-    <div className="container mx-auto px-4 py-16 max-w-4xl">
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-6">
-          <div className="relative">
-            <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center animate-pulse">
-              <CheckCircle className="h-10 w-10 text-white" />
-            </div>
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-              <Crown className="h-4 w-4 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-[#1E1E1E] to-[#3D315B]">
+      <div className="container mx-auto px-4 py-16 max-w-4xl">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="w-20 h-20 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] rounded-full flex items-center justify-center animate-pulse">
+                <CheckCircle className="h-10 w-10 text-white" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C] rounded-full flex items-center justify-center">
+                <Crown className="h-4 w-4 text-white" />
+              </div>
             </div>
           </div>
+          
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] bg-clip-text text-transparent font-['Playfair_Display']">
+            Welcome to Premium!
+          </h1>
+          <p className="text-xl text-[#F0E6DC]">
+            Your subscription has been activated successfully
+          </p>
         </div>
-        
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          Welcome to Premium!
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          Your subscription has been activated successfully
-        </p>
-      </div>
 
-      {planDetails && (
-        <Card className="mb-8 border-2 border-purple-500/20 bg-gradient-to-r from-purple-50/5 to-pink-50/5">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <Badge className={`bg-gradient-to-r ${planDetails.color} text-white px-4 py-2 text-lg`}>
-                {planDetails.name} Plan
-              </Badge>
-            </div>
-            <CardTitle className="text-2xl">{planDetails.description}</CardTitle>
-            <CardDescription className="text-lg">
-              You now have access to {planDetails.monthlyCredits} monthly credits and premium features
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-3 text-center">
-              <div className="space-y-2">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
-                  <Crown className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold">Premium Gallery</h3>
-                <p className="text-sm text-muted-foreground">Access exclusive premium stories</p>
+        {planDetails && (
+          <Card className="mb-8 border border-gray-700 bg-gradient-to-br from-[#1E1E1E] to-[#3D315B]">
+            <CardHeader className="text-center">
+              <div className="flex justify-center mb-4">
+                <Badge className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] text-white px-4 py-2 text-lg">
+                  {planDetails.name} Plan
+                </Badge>
               </div>
-              
-              <div className="space-y-2">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
-                  <Sparkles className="h-6 w-6 text-white" />
+              <CardTitle className="text-2xl text-[#F0E6DC] font-['Playfair_Display']">{planDetails.description}</CardTitle>
+              <CardDescription className="text-lg text-[#F5F5F5]">
+                You now have access to {planDetails.monthlyCredits.text} text + {planDetails.monthlyCredits.audio} audio credits monthly and premium features
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 md:grid-cols-3 text-center">
+                <div className="space-y-2">
+                  <div className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                    <Crown className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-[#F0E6DC]">Premium Gallery</h3>
+                  <p className="text-sm text-gray-400">Access exclusive premium stories</p>
                 </div>
-                <h3 className="font-semibold">Enhanced Features</h3>
-                <p className="text-sm text-muted-foreground">Better voices and customization</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
-                  <ArrowRight className="h-6 w-6 text-white" />
+                
+                <div className="space-y-2">
+                  <div className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-[#F0E6DC]">Enhanced Features</h3>
+                  <p className="text-sm text-gray-400">Better voices and customization</p>
                 </div>
-                <h3 className="font-semibold">Priority Support</h3>
-                <p className="text-sm text-muted-foreground">Get help when you need it most</p>
+                
+                <div className="space-y-2">
+                  <div className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                    <ArrowRight className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-[#F0E6DC]">Priority Support</h3>
+                  <p className="text-sm text-gray-400">Get help when you need it most</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
-      <div className="grid gap-4 md:grid-cols-2 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-purple-500" />
-              What's Next?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-              <span className="text-sm">Explore the Premium Gallery</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-              <span className="text-sm">Create stories with premium voices</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-              <span className="text-sm">Access exclusive content</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2 mb-8">
+          <Card className="border border-gray-700 bg-[#121212]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-[#F0E6DC]">
+                <Crown className="h-5 w-5 text-[#D9B08C]" />
+                What's Next?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-[#D9B08C] flex-shrink-0" />
+                <span className="text-sm text-[#F5F5F5]">Explore the Premium Gallery</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-[#D9B08C] flex-shrink-0" />
+                <span className="text-sm text-[#F5F5F5]">Create stories with premium voices</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-[#D9B08C] flex-shrink-0" />
+                <span className="text-sm text-[#F5F5F5]">Access exclusive content</span>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Status:</span>
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">Premium</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Credits:</span>
-              <span className="font-semibold">{user?.credits || 0}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Plan:</span>
-              <span className="font-semibold capitalize">{user?.subscription || 'Premium'}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border border-gray-700 bg-[#121212]">
+            <CardHeader>
+              <CardTitle className="text-[#F0E6DC]">Your Account</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-400">Status:</span>
+                <Badge className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] text-white">Premium</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-400">Text Credits:</span>
+                <span className="font-semibold text-[#D9B08C]">{user?.textCredits || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-400">Audio Credits:</span>
+                <span className="font-semibold text-[#8B1E3F]">{user?.audioCredits || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-400">Plan:</span>
+                <span className="font-semibold capitalize text-[#F0E6DC]">{user?.subscription || 'Premium'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button 
-          onClick={() => navigate('/premium-gallery')}
-          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-          size="lg"
-        >
-          <Crown className="h-4 w-4 mr-2" />
-          Explore Premium Gallery
-        </Button>
-        
-        <Button 
-          onClick={() => navigate('/create')}
-          variant="outline"
-          size="lg"
-        >
-          Create Your First Premium Story
-        </Button>
-        
-        <Button 
-          onClick={() => navigate('/dashboard')}
-          variant="ghost"
-          size="lg"
-        >
-          Go to Dashboard
-        </Button>
-      </div>
-
-      <div className="mt-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          Questions about your subscription? 
-          <Button variant="link" className="p-0 ml-1 h-auto font-normal">
-            Contact Support
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button 
+            onClick={() => navigate('/premium-gallery')}
+            className="bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C] text-white"
+            size="lg"
+          >
+            <Crown className="h-4 w-4 mr-2" />
+            Explore Premium Gallery
           </Button>
-        </p>
+          
+          <Button 
+            onClick={() => navigate('/create')}
+            className="border border-[#D9B08C] text-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E] bg-transparent"
+            size="lg"
+          >
+            Create Your First Premium Story
+          </Button>
+          
+          <Button 
+            onClick={() => navigate('/dashboard')}
+            className="text-gray-400 hover:text-white hover:bg-[#2D2D2D] bg-transparent"
+            size="lg"
+          >
+            Go to Dashboard
+          </Button>
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-sm text-gray-400">
+            Questions about your subscription? 
+            <Button variant="link" className="p-0 ml-1 h-auto font-normal text-[#D9B08C] hover:text-[#8B1E3F]">
+              Contact Support
+            </Button>
+          </p>
+        </div>
       </div>
     </div>
   );

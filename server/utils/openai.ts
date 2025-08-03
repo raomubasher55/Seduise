@@ -1,9 +1,13 @@
 import OpenAI from "openai";
+import dotenv from 'dotenv';
 
-// Using Novita.ai as our story generation engine
-const novitaAI = new OpenAI({
-  baseURL: "https://api.novita.ai/v3/openai",
-  apiKey: process.env.OPENAI_KEY || "sk_rEjXJfuj7kImHyeFPucTGuewR3E37rilrKATo1tCHcI",
+// Initialize dotenv
+dotenv.config();
+
+// Using Google Gemini API with OpenAI compatibility
+const geminiAI = new OpenAI({
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+  apiKey: process.env.GEMINI_API || "AIzaSyB_t3pkKT_GvB4vPYNkrdALSajq5N0Sbu4",
 });
 const stream = false; // Change to `true` if you want streaming responses
 
@@ -91,47 +95,45 @@ export async function generateStory(options: StoryGenerationOptions): Promise<{
     ? `Love interest description: ${loveInterestDescription}\nIncorporate these specific details about the love interest.` 
     : "";
 
-  const systemPrompt = `You are an expert erotic fiction writer known for creating tasteful, sensual narratives.
-Generate an erotic story with the following parameters:
+  const systemPrompt = `You must return ONLY valid JSON. No explanations, no title suggestions, no additional text.
+
+Create an erotic story with these parameters:
 - Time Period: ${timePeriod}
 - Location: ${location}
 - Atmosphere: ${atmosphere}
-- Protagonist Gender: ${protagonistGender}
-- Partner Gender: ${partnerGender}
+- Protagonist: ${protagonistGender}
+- Partner: ${partnerGender}
 - Relationship: ${relationship}
-- Writing Tone: ${writingTone}
-${targetWordCount} This is critical for producing the correct audio duration.
-${explicitLevelDescription}
-${titlePrompt}
+- Tone: ${writingTone}
+- ${targetWordCount}
+- ${explicitLevelDescription}
+- ${titlePrompt}
 
 ${settingPrompt}
 ${protagonistPrompt}
 ${loveInterestPrompt}
 
-IMPORTANT: Make the story incomplete/unfinished, ending with a cliffhanger at the end of a complete sentence or scene. End at a natural pause point that creates anticipation for the next chapter. DO NOT end mid-sentence or mid-word.
-
-Your story should be tasteful, sensual, and focus on the emotional and physical connection between characters.
-Include vivid descriptions and engaging dialogue. Start with setting the scene and gradually build tension.
-
-Format your response as JSON with the following structure:
+MANDATORY JSON FORMAT (nothing else):
 {
-  "title": "${title || "Story Title"}",
-  "content": "Full story with proper paragraphs and formatting"
-}`;
+  "title": "Story Title Here",
+  "content": "Complete story content with vivid descriptions, dialogue, and sensual elements. End with cliffhanger."
+}
 
-  const userPrompt = "Generate a high-quality erotic story based on the parameters.";
+DO NOT include title options, explanations, or any text outside the JSON object.`;
+
+  const userPrompt = "Create the erotic story now. Return ONLY the JSON object with title and content. No explanations, no title suggestions, no additional text.";
 
   try {
-    // Use Novita.ai with the deepseek model for story generation
-    console.log("Generating story with Novita.ai deepseek model...");
-    const completion = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    // Use Google Gemini for story generation
+    console.log("Generating story with Google Gemini model...");
+    const completion = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       max_tokens: maxTokens,
-      temperature: 0.8,
+      temperature: 0.7, // Slightly lower for more consistent JSON output
       stream,
     });
 
@@ -188,75 +190,82 @@ Format your response as JSON with the following structure:
     } else {
       let responseText = completion.choices[0].message.content || '{"title": "Untitled", "content": "Story generation failed."}';
 
-      // Remove any markdown formatting that might be present
-      responseText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '');
+      // Remove markdown code blocks that Gemini adds around JSON
+      responseText = responseText
+        .replace(/```json\s*/g, '') // Remove opening ```json
+        .replace(/```\s*$/g, '') // Remove closing ```
+        .trim();
 
       try {
-        // First try to extract JSON if the response contains JSON object markers
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        let jsonStr = jsonMatch ? jsonMatch[0] : responseText;
-        
-        // Clean the string of problematic escape and control characters
-        jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove all control characters
-                         .replace(/\\n/g, '\\n')
-                         .replace(/\\'/g, "\\'")
-                         .replace(/\\"/g, '\\"')
-                         .replace(/\\&/g, '\\&')
-                         .replace(/\\r/g, '\\r')
-                         .replace(/\\t/g, '\\t')
-                         .replace(/\\b/g, '\\b')
-                         .replace(/\\f/g, '\\f')
-                         .replace(/\n/g, ' '); // Replace newlines with spaces to help with parsing
+        // Since Gemini returns proper JSON in markdown blocks, try direct parsing first
+        let jsonStr = responseText;
         
         try {
-          // Try to parse the cleaned JSON
+          // Try to parse the JSON directly (after markdown removal)
           const result = JSON.parse(jsonStr);
-          
-          // Process content to remove any remaining JSON formatting
-          let finalContent = result.content || responseText;
-          
-          // If content still contains JSON-like structures, clean it further
-          if (finalContent.includes('{') && finalContent.includes('}')) {
-            finalContent = finalContent
-              .replace(/{[^}]*}/g, '') // Remove any remaining JSON objects
-              .replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, '') // Remove arrays of strings
-              .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
-              .trim();
-          }
-
-          // Validate that the story doesn't end mid-sentence
-          const lastChar = finalContent.slice(-1);
-          const lastFewChars = finalContent.slice(-3);
-          
-          // If it ends abruptly, try to clean it up
-          if (!['."', '!"', '?"', '"'].some(ending => lastFewChars.includes(ending))) {
-            // Find the last complete sentence
-            const sentences = finalContent.split(/[.!?]+/);
-            if (sentences.length > 1) {
-              // Remove the incomplete last sentence and reconstruct
-              sentences.pop(); // Remove last incomplete part
-              finalContent = sentences.join('.') + '.';
-            }
-          }
           
           return { 
             title: title || result.title || "Untitled Story", 
-            content: finalContent 
+            content: result.content || "Story generation failed"
           };
         } catch (nestedJsonError) {
           console.error("Error parsing cleaned JSON:", nestedJsonError);
-          // If still cannot parse, just use the response text directly
+          
+          // Comprehensive fallback: Extract actual story content from Gemini's verbose response
+          let content = responseText;
+          
+          // Remove all the explanatory text and title suggestions
+          content = content
+            .replace(/^.*?Here are a few title options.*?(?=\n\n|\n[A-Z])/is, '') // Remove title section
+            .replace(/^\* \*\*.*?\*\*.*$/gm, '') // Remove bullet point titles
+            .replace(/^Here's? (?:the|a) story.*?$/gm, '') // Remove story introductions
+            .replace(/^Based on.*?$/gm, '') // Remove parameter explanations
+            .replace(/^.*?ranging in tone.*?$/gm, '') // Remove tone descriptions
+            .replace(/^\s*[\*\-\+]\s+.*$/gm, '') // Remove all bullet points
+            .replace(/^\s*$\n/gm, '') // Remove empty lines
+            .trim();
+          
+          // Find the actual story start (usually starts with "The" and contains story elements)
+          const storyMatch = content.match(/(The\s+(?:turquoise|crystal|warm|golden|sun|beach|water|wind|island).*?)$/is) ||
+                           content.match(/(I\s+(?:was|had|found|saw|felt).*?)$/is) ||
+                           content.match(/([A-Z][a-z]+.*?(?:water|sun|beach|resort|island|paradise|garden).*?)$/is);
+          
+          if (storyMatch) {
+            content = storyMatch[1].trim();
+          }
+          
           return {
             title: title || "Untitled Story",
-            content: responseText
+            content: content
           };
         }
       } catch (jsonError) {
-        console.error("Error parsing JSON response from Novita:", jsonError);
-        // Fallback to creating a basic object from raw text
+        console.error("Error parsing JSON response from Gemini:", jsonError);
+        
+        // Last resort: Extract story from the exact format shown in the image
+        let content = responseText;
+        
+        // Handle the specific format from your image: "Here are a few title options... * **Title** (description)"
+        const afterTitleOptions = content.split(/Here are a few title options.*?\n/i)[1];
+        if (afterTitleOptions) {
+          // Find the actual story start after all the title suggestions
+          const storyStart = afterTitleOptions.search(/The\s+(?:turquoise|crystal|warm|sun|water)/i);
+          if (storyStart !== -1) {
+            content = afterTitleOptions.substring(storyStart);
+          } else {
+            content = afterTitleOptions.replace(/^\* \*\*.*?\*\*.*$/gm, '').trim();
+          }
+        }
+        
+        // Clean up any remaining formatting
+        content = content
+          .replace(/^\* \*\*.*?\*\*.*$/gm, '') // Remove title suggestions
+          .replace(/^\s*$/gm, '') // Remove empty lines
+          .trim();
+        
         return {
           title: title || "Untitled Story",
-          content: responseText
+          content: content
         };
       }
     }
@@ -268,8 +277,8 @@ Format your response as JSON with the following structure:
 
 export async function generateChapterSummary(content: string, chapterNumber: number): Promise<string> {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: `Generate a brief, tasteful summary (1-2 sentences) for Chapter ${chapterNumber} of an erotic story. Focus on the key events and emotional developments without being overly explicit.` },
         { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 800)}...` },
@@ -293,21 +302,51 @@ export async function generateChapterSummary(content: string, chapterNumber: num
 
 export async function generateChapterTitle(content: string, chapterNumber: number): Promise<string> {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
-      messages: [
-        { role: "system", content: `Generate a captivating, descriptive title for Chapter ${chapterNumber} of an erotic story. The title should be 2-6 words and capture the essence of what happens in this chapter. Focus on the key action, emotion, or scene.` },
-        { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 500)}...` },
-      ],
-      max_tokens: 30,
-      temperature: 0.7,
-    });
-
-    let title = response.choices[0].message.content?.replace(/"/g, "").trim() || `Chapter ${chapterNumber}`;
+    console.log("=== USING NEW CHAPTER TITLE FUNCTION ===");
+    // Simple approach: Generate basic titles based on content keywords
+    // This avoids Gemini's tendency to generate verbose responses
+    const keywords = content.toLowerCase();
+    let title = `Chapter ${chapterNumber}`;
     
-    // Clean the title
-    title = title.replace(/^Chapter \d+:?\s*/i, '').trim();
-    if (!title) title = `Chapter ${chapterNumber}`;
+    // Generate titles based on content themes
+    if (keywords.includes('beach') || keywords.includes('sand') || keywords.includes('ocean')) {
+      title = 'Seaside Encounter';
+    } else if (keywords.includes('garden') || keywords.includes('flower')) {
+      title = 'Garden Romance';
+    } else if (keywords.includes('cottage') || keywords.includes('cabin')) {
+      title = 'Intimate Hideaway';
+    } else if (keywords.includes('sunset') || keywords.includes('sunrise')) {
+      title = 'Golden Hour';
+    } else if (keywords.includes('wine') || keywords.includes('dinner')) {
+      title = 'Evening Desires';
+    } else if (keywords.includes('kiss') || keywords.includes('lips')) {
+      title = 'First Touch';
+    } else if (keywords.includes('dance') || keywords.includes('music')) {
+      title = 'Rhythmic Passion';
+    } else if (keywords.includes('rain') || keywords.includes('storm')) {
+      title = 'Storm of Desire';
+    } else if (keywords.includes('fire') || keywords.includes('flame')) {
+      title = 'Burning Passion';
+    } else if (keywords.includes('moonlight') || keywords.includes('night')) {
+      title = 'Moonlit Embrace';
+    } else if (keywords.includes('morning') || keywords.includes('dawn')) {
+      title = 'Dawn Awakening';
+    } else if (keywords.includes('secret') || keywords.includes('hidden')) {
+      title = 'Secret Moments';
+    } else {
+      // Default romantic titles for different chapter numbers
+      const defaultTitles = [
+        'Unexpected Meeting',
+        'Growing Attraction', 
+        'Passionate Encounter',
+        'Intimate Connection',
+        'Deepening Bond',
+        'Tender Moments',
+        'Rising Heat',
+        'Sweet Surrender'
+      ];
+      title = defaultTitles[(chapterNumber - 1) % defaultTitles.length] || `Chapter ${chapterNumber}`;
+    }
     
     return title;
   } catch (error) {
@@ -318,8 +357,8 @@ export async function generateChapterTitle(content: string, chapterNumber: numbe
 
 export async function generateStoryTitle(content: string): Promise<string> {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: "Generate a captivating, sensual title for this erotic story. Keep it concise (2-5 words)." },
         { role: "user", content: `Story content (first paragraph): ${content.substring(0, 300)}...` },
@@ -337,8 +376,8 @@ export async function generateStoryTitle(content: string): Promise<string> {
 
 export async function generateTitleSuggestions(content: string): Promise<string[]> {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: "Generate 5 captivating, sensual titles for this erotic story. Keep them concise (2-5 words). Respond in JSON format with an array of titles." },
         { role: "user", content: `Story content (first paragraph): ${content.substring(0, 300)}...` },
@@ -421,8 +460,8 @@ export async function generateTitleSuggestions(content: string): Promise<string[
 
 export async function generateChoices(chapterContent: string): Promise<{ text: string; outcome?: string }[]> {
   try {
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.` },
         { role: "user", content: `Current chapter ends with: ${chapterContent.slice(-500)}` },
@@ -544,8 +583,8 @@ export async function continueStory(existingContent: string, settings: StoryGene
     
     Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
 
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Here's the existing story content:\n\n${existingContent}\n\nIMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from the last sentence. DO NOT repeat any dialogue, actions, or scenarios that already happened. Move the story forward with new developments, locations, or conversation topics.` }
@@ -682,8 +721,8 @@ export async function concludeStory(existingContent: string, settings: StoryGene
     
     Your conclusion should provide a sense of closure and resolution.`;
 
-    const response = await novitaAI.chat.completions.create({
-      model: "deepseek/deepseek_v3",
+    const response = await geminiAI.chat.completions.create({
+      model: "gemini-2.0-flash-exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Here\'s the existing story content:\n\n${existingContent}\n\nIMPORTANT: Conclude the story from the exact point where it ended. Provide a satisfying resolution.` }

@@ -10,7 +10,7 @@ import { Link } from "wouter";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   premiumOnly?: boolean;
-  minimumTier?: 'essential' | 'passion' | 'escape';
+  minimumTier?: 'essentiel' | 'seduction' | 'intimacy';
 }
 
 export default function ProtectedRoute({ children, premiumOnly = false, minimumTier }: ProtectedRouteProps) {
@@ -39,7 +39,7 @@ export default function ProtectedRoute({ children, premiumOnly = false, minimumT
 
   // Check for minimum tier requirement (for premium gallery)
   if (minimumTier) {
-    const tierLevels = { essential: 1, passion: 2, escape: 3 };
+    const tierLevels = { essentiel: 1, seduction: 2, intimacy: 3 };
     const userTierLevel = user?.subscription ? tierLevels[user.subscription as keyof typeof tierLevels] || 0 : 0;
     const requiredTierLevel = tierLevels[minimumTier];
 
@@ -54,10 +54,10 @@ export default function ProtectedRoute({ children, premiumOnly = false, minimumT
               Premium Gallery Access Required
             </h2>
             <p className="text-gray-400 mb-4">
-              This premium content requires a {minimumTier.charAt(0).toUpperCase() + minimumTier.slice(1)} subscription or higher.
+              This premium content requires a {minimumTier === 'essentiel' ? 'Essentiel' : minimumTier.charAt(0).toUpperCase() + minimumTier.slice(1)} subscription or higher.
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Current plan: {user?.subscription ? user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1) : 'Free'}
+              Current plan: {user?.subscription ? (user.subscription === 'essentiel' ? 'Essentiel' : user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)) : 'Free'}
             </p>
             <div className="space-y-3">
               <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">

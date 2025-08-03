@@ -1,60 +1,86 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Coins, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, Volume2, Crown, Plus } from 'lucide-react';
 
 interface CreditDisplayProps {
-  credits: number;
-  maxCredits?: number;
+  textCredits: number;
+  audioCredits: number;
   isPremium?: boolean;
   onTopUp?: () => void;
 }
 
 export default function CreditDisplay({ 
-  credits, 
-  maxCredits = 0, 
+  textCredits, 
+  audioCredits, 
   isPremium = false,
   onTopUp 
 }: CreditDisplayProps) {
-  const progress = maxCredits > 0 ? Math.min(100, (credits / maxCredits) * 100) : 0;
+  const totalCredits = textCredits + audioCredits;
   
   return (
-    <Card className="w-full max-w-md border-2">
+    <Card className="w-full max-w-md bg-gradient-to-br from-[#1E1E1E] to-[#3D315B] border-gray-700">
       <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">Your Credits</h3>
+            <div className="p-2 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] rounded-lg">
+              <FileText className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-[#F0E6DC]">Your Credits</h3>
           </div>
           {isPremium && (
-            <div className="flex items-center gap-1 bg-primary/20 px-2 py-0.5 rounded-full">
-              <Star className="h-3.5 w-3.5 text-primary fill-primary" />
-              <span className="text-xs font-medium">Premium</span>
+            <div className="flex items-center gap-1 bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] px-2 py-1 rounded-full">
+              <Crown className="h-3.5 w-3.5 text-white" />
+              <span className="text-xs font-medium text-white">Premium</span>
             </div>
           )}
         </div>
         
-        <div className="flex items-end justify-between mb-3">
-          <div className="text-4xl font-bold">{credits}</div>
-          {maxCredits > 0 && (
-            <div className="text-sm text-muted-foreground">of {maxCredits} monthly credits</div>
-          )}
+        {/* Credits Display */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-[#121212] p-4 rounded-lg border border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-[#D9B08C]" />
+              <span className="text-sm text-gray-400">Text</span>
+            </div>
+            <div className="text-2xl font-bold text-[#D9B08C]">{textCredits}</div>
+            <div className="text-xs text-gray-500">for stories</div>
+          </div>
+          
+          <div className="bg-[#121212] p-4 rounded-lg border border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Volume2 className="h-4 w-4 text-[#8B1E3F]" />
+              <span className="text-sm text-gray-400">Audio</span>
+            </div>
+            <div className="text-2xl font-bold text-[#8B1E3F]">{audioCredits}</div>
+            <div className="text-xs text-gray-500">for narration</div>
+          </div>
         </div>
         
-        {maxCredits > 0 && (
-          <div className="mb-4">
-            <Progress value={progress} className="h-2.5" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {maxCredits - credits} credits remaining this month
-            </p>
-          </div>
-        )}
+        {/* Total Display */}
+        <div className="text-center mb-4">
+          <div className="text-sm text-gray-400">Total Credits Available</div>
+          <div className="text-xl font-bold text-[#F0E6DC]">{totalCredits}</div>
+        </div>
         
-        <p className="text-sm text-muted-foreground mt-2">
+        {/* Description */}
+        <p className="text-sm text-gray-400 mb-4 text-center">
           {isPremium 
-            ? "As a premium member, you receive monthly credits that renew each billing cycle."
-            : "Purchase credits to create stories, chapters, and audio narrations beyond your monthly limits."
+            ? "Your premium credits renew monthly with your subscription."
+            : "Purchase more credits to create additional stories and audio content."
           }
         </p>
+        
+        {/* Top Up Button */}
+        {onTopUp && (
+          <Button 
+            onClick={onTopUp}
+            className="w-full bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C] text-white"
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {isPremium ? "Buy More Credits" : "Get Premium"}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

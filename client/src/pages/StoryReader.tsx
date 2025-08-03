@@ -16,6 +16,7 @@ import { formatTime } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Chapter } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
+import { PremiumUpgradeDialog } from "@/components/PremiumUpgradeDialog";
 
 interface StoryReaderProps {
   params: {
@@ -24,7 +25,7 @@ interface StoryReaderProps {
 }
 
 const StoryReader = ({ params }: StoryReaderProps) => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [, navigate] = useLocation();
   const storyId = params.id;
   const [hasAudio, setHasAudio] = useState(false);
@@ -32,9 +33,11 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showCreditDialog, setShowCreditDialog] = useState(false);
   const [showConcludeDialog, setShowConcludeDialog] = useState(false);
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
   const [fontSize, setFontSize] = useState<"sm" | "md" | "lg">("md");
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
   const [readingMode, setReadingMode] = useState(false);
+  const [unlockedChapters, setUnlockedChapters] = useState<Set<string>>(new Set());
 
   const likeMutation = useMutation({
     mutationFn: async (storyId: string) => {
@@ -44,14 +47,47 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       }
       return response.json();
     },
+    onMutate: async (storyId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
+      
+      // Snapshot the previous value
+      const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
+      
+      // Optimistically update to new value
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        const wasLiked = old.hasLiked;
+        return {
+          ...old,
+          hasLiked: !wasLiked,
+          likes: wasLiked ? Math.max(0, (old.likes || 0) - 1) : (old.likes || 0) + 1
+        };
+      });
+      
+      // Return a context with the previous and new story
+      return { previousStory };
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      // Update with server response
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          hasLiked: data.hasLiked,
+          likes: data.likes
+        };
+      });
       toast({
-        title: "Story Liked",
-        description: "You've successfully liked this story!",
+        title: data.hasLiked ? "Story Liked" : "Story Unliked",
+        description: data.hasLiked ? "You've successfully liked this story!" : "You've removed your like from this story.",
       });
     },
-    onError: (error) => {
+    onError: (error, storyId, context) => {
+      // Rollback on error
+      if (context?.previousStory) {
+        queryClient.setQueryData([`/api/stories/${storyId}`], context.previousStory);
+      }
       console.error("Error liking story:", error);
       toast({
         title: "Error",
@@ -76,14 +112,45 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       }
       return response.json();
     },
+    onMutate: async (storyId) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
+      const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
+      
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        const wasUpvoted = old.hasUpvoted;
+        const wasDownvoted = old.hasDownvoted;
+        return {
+          ...old,
+          hasUpvoted: !wasUpvoted,
+          hasDownvoted: wasUpvoted ? wasDownvoted : false, // Remove downvote if adding upvote
+          upvotes: wasUpvoted ? Math.max(0, (old.upvotes || 0) - 1) : (old.upvotes || 0) + 1,
+          downvotes: wasUpvoted ? (old.downvotes || 0) : wasDownvoted ? Math.max(0, (old.downvotes || 0) - 1) : (old.downvotes || 0)
+        };
+      });
+      
+      return { previousStory };
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          hasUpvoted: data.hasUpvoted,
+          hasDownvoted: data.hasDownvoted,
+          upvotes: data.upvotes,
+          downvotes: data.downvotes
+        };
+      });
       toast({
-        title: "Story Upvoted",
-        description: "You've successfully upvoted this story!",
+        title: data.hasUpvoted ? "Story Upvoted" : "Upvote Removed",
+        description: data.hasUpvoted ? "You've successfully upvoted this story!" : "You've removed your upvote from this story.",
       });
     },
-    onError: (error) => {
+    onError: (error, storyId, context) => {
+      if (context?.previousStory) {
+        queryClient.setQueryData([`/api/stories/${storyId}`], context.previousStory);
+      }
       console.error("Error upvoting story:", error);
       toast({
         title: "Error",
@@ -107,14 +174,45 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       }
       return response.json();
     },
+    onMutate: async (storyId) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
+      const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
+      
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        const wasDownvoted = old.hasDownvoted;
+        const wasUpvoted = old.hasUpvoted;
+        return {
+          ...old,
+          hasDownvoted: !wasDownvoted,
+          hasUpvoted: wasDownvoted ? wasUpvoted : false, // Remove upvote if adding downvote
+          downvotes: wasDownvoted ? Math.max(0, (old.downvotes || 0) - 1) : (old.downvotes || 0) + 1,
+          upvotes: wasDownvoted ? (old.upvotes || 0) : wasUpvoted ? Math.max(0, (old.upvotes || 0) - 1) : (old.upvotes || 0)
+        };
+      });
+      
+      return { previousStory };
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
+      queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          hasUpvoted: data.hasUpvoted,
+          hasDownvoted: data.hasDownvoted,
+          upvotes: data.upvotes,
+          downvotes: data.downvotes
+        };
+      });
       toast({
-        title: "Story Downvoted",
-        description: "You've successfully downvoted this story!",
+        title: data.hasDownvoted ? "Story Downvoted" : "Downvote Removed",
+        description: data.hasDownvoted ? "You've successfully downvoted this story!" : "You've removed your downvote from this story.",
       });
     },
-    onError: (error) => {
+    onError: (error, storyId, context) => {
+      if (context?.previousStory) {
+        queryClient.setQueryData([`/api/stories/${storyId}`], context.previousStory);
+      }
       console.error("Error downvoting story:", error);
       toast({
         title: "Error",
@@ -226,24 +324,11 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
     },
     onError: (error: any) => {
-      if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
-        toast({
-          title: "Insufficient Credits",
-          description: (
-            <div className="flex flex-col space-y-2">
-              <p>You don't have enough credits to continue this story.</p>
-              <Button
-                size="sm"
-                onClick={() => navigate('/credits')}
-                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
-              >
-                Purchase Credits
-              </Button>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 5000,
-        });
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("Insufficient text credits") || 
+          errorMessage.includes("Insufficient credits") ||
+          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+        setShowPremiumDialog(true);
       } else {
         toast({
           title: "Error",
@@ -265,24 +350,11 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
     },
     onError: (error: any) => {
-      if (error.response?.data?.code === "INSUFFICIENT_CREDITS") {
-        toast({
-          title: "Insufficient Credits",
-          description: (
-            <div className="flex flex-col space-y-2">
-              <p>You don't have enough credits to continue this story.</p>
-              <Button
-                size="sm"
-                onClick={() => navigate('/credits')}
-                className="mt-2 w-full bg-amber-600 hover:bg-amber-700"
-              >
-                Purchase Credits
-              </Button>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 5000,
-        });
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("Insufficient text credits") || 
+          errorMessage.includes("Insufficient credits") ||
+          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+        setShowPremiumDialog(true);
       } else {
         toast({
           title: "Error",
@@ -306,16 +378,30 @@ const StoryReader = ({ params }: StoryReaderProps) => {
         title: "Chapter Unlocked",
         description: "You can now read this chapter.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
+      // Add to local unlocked chapters for immediate UI update
+      const chapterKey = `${storyId}-${currentChapterNum}`;
+      setUnlockedChapters(prev => new Set([...prev, chapterKey]));
+      
+      // Refresh user data to get updated unlockedChapters
+      refreshUser();
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}/chapters`] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unlock chapter. Please try again.",
-        variant: "destructive",
-      });
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("Insufficient text credits") || 
+          errorMessage.includes("Insufficient credits") ||
+          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+        setShowPremiumDialog(true);
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to unlock chapter. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -370,7 +456,8 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const isChapterUnlocked = (
     currentChapter?.number === 1 ||
     story?.userId === user?._id ||
-    user?.unlockedChapters?.some(uc => uc.storyId === storyId && uc.chapterNumber === currentChapterNum)
+    user?.unlockedChapters?.some(uc => uc.storyId === storyId && uc.chapterNumber === currentChapterNum) ||
+    unlockedChapters.has(`${storyId}-${currentChapterNum}`)
   );
 
   const canGoNext = currentChapterNum < chapters.length;
@@ -431,18 +518,45 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <button onClick={handleLike} disabled={likeMutation.isPending}>
-                          <Heart size={16} fill={story?.likes > 0 ? "#A93B5B" : "none"} className="text-[#A93B5B]" />
+                        <button 
+                          onClick={handleLike} 
+                          disabled={likeMutation.isPending}
+                          className={`transition-all duration-200 hover:scale-110 ${likeMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                          title={story?.hasLiked ? 'Unlike this story' : 'Like this story'}
+                        >
+                          <Heart 
+                            size={16} 
+                            fill={story?.hasLiked ? "#A93B5B" : "none"} 
+                            className={`text-[#A93B5B] transition-colors duration-200 ${story?.hasLiked ? 'drop-shadow-sm' : ''}`} 
+                          />
                         </button>
-                        <span className="text-xs text-gray-400">{story?.likes || 0}</span>
-                        <button onClick={handleUpvote} disabled={upvoteMutation.isPending}>
-                          <ThumbsUp size={16} fill={story?.upvotes > 0 ? "#60A5FA" : "none"} className="text-blue-400" />
+                        <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.likes || 0}</span>
+                        <button 
+                          onClick={handleUpvote} 
+                          disabled={upvoteMutation.isPending}
+                          className={`transition-all duration-200 hover:scale-110 ${upvoteMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                          title={story?.hasUpvoted ? 'Remove upvote' : 'Upvote this story'}
+                        >
+                          <ThumbsUp 
+                            size={16} 
+                            fill={story?.hasUpvoted ? "#60A5FA" : "none"} 
+                            className={`text-blue-400 transition-colors duration-200 ${story?.hasUpvoted ? 'drop-shadow-sm' : ''}`} 
+                          />
                         </button>
-                        <span className="text-xs text-gray-400">{story?.upvotes || 0}</span>
-                        <button onClick={handleDownvote} disabled={downvoteMutation.isPending}>
-                          <ThumbsDown size={16} fill={story?.downvotes > 0 ? "#F87171" : "none"} className="text-red-400" />
+                        <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.upvotes || 0}</span>
+                        <button 
+                          onClick={handleDownvote} 
+                          disabled={downvoteMutation.isPending}
+                          className={`transition-all duration-200 hover:scale-110 ${downvoteMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                          title={story?.hasDownvoted ? 'Remove downvote' : 'Downvote this story'}
+                        >
+                          <ThumbsDown 
+                            size={16} 
+                            fill={story?.hasDownvoted ? "#F87171" : "none"} 
+                            className={`text-red-400 transition-colors duration-200 ${story?.hasDownvoted ? 'drop-shadow-sm' : ''}`} 
+                          />
                         </button>
-                        <span className="text-xs text-gray-400">{story?.downvotes || 0}</span>
+                        <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.downvotes || 0}</span>
                         <button className="text-gray-400 hover:text-[#D9B08C]">
                           <Share2 size={16} />
                         </button>
@@ -460,7 +574,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                       <SelectContent>
                         {chapters.map((chapter) => (
                           <SelectItem key={chapter.number} value={chapter.number.toString()}>
-                            Chapter {chapter.number}: {chapter.title}
+                            Chapter {chapter.number}: {story.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -484,7 +598,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                       <ChevronLeft size={16} />
                     </Button>
                     <div className="text-center">
-                      <h3 className="font-['Playfair_Display'] text-lg">{currentChapter.title} </h3>
+                      <h3 className="font-['Playfair_Display'] text-lg">{story.title}</h3>
                       <p className="text-sm text-gray-400">Chapter {currentChapterNum} of {chapters.length}</p>
                     </div>
                     <Button
@@ -537,7 +651,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               {hasAudio && isChapterUnlocked ? (
                 <AudioPlayer
                   audioUrl={(currentChapter?.audioUrl) || story.audioUrl || audioData?.audioUrl || null}
-                  title={currentChapter ? currentChapter.title : story.title}
+                  title={story.title}
                   narrator={settings.narrationVoice || settings.narrationVoiceId || "Narrator"}
                   isFallback={audioData?.fallback || false}
                   fallbackMessage={audioData?.message}
@@ -547,7 +661,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                   <div className="flex justify-between items-center">
                     <div>
                       <h4 className="font-['Playfair_Display'] text-lg">
-                        {currentChapter ? currentChapter.title : story.title}
+                        {story.title}
                       </h4>
                       <p className="text-sm text-gray-400">Generate audio to listen to this chapter</p>
                     </div>
@@ -565,7 +679,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               <div
                 className={`story-text-content font-${fontFamily} text-${fontSize}`}>
                 <h2 className="text-2xl font-['Playfair_Display'] font-semibold mb-4">
-                  {currentChapter ? currentChapter.title : story.title}
+                  {story.title}
                 </h2>
                 {isChapterUnlocked ? (
                   (currentChapter ? currentChapter.content : story.content || '').split('\n').map((paragraph, index) => (
@@ -583,7 +697,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                       disabled={unlockChapterMutation.isPending}
                       className="mt-4 bg-[#8B1E3F] hover:bg-[#A93B5B]"
                     >
-                      {unlockChapterMutation.isPending ? "Unlocking..." : `Unlock for ${currentChapter?.creditsCost} credit(s)`}
+                      {unlockChapterMutation.isPending ? "Unlocking..." : `Unlock for ${currentChapter?.textCreditsCost || 1} text credit(s)`}
                     </Button>
                   </div>
                 )}
@@ -669,7 +783,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Continue Story</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              Continuing this story will cost 1 credit. You will get a new chapter added to your story.
+              Continuing this story will cost 1 text credit. You will get a new chapter added to your story.
               Are you sure you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -681,7 +795,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               className="bg-[#8B1E3F] hover:bg-[#A93B5B] text-white"
               onClick={() => continueStoryMutation.mutate({ storyId: storyId.toString() })}
             >
-              Continue Story (1 Credit)
+              Continue Story (1 Text Credit)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -692,7 +806,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Conclude Story</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              This will generate a final chapter to conclude the story. This action will cost 1 credit.
+              This will generate a final chapter to conclude the story. This action will cost 1 text credit.
               Are you sure you want to end the story?
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -704,11 +818,22 @@ const StoryReader = ({ params }: StoryReaderProps) => {
               className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => continueStoryMutation.mutate({ storyId, conclude: true })}
             >
-              Conclude Story (1 Credit)
+              Conclude Story (1 Text Credit)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Premium Upgrade Dialog for Story Continuation */}
+      <PremiumUpgradeDialog
+        isOpen={showPremiumDialog}
+        onClose={() => setShowPremiumDialog(false)}
+        trigger="insufficient_credits"
+        currentCredits={{
+          text: user?.textCredits || 0,
+          audio: user?.audioCredits || 0
+        }}
+      />
     </div>
   );
 }

@@ -40,6 +40,7 @@ const Footer = () => {
               <ul className="space-y-2">
                 {/* <li><FooterLink href="/contact" label="Contact Us" /></li> */}
                 <li><FooterLink href="/faq" label="FAQ" /></li>
+                <li><FooterLink href="/monetization-guide" label="Pricing Guide" /></li>
                 {/* <li><FooterLink href="/help" label="Help Center" /></li> */}
                 {/* <li><FooterLink href="/report" label="Report Issues" /></li> */}
               </ul>

@@ -77,16 +77,23 @@ export default function PremiumGallery() {
   }
 
   const getTierInfo = () => {
-    if (user?.subscription === 'passion') {
+    if (user?.subscription === 'essentiel') {
       return {
-        title: 'Premium Gallery - Passion Access',
+        title: 'Premium Gallery - Essentiel Access',
         description: 'Early access stories that will become public later',
-        badge: 'Partial Access',
-        color: 'from-purple-500 to-indigo-500'
+        badge: 'Basic Access',
+        color: 'from-blue-500 to-indigo-500'
       };
-    } else if (user?.subscription === 'escape') {
+    } else if (user?.subscription === 'seduction') {
       return {
-        title: 'Premium Gallery - Escape Access',
+        title: 'Premium Gallery - Seduction Access',
+        description: 'Early access + exclusive premium content',
+        badge: 'Enhanced Access',
+        color: 'from-purple-500 to-pink-500'
+      };
+    } else if (user?.subscription === 'intimacy') {
+      return {
+        title: 'Premium Gallery - Intimacy Access',
         description: 'Full access to all exclusive premium content',
         badge: 'Full Access',
         color: 'from-yellow-500 to-orange-500'
@@ -126,7 +133,7 @@ export default function PremiumGallery() {
             ))}
           </div>
           
-          {user?.subscription === 'passion' && (
+          {(user?.subscription === 'essentiel' || user?.subscription === 'seduction') && (
             <div className="mt-12">
               <Card className="bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border-yellow-500/20 p-6 text-center">
                 <CardHeader>
@@ -134,12 +141,17 @@ export default function PremiumGallery() {
                     Want More Premium Content?
                   </CardTitle>
                   <CardDescription>
-                    Upgrade to Escape for full access to all exclusive premium stories
+                    {user?.subscription === 'essentiel' 
+                      ? 'Upgrade to Seduction or Intimacy for more exclusive premium stories'
+                      : 'Upgrade to Intimacy for full access to all exclusive premium stories'
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button asChild className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600">
-                    <Link href="/premium-upgrade">Upgrade to Escape</Link>
+                    <Link href="/premium-upgrade">
+                      {user?.subscription === 'essentiel' ? 'Upgrade Plan' : 'Upgrade to Intimacy'}
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>

@@ -34,6 +34,7 @@ import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
 import PaymentSubscriptionSuccess from "@/pages/PaymentSubscriptionSuccess";
 import PremiumGallery from "./pages/PremiumGallery";
 import PremiumUpgrade from "./pages/PremiumUpgrade";
+import MonetizationGuide from "./pages/MonetizationGuide";
 
 function App() {
   return (
@@ -85,7 +86,7 @@ function App() {
               </Route>
 
               <Route path="/premium-gallery">
-                <ProtectedRoute minimumTier="passion">
+                <ProtectedRoute minimumTier="seduction">
                   <PremiumGallery />
                 </ProtectedRoute>
               </Route>
@@ -115,6 +116,8 @@ function App() {
                   <CreditsPage />
                 </ProtectedRoute>
               </Route>
+
+              <Route path="/monetization-guide" component={MonetizationGuide} />
               
               <Route path="/checkout/:type/:id">
                 <ProtectedRoute>

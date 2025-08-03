@@ -8,7 +8,8 @@ const chapterSchema = new Schema({
   audioUrl: { type: String },
   createdAt: { type: Date, default: Date.now },
   wordCount: { type: Number },
-  creditsCost: { type: Number, default: 1 }
+  textCreditsCost: { type: Number, default: 1 },
+  audioCreditsCost: { type: Number, default: 2 }
 });
 
 const storySchema = new Schema({
@@ -26,7 +27,8 @@ const storySchema = new Schema({
   upvotes: { type: Number, default: 0 },
   downvotes: { type: Number, default: 0 },
   category: { type: String, default: "romance" },
-  creditsCost: { type: Number, default: 1 },
+  textCreditsCost: { type: Number, default: 1 },
+  audioCreditsCost: { type: Number, default: 2 },
   chapters: { type: [chapterSchema], default: [] },
   currentChapter: { type: Number, default: 1 },
   totalChapters: { type: Number, default: 1 },
@@ -38,7 +40,11 @@ const storySchema = new Schema({
     default: 'public'
   },
   premiumAccessDate: { type: Date },
-  publicReleaseDate: { type: Date }
+  publicReleaseDate: { type: Date },
+  // Track user interactions to prevent duplicate votes
+  likedBy: [{ type: String }], // Array of user IDs who liked this story
+  upvotedBy: [{ type: String }], // Array of user IDs who upvoted this story
+  downvotedBy: [{ type: String }] // Array of user IDs who downvoted this story
 }, { timestamps: true });
 
 // Remove any existing indexes on the id field

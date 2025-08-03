@@ -17,21 +17,25 @@ const userSchema = new Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   subscription: { 
     type: String, 
-    enum: ["free", "essential", "passion", "escape"], 
+    enum: ["free", "essentiel", "seduction", "intimacy"], 
     default: "free" 
   },
   isPremium: { type: Boolean, default: false }, // True for any paid plan
-  credits: { type: Number, default: 10 }, // Default 10 credits for new users
+  // Separate credit system
+  textCredits: { type: Number, default: 2 }, // Credits for text generation
+  audioCredits: { type: Number, default: 1 }, // Credits for audio generation
   // Subscription usage tracking
   usageThisMonth: {
     storiesGenerated: { type: Number, default: 0 },
     chaptersGenerated: { type: Number, default: 0 },
-    audioMinutesUsed: { type: Number, default: 0 },
+    textCreditsUsed: { type: Number, default: 0 },
+    audioCreditsUsed: { type: Number, default: 0 },
     lastResetDate: { type: Date, default: Date.now }
   },
   // For Stripe integration
   stripeCustomerId: { type: String },
   stripeSubscriptionId: { type: String },
+  processedSessions: [{ type: String }], // Track processed Stripe session IDs
   stories: { type: [Schema.Types.ObjectId], ref: "Story", default: [] },
   unlockedChapters: [{ 
     storyId: { type: Schema.Types.ObjectId, ref: 'Story' },

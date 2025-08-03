@@ -199,7 +199,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
       timeframe: 'all_time'
     },
     rewards: {
-      credits: 10
+      credits: 0
     }
   },
 

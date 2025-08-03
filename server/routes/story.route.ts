@@ -126,6 +126,8 @@ router.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 router.get("/public", async (req, res) => {
   try {
     const currentDate = new Date();
+    const userId = req.session?.userId; // Get current user ID if authenticated
+    
     const publicStories = await Story.find({
       $or: [
         { accessType: 'public' },
@@ -135,23 +137,36 @@ router.get("/public", async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(12);
       
-    // Populate user names for each story
+    // Populate user names for each story and check user interactions
     const storiesWithUserNames = await Promise.all(
       publicStories.map(async (story) => {
         try {
+          // Initialize interaction arrays if they don't exist
+          const likedBy = story.likedBy || [];
+          const upvotedBy = story.upvotedBy || [];
+          const downvotedBy = story.downvotedBy || [];
+          
           // Check if userId is a valid ObjectId before querying
           if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
             const user = await User.findById(story.userId).select("name badges");
             return {
               ...story.toObject(),
               userName: user ? user.name : "Anonymous",
-              authorBadges: user ? user.badges : []
+              authorBadges: user ? user.badges : [],
+              // Add user interaction state
+              hasLiked: userId ? likedBy.includes(userId) : false,
+              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+              hasDownvoted: userId ? downvotedBy.includes(userId) : false
             };
           } else {
             return {
               ...story.toObject(),
               userName: "Anonymous",
-              authorBadges: []
+              authorBadges: [],
+              // Add user interaction state
+              hasLiked: userId ? likedBy.includes(userId) : false,
+              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+              hasDownvoted: userId ? downvotedBy.includes(userId) : false
             };
           }
         } catch (err) {
@@ -159,7 +174,10 @@ router.get("/public", async (req, res) => {
           return {
             ...story.toObject(),
             userName: "Anonymous",
-            authorBadges: []
+            authorBadges: [],
+            hasLiked: false,
+            hasUpvoted: false,
+            hasDownvoted: false
           };
         }
       })
@@ -310,13 +328,14 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
     const userId = req.session.userId;
     const user = await User.findById(userId);
 
-    // Check if user has premium gallery access (passion or escape subscription)
-    const hasGalleryAccess = user?.subscription === 'passion' || user?.subscription === 'escape';
+    // Check if user has premium gallery access (any premium subscription)
+    const hasGalleryAccess = ['essentiel', 'seduction', 'intimacy'].includes(user?.subscription || '');
     
     if (!user || !hasGalleryAccess) {
       return res.status(403).json({ 
-        message: "Access denied. Passion or Escape subscription required for premium gallery access.",
-        currentSubscription: user?.subscription || 'none'
+        message: "Access denied. Premium subscription required for premium gallery access.",
+        currentSubscription: user?.subscription || 'none',
+        requiredSubscriptions: ['essentiel', 'seduction', 'intimacy']
       });
     }
 
@@ -325,8 +344,8 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
     let limit = 20;
 
     // Tier-based content filtering
-    if (user.subscription === 'passion') {
-      // Passion users get partial access - only early access stories
+    if (user.subscription === 'essentiel') {
+      // Essentiel users get limited access - only early access stories
       storyQuery = {
         accessType: 'premium_early_access',
         $or: [
@@ -335,8 +354,18 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
         ]
       };
       limit = 10;
-    } else if (user.subscription === 'escape') {
-      // Escape users get full access - all premium content
+    } else if (user.subscription === 'seduction') {
+      // Seduction users get expanded access - early access + some exclusive content
+      storyQuery = {
+        accessType: { $in: ['premium_early_access', 'premium_exclusive'] },
+        $or: [
+          { premiumAccessDate: { $lte: currentDate } },
+          { premiumAccessDate: { $exists: false } }
+        ]
+      };
+      limit = 20;
+    } else if (user.subscription === 'intimacy') {
+      // Intimacy users get full access - all premium content
       storyQuery = {
         accessType: { $in: ['premium_early_access', 'premium_exclusive'] },
         $or: [
@@ -348,8 +377,9 @@ router.get("/premium-stories", authMiddleware, async (req, res) => {
     } else {
       // Fallback for other premium users
       storyQuery = {
-        accessType: { $in: ['premium_early_access', 'premium_exclusive'] }
+        accessType: 'premium_early_access'
       };
+      limit = 5;
     }
 
 

@@ -8,7 +8,8 @@ interface User {
   name: string;
   role: string;
   isPremium: boolean;
-  credits: number;
+  textCredits: number;
+  audioCredits: number;
   unlockedChapters: { storyId: string; chapterNumber: number }[];
   authProvider: string;
   createdAt: string;
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: isLoading || loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending,
         isAuthenticated: !!user,
         isPremium: !!user?.isPremium,
-        hasCredits: (user?.credits ?? 0) > 0,
+        hasCredits: ((user?.textCredits ?? 0) > 0) || ((user?.audioCredits ?? 0) > 0),
         login,
         signup,
         logout,
