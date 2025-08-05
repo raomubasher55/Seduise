@@ -40,16 +40,14 @@ const Header = () => {
   }, [mobileMenuOpen]);
 
   return (
-    <header className="py-4 bg-[#1E1E1E] border-b border-gray-800">
+    <header className="sticky top-0 z-50 py-4 bg-[#1E1E1E] border-b border-gray-800">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <Link href="/" className="text-3xl font-['Playfair_Display'] text-[#D9B08C] font-bold">
               Séduise
             </Link>
-            <span className="ml-2 text-xs bg-[#8B1E3F] px-2 py-1 rounded-full uppercase tracking-wider">
-              Beta
-            </span>
+         
           </div>
           
           <nav className="hidden md:flex space-x-6">
