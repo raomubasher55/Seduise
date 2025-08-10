@@ -12,45 +12,52 @@ const PaymentCreditSuccess = () => {
   const { refreshUser } = useAuth();
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creditsAdded, setCreditsAdded] = useState<number | null>(null);
-  
+  const [creditsAdded, setCreditsAdded] = useState<{ text: number; audio: number } | null>({
+    text: 0,
+    audio: 0,
+  });
+
   // Get URL params
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get('session_id');
   const credits = params.get('credits');
-  
+
   useEffect(() => {
     const processPayment = async () => {
       // First show processing state
       setIsProcessing(true);
-      
+
       if (!sessionId) {
         console.error('No session ID found in URL');
         setError('Payment verification failed. Missing session information.');
         setIsProcessing(false);
         return;
       }
-      
+
       try {
         console.log('Verifying payment with session ID:', sessionId);
-        
+
         // Call the API to verify and process the credit purchase
         const response = await fetch(`/api/payment/credit-success?session_id=${sessionId}&credits=${credits}`);
         const data = await response.json();
-        
+
         if (!response.ok) {
           console.error('Payment verification API returned error:', data);
           throw new Error(data.message || 'Failed to verify payment');
         }
-        
+
         console.log('Payment verified successfully:', data);
-        
+
         // Update user data after successful payment
         await refreshUser();
-        
+
         // Update the credits added - either from response or from URL param
-        const addedCredits = data.credits || parseInt(credits || '0');
-        setCreditsAdded(addedCredits);
+        const textCredits = data.textCredits || parseInt(credits || '0');
+        const audioCredits = data.audioCredits || parseInt(credits || '0');
+        setCreditsAdded({
+          text: textCredits,
+          audio: audioCredits
+        });
         setIsProcessing(false);
       } catch (err) {
         console.error('Error processing payment:', err);
@@ -58,7 +65,7 @@ const PaymentCreditSuccess = () => {
         setIsProcessing(false);
       }
     };
-    
+
     // Only process once on initial load if we have a session ID
     if (sessionId) {
       processPayment();
@@ -67,7 +74,7 @@ const PaymentCreditSuccess = () => {
       setIsProcessing(false);
     }
   }, [sessionId, credits,]);
-  
+
   return (
     <div className="container max-w-2xl mx-auto py-16 px-4">
       <Card className="bg-[#1E1E1E] p-8 text-center">
@@ -93,11 +100,31 @@ const PaymentCreditSuccess = () => {
             </div>
             <h2 className="text-2xl font-semibold mb-2">Credit Purchase Successful!</h2>
             <p className="text-gray-400 mb-2">Thank you for your purchase.</p>
-            {creditsAdded && (
-              <p className="text-xl font-semibold text-amber-500 mb-6">
-                {creditsAdded} credits have been added to your account
-              </p>
-            )}
+           {creditsAdded && (
+  <div className="flex flex-col md:flex-row gap-4 mb-6">
+    {/* Text credits */}
+    <div className="flex-1 rounded-xl bg-[#2A2A2A] p-6 shadow-lg text-center border border-[#D9B08C]/30">
+      <h3 className="text-lg font-bold text-[#D9B08C] mb-2">
+        Text Credits Added
+      </h3>
+      <p className="text-4xl font-extrabold text-[#D9B08C]">
+        {creditsAdded.text}
+      </p>
+    </div>
+
+    {/* Audio credits */}
+    <div className="flex-1 rounded-xl bg-[#2A2A2A] p-6 shadow-lg text-center border border-emerald-400/30">
+      <h3 className="text-lg font-bold text-emerald-400 mb-2">
+        Audio Credits Added
+      </h3>
+      <p className="text-4xl font-extrabold text-emerald-400">
+        {creditsAdded.audio}
+      </p>
+    </div>
+  </div>
+)}
+
+
             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
               <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
               <Button onClick={() => navigate('/create')} variant="outline">
@@ -110,5 +137,5 @@ const PaymentCreditSuccess = () => {
     </div>
   );
 };
-
+ 
 export default PaymentCreditSuccess;

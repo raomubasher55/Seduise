@@ -27,13 +27,13 @@ const packages: CreditPackage[] = [
   {
     id: 'starter',
     name: 'Starter Pack',
-    credits: 20,
+    credits: 5,
     price: 3.99,
     description: 'Perfect for trying more stories',
     features: [
-      '💳 20 credits (one-time purchase)',
-      '📖 Generate ~4-6 short stories',
-      '🎧 Create ~3-4 audio narrations',
+      '💳 5 credits (one-time purchase)',
+      '📖 Generate 3 short stories',
+      '🎧 Create 2 audio narrations',
       '💎 Credits never expire',
       '🔄 Use anytime you run out of monthly credits'
     ]
@@ -41,14 +41,14 @@ const packages: CreditPackage[] = [
   {
     id: 'popular',
     name: 'Popular Pack',
-    credits: 50,
+    credits: 12,
     price: 8.99,
     popular: true,
     description: 'Most popular credit top-up',
     features: [
-      '💳 50 credits (one-time purchase)',
-      '📖 Generate ~10-15 short stories',
-      '🎧 Create ~8-10 audio narrations',
+      '💳 12 credits (one-time purchase)',
+      '📖 Generate 7  stories',
+      '🎧 Create 5 audio narrations',
       '💎 Credits never expire',
       '🎯 Great value for regular users',
       '🔄 Perfect when monthly quota runs out'
@@ -57,14 +57,14 @@ const packages: CreditPackage[] = [
   {
     id: 'premium',
     name: 'Power Pack',
-    credits: 100,
+    credits: 25,
     price: 15.99,
     bestValue: true,
     description: 'Maximum credits for heavy users',
     features: [
-      '💳 100 credits (one-time purchase)',
-      '📖 Generate ~20-30 short stories',
-      '🎧 Create ~15-20 audio narrations',
+      '💳 25 credits (one-time purchase)',
+      '📖 Generate 15  stories',
+      '🎧 Create 10 audio narrations',
       '💎 Credits never expire',
       '💰 Best value per credit',
       '⚡ Perfect for power users',
@@ -72,50 +72,6 @@ const packages: CreditPackage[] = [
     ]
   }
 ];
-
-// const packages: CreditPackage[] = [
-//   {
-//     id: 'starter',
-//     name: 'Starter',
-//     credits: 20,
-//     price: 4.99,
-//     description: 'Ideal for casual users who want to create a few stories',
-//     features: [
-//       'Access to basic story generation',
-//       'Standard audio narration',
-//       'Limited story customization',
-//     ]
-//   },
-//   {
-//     id: 'popular',
-//     name: 'Popular',
-//     credits: 50,
-//     price: 9.99,
-//     popular: true,
-//     description: 'Our most popular option for regular storytellers',
-//     features: [
-//       'All Starter features',
-//       'Enhanced story generation',
-//       'Improved audio quality',
-//       'More customization options',
-//     ]
-//   },
-//   {
-//     id: 'premium',
-//     name: 'Premium',
-//         credits: 100,
-//     price: 21.99,
-//     bestValue: true,
-//     description: 'Best value for dedicated story creators',
-//     features: [
-//       'All Popular features',
-//       'Priority story generation',
-//       'Premium voice selection',
-//       'Advanced customization tools',
-//       'Early access to new features',
-//     ]
-//   }
-// ];
 
 export default function CreditPackages({ isPremium = false}: CreditPackagesProps) {
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});

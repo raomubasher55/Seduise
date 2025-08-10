@@ -153,16 +153,16 @@
     combo_starter: {
       id: 'combo_starter',
       name: 'Combo Pack - Starter',
-      textCredits: 10,
-      audioCredits: 8,
+      textCredits: 3,
+      audioCredits: 2,
       price: 599, // €5.99 (in cents)
       description: 'Best value starter combo pack'
     },
     combo_popular: {
       id: 'combo_popular',
       name: 'Combo Pack - Popular',
-      textCredits: 25,
-      audioCredits: 20,
+      textCredits: 7,
+      audioCredits: 5,
       price: 1299, // €12.99 (in cents)
       popular: true,
       description: 'Best value combo pack'
@@ -170,8 +170,8 @@
     combo_premium: {
       id: 'combo_premium',
       name: 'Combo Pack - Premium',
-      textCredits: 50,
-      audioCredits: 40,
+      textCredits: 15,
+      audioCredits: 10,
       price: 2299, // €22.99 (in cents)
       bestValue: true,
       description: 'Ultimate combo pack for power users'

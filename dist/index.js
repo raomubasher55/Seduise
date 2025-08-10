@@ -380,8 +380,8 @@ var init_plans = __esm({
       combo_starter: {
         id: "combo_starter",
         name: "Combo Pack - Starter",
-        textCredits: 10,
-        audioCredits: 8,
+        textCredits: 3,
+        audioCredits: 2,
         price: 599,
         // €5.99 (in cents)
         description: "Best value starter combo pack"
@@ -389,8 +389,8 @@ var init_plans = __esm({
       combo_popular: {
         id: "combo_popular",
         name: "Combo Pack - Popular",
-        textCredits: 25,
-        audioCredits: 20,
+        textCredits: 7,
+        audioCredits: 5,
         price: 1299,
         // €12.99 (in cents)
         popular: true,
@@ -399,8 +399,8 @@ var init_plans = __esm({
       combo_premium: {
         id: "combo_premium",
         name: "Combo Pack - Premium",
-        textCredits: 50,
-        audioCredits: 40,
+        textCredits: 15,
+        audioCredits: 10,
         price: 2299,
         // €22.99 (in cents)
         bestValue: true,
@@ -4402,12 +4402,18 @@ var PaymentService = class {
     return { id: session2.id };
   }
   async createCreditCheckout(userId, packageId, origin) {
-    const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+    const { COMBO_CREDIT_PACKAGES: COMBO_CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const schema = z3.object({
       packageId: z3.enum(["starter", "popular", "premium"]).default("popular")
     });
     const { packageId: validatedPackageId } = schema.parse({ packageId });
-    const selectedPackage = CREDIT_PACKAGES[validatedPackageId];
+    const packageMapping = {
+      "starter": "combo_starter",
+      "popular": "combo_popular",
+      "premium": "combo_premium"
+    };
+    const mappedPackageId = packageMapping[validatedPackageId];
+    const selectedPackage = COMBO_CREDIT_PACKAGES2[mappedPackageId];
     if (!selectedPackage) {
       throw new Error("Invalid package ID");
     }
@@ -4425,7 +4431,7 @@ var PaymentService = class {
             currency: "eur",
             product_data: {
               name: selectedPackage.name,
-              description: `${selectedPackage.credits} credits - ${selectedPackage.description}`
+              description: `${selectedPackage.textCredits} text + ${selectedPackage.audioCredits} audio credits - ${selectedPackage.description}`
             },
             unit_amount: priceInCents
           },
@@ -4435,12 +4441,13 @@ var PaymentService = class {
       mode: "payment",
       customer_email: user.email,
       client_reference_id: clientReferenceId,
-      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${selectedPackage.credits}&package=${validatedPackageId}`,
+      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&textCredits=${selectedPackage.textCredits}&audioCredits=${selectedPackage.audioCredits}&package=${validatedPackageId}`,
       cancel_url: `${origin}/credits`,
       metadata: {
         userId,
         packageId: validatedPackageId,
-        credits: selectedPackage.credits.toString(),
+        textCredits: selectedPackage.textCredits.toString(),
+        audioCredits: selectedPackage.audioCredits.toString(),
         type: "credit_purchase"
       }
     });
@@ -4582,21 +4589,29 @@ var PaymentService = class {
     if (!actualUserId) {
       throw new Error("User identification failed");
     }
-    let creditsToAdd = 0;
-    if (session2.metadata?.credits) {
-      creditsToAdd = parseInt(session2.metadata.credits);
-    } else if (credits) {
-      creditsToAdd = parseInt(credits);
+    let textCreditsToAdd = 0;
+    let audioCreditsToAdd = 0;
+    if (session2.metadata?.textCredits && session2.metadata?.audioCredits) {
+      textCreditsToAdd = parseInt(session2.metadata.textCredits);
+      audioCreditsToAdd = parseInt(session2.metadata.audioCredits);
     } else if (packageId || session2.metadata?.packageId) {
       const pkgId = packageId || session2.metadata?.packageId;
-      const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-      const packageKey = pkgId;
-      if (CREDIT_PACKAGES[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
+      const { COMBO_CREDIT_PACKAGES: COMBO_CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
+      const packageMapping = {
+        "starter": "combo_starter",
+        "popular": "combo_popular",
+        "premium": "combo_premium"
+      };
+      const mappedPackageId = packageMapping[pkgId];
+      if (mappedPackageId && COMBO_CREDIT_PACKAGES2[mappedPackageId]) {
+        const pkg = COMBO_CREDIT_PACKAGES2[mappedPackageId];
+        textCreditsToAdd = pkg.textCredits;
+        audioCreditsToAdd = pkg.audioCredits;
       }
     }
-    if (creditsToAdd <= 0) {
-      creditsToAdd = 20;
+    if (textCreditsToAdd <= 0 && audioCreditsToAdd <= 0) {
+      textCreditsToAdd = 14;
+      audioCreditsToAdd = 6;
     }
     const user = await User.findById(actualUserId);
     if (!user) {
@@ -4607,22 +4622,28 @@ var PaymentService = class {
         success: true,
         message: "Credits already processed",
         alreadyProcessed: true,
-        credits: 0,
-        totalCredits: user.credits || 0
+        textCredits: 0,
+        audioCredits: 0,
+        totalTextCredits: user.textCredits || 0,
+        totalAudioCredits: user.audioCredits || 0
       };
     }
     if (!user.processedSessions) {
       user.processedSessions = [];
     }
     user.processedSessions.push(sessionId);
-    const previousCredits = user.credits || 0;
-    user.credits = previousCredits + creditsToAdd;
+    const previousTextCredits = user.textCredits || 0;
+    const previousAudioCredits = user.audioCredits || 0;
+    user.textCredits = previousTextCredits + textCreditsToAdd;
+    user.audioCredits = previousAudioCredits + audioCreditsToAdd;
     await user.save();
     return {
       success: true,
       message: "Payment successful and credits added",
-      credits: creditsToAdd,
-      totalCredits: user.credits
+      textCredits: textCreditsToAdd,
+      audioCredits: audioCreditsToAdd,
+      totalTextCredits: user.textCredits,
+      totalAudioCredits: user.audioCredits
     };
   }
   async processWebhookEvent(event) {

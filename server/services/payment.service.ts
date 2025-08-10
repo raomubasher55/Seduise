@@ -69,7 +69,7 @@ export class PaymentService {
   }
 
   async createCreditCheckout(userId: string, packageId: string, origin: string) {
-    const { CREDIT_PACKAGES } = await import('../constants/plans');
+    const { COMBO_CREDIT_PACKAGES } = await import('../constants/plans');
     
     // Validate the package ID
     const schema = z.object({
@@ -78,8 +78,15 @@ export class PaymentService {
 
     const { packageId: validatedPackageId } = schema.parse({ packageId });
     
-    // Get the selected package
-    const selectedPackage = CREDIT_PACKAGES[validatedPackageId as keyof typeof CREDIT_PACKAGES];
+    // Map frontend package IDs to backend combo package IDs
+    const packageMapping = {
+      'starter': 'combo_starter',
+      'popular': 'combo_popular', 
+      'premium': 'combo_premium'
+    } as const;
+
+    const mappedPackageId = packageMapping[validatedPackageId];
+    const selectedPackage = COMBO_CREDIT_PACKAGES[mappedPackageId];
     
     if (!selectedPackage) {
       throw new Error('Invalid package ID');
@@ -106,7 +113,7 @@ export class PaymentService {
             currency: 'eur',
             product_data: {
               name: selectedPackage.name,
-              description: `${selectedPackage.credits} credits - ${selectedPackage.description}`,
+              description: `${selectedPackage.textCredits} text + ${selectedPackage.audioCredits} audio credits - ${selectedPackage.description}`,
             },
             unit_amount: priceInCents,
           },
@@ -116,12 +123,13 @@ export class PaymentService {
       mode: 'payment',
       customer_email: user.email,
       client_reference_id: clientReferenceId,
-      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&credits=${selectedPackage.credits}&package=${validatedPackageId}`,
+      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&textCredits=${selectedPackage.textCredits}&audioCredits=${selectedPackage.audioCredits}&package=${validatedPackageId}`,
       cancel_url: `${origin}/credits`,
       metadata: {
         userId: userId,
         packageId: validatedPackageId,
-        credits: selectedPackage.credits.toString(),
+        textCredits: selectedPackage.textCredits.toString(),
+        audioCredits: selectedPackage.audioCredits.toString(),
         type: 'credit_purchase'
       },
     });
@@ -330,31 +338,38 @@ export class PaymentService {
       throw new Error('User identification failed');
     }
     
-    // Get amount of credits from metadata, request params, or package ID
-    let creditsToAdd = 0;
+    // Get text and audio credits from metadata or request params
+    let textCreditsToAdd = 0;
+    let audioCreditsToAdd = 0;
     
     // First try to get from session metadata (most reliable)
-    if (session.metadata?.credits) {
-      creditsToAdd = parseInt(session.metadata.credits);
-    } 
-    // Then try from request parameters
-    else if (credits) {
-      creditsToAdd = parseInt(credits as string);
+    if (session.metadata?.textCredits && session.metadata?.audioCredits) {
+      textCreditsToAdd = parseInt(session.metadata.textCredits);
+      audioCreditsToAdd = parseInt(session.metadata.audioCredits);
     }
     // Finally, try to derive from package ID
     else if (packageId || session.metadata?.packageId) {
       const pkgId = (packageId || session.metadata?.packageId) as string;
-      const { CREDIT_PACKAGES } = await import('../constants/plans');
-      const packageKey = pkgId as keyof typeof CREDIT_PACKAGES;
+      const { COMBO_CREDIT_PACKAGES } = await import('../constants/plans');
       
-      if (CREDIT_PACKAGES[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
+      const packageMapping = {
+        'starter': 'combo_starter',
+        'popular': 'combo_popular', 
+        'premium': 'combo_premium'
+      } as const;
+
+      const mappedPackageId = packageMapping[pkgId as keyof typeof packageMapping];
+      if (mappedPackageId && COMBO_CREDIT_PACKAGES[mappedPackageId]) {
+        const pkg = COMBO_CREDIT_PACKAGES[mappedPackageId];
+        textCreditsToAdd = pkg.textCredits;
+        audioCreditsToAdd = pkg.audioCredits;
       }
     }
     
     // If we still don't have any credits to add, use a minimum value
-    if (creditsToAdd <= 0) {
-      creditsToAdd = 20; // Minimum credit package size
+    if (textCreditsToAdd <= 0 && audioCreditsToAdd <= 0) {
+      textCreditsToAdd = 14; // Default starter pack text credits
+      audioCreditsToAdd = 6;  // Default starter pack audio credits
     }
     
     // Find and update the user
@@ -369,8 +384,10 @@ export class PaymentService {
         success: true,
         message: 'Credits already processed',
         alreadyProcessed: true,
-        credits: 0,
-        totalCredits: user.credits || 0
+        textCredits: 0,
+        audioCredits: 0,
+        totalTextCredits: user.textCredits || 0,
+        totalAudioCredits: user.audioCredits || 0
       };
     }
     
@@ -380,16 +397,21 @@ export class PaymentService {
     }
     user.processedSessions.push(sessionId);
     
-    // Add credits to the user's account
-    const previousCredits = user.credits || 0;
-    user.credits = previousCredits + creditsToAdd;
+    // Add text and audio credits to the user's account
+    const previousTextCredits = user.textCredits || 0;
+    const previousAudioCredits = user.audioCredits || 0;
+    
+    user.textCredits = previousTextCredits + textCreditsToAdd;
+    user.audioCredits = previousAudioCredits + audioCreditsToAdd;
     await user.save();
     
     return {
       success: true,
       message: 'Payment successful and credits added',
-      credits: creditsToAdd,
-      totalCredits: user.credits
+      textCredits: textCreditsToAdd,
+      audioCredits: audioCreditsToAdd,
+      totalTextCredits: user.textCredits,
+      totalAudioCredits: user.audioCredits
     };
   }
 
