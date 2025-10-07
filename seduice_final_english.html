@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seduice - Unleash Your Imagination</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --black: #1a0a0e;
+            --dark-bg: #2a1a2e;
+            --purple: #8b5a8c;
+            --pink: #e91e63;
+            --pink-light: #ff4081;
+            --gold: #ffd700;
+            --beige: #f5e6d3;
+            --white: #ffffff;
+            --gray: #9e9e9e;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a0a0e 0%, #2a1a2e 100%);
+            color: var(--white);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 5%;
+            background: rgba(26, 10, 14, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(233, 30, 99, 0.1);
+        }
+        
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            color: var(--pink);
+            text-decoration: none;
+        }
+        
+        .menu-toggle {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        .menu-toggle span {
+            display: block;
+            width: 25px;
+            height: 2px;
+            background: var(--white);
+            margin: 5px 0;
+            transition: 0.3s;
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 5% 80px;
+            text-align: center;
+        }
+        
+        .hero-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .hero-title {
+            font-size: 72px;
+            line-height: 1.1;
+            margin-bottom: 30px;
+            font-weight: 300;
+            animation: fadeUp 1s ease;
+        }
+        
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .hero-title .unleash {
+            color: var(--white);
+        }
+        
+        .hero-title .imagination {
+            color: var(--pink);
+            font-family: 'Playfair Display', serif;
+        }
+        
+        .hero-description {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 50px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeUp 1s ease 0.2s both;
+        }
+        
+        /* Live Demo Creator */
+        .demo-creator {
+            background: rgba(42, 26, 46, 0.3);
+            border: 1px solid rgba(233, 30, 99, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 60px auto;
+            max-width: 800px;
+            animation: fadeUp 1s ease 0.4s both;
+        }
+        
+        .demo-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+        
+        .demo-dots {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .dot.red { background: #ff5f57; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #28ca42; }
+        
+        .demo-title {
+            color: var(--gray);
+            font-size: 16px;
+            margin-left: auto;
+        }
+        
+        .demo-input-area {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(233, 30, 99, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .demo-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--pink);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .demo-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--white);
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .demo-textarea::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .style-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .style-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid rgba(233, 30, 99, 0.3);
+            border-radius: 25px;
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+        
+        .style-btn:hover {
+            background: rgba(233, 30, 99, 0.1);
+            border-color: var(--pink);
+            transform: translateY(-2px);
+        }
+        
+        .style-btn.active {
+            background: var(--pink);
+            border-color: var(--pink);
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            background: var(--pink);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .generate-btn:hover {
+            background: var(--pink-light);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(233, 30, 99, 0.3);
+        }
+        
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--pink);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+        
+        /* Features */
+        .features {
+            padding: 100px 5%;
+            background: linear-gradient(180deg, transparent, rgba(139, 90, 140, 0.05));
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--white) 0%, var(--pink) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .section-subtitle {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .features-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(233, 30, 99, 0.1);
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            background: rgba(233, 30, 99, 0.05);
+            border-color: rgba(233, 30, 99, 0.3);
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .feature-text {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+        
+        /* Pricing */
+        .pricing {
+            padding: 100px 5%;
+        }
+        
+        .pricing-cards {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+        }
+        
+        .price-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(233, 30, 99, 0.2);
+            border-radius: 20px;
+            padding: 40px 30px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .price-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--pink);
+            background: rgba(233, 30, 99, 0.05);
+        }
+        
+        .price-card.featured {
+            border-color: var(--pink);
+            background: rgba(233, 30, 99, 0.08);
+        }
+        
+        .plan-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+        
+        .plan-name {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .plan-price {
+            font-size: 42px;
+            font-weight: bold;
+            color: var(--pink);
+            margin-bottom: 20px;
+        }
+        
+        .plan-price sup {
+            font-size: 18px;
+        }
+        
+        .plan-features {
+            list-style: none;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .plan-features li {
+            padding: 12px 0;
+            color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 15px;
+        }
+        
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .plan-features li strong {
+            color: var(--pink);
+        }
+        
+        .bonus-badge {
+            background: linear-gradient(135deg, var(--gold), #ffed4e);
+            color: var(--black);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        
+        .plan-btn {
+            width: 100%;
+            padding: 15px;
+            background: transparent;
+            border: 2px solid var(--pink);
+            border-radius: 25px;
+            color: var(--pink);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .plan-btn:hover {
+            background: var(--pink);
+            color: white;
+        }
+        
+        .price-card.featured .plan-btn {
+            background: var(--pink);
+            color: white;
+        }
+        
+        .price-card.featured .plan-btn:hover {
+            background: var(--pink-light);
+        }
+        
+        /* How it Works */
+        .how-it-works {
+            padding: 100px 5%;
+            background: rgba(139, 90, 140, 0.05);
+        }
+        
+        .steps {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 40px;
+        }
+        
+        .step {
+            text-align: center;
+        }
+        
+        .step-number {
+            display: inline-flex;
+            width: 70px;
+            height: 70px;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            border-radius: 50%;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .step-title {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        
+        .step-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 15px;
+        }
+        
+        /* CTA Section */
+        .cta {
+            padding: 100px 5%;
+            text-align: center;
+        }
+        
+        .cta-container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, rgba(139, 90, 140, 0.2), rgba(233, 30, 99, 0.1));
+            border: 1px solid rgba(233, 30, 99, 0.2);
+            border-radius: 30px;
+            padding: 60px;
+        }
+        
+        .cta-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            margin-bottom: 20px;
+        }
+        
+        .cta-text {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 30px;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .cta-btn-primary {
+            padding: 18px 40px;
+            background: var(--pink);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-btn-primary:hover {
+            background: var(--pink-light);
+            transform: translateY(-2px);
+        }
+        
+        .cta-btn-secondary {
+            padding: 18px 40px;
+            background: transparent;
+            color: var(--white);
+            border: 2px solid var(--white);
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 60px 5% 30px;
+            border-top: 1px solid rgba(233, 30, 99, 0.1);
+        }
+        
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        
+        .footer-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            color: var(--pink);
+        }
+        
+        .footer-links-container {
+            display: flex;
+            gap: 60px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-column h4 {
+            color: var(--white);
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .footer-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+        
+        .footer-links a:hover {
+            color: var(--pink);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid rgba(233, 30, 99, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 48px;
+            }
+            
+            .hero-description {
+                font-size: 16px;
+            }
+            
+            .demo-creator {
+                padding: 30px 20px;
+            }
+            
+            .style-buttons {
+                justify-content: center;
+            }
+            
+            .features-grid,
+            .pricing-cards,
+            .steps {
+                grid-template-columns: 1fr;
+            }
+            
+            .cta-container {
+                padding: 40px 30px;
+            }
+            
+            .footer-top {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">Seduice</a>
+            <button class="menu-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1 class="hero-title">
+                <span class="unleash">Unleash Your</span><br>
+                <span class="imagination">Imagination</span>
+            </h1>
+            <p class="hero-description">
+                Create personalized erotic stories with immersive AI-powered narration.
+                Explore, share, and experience narratives tailored to your desires.
+            </p>
+            
+            <!-- Live Demo Creator -->
+            <div class="demo-creator">
+                <div class="demo-header">
+                    <div class="demo-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="demo-title">Create your story</span>
+                </div>
+                
+                <div class="demo-input-area">
+                    <div class="demo-label">
+                        ✨ Describe your fantasy
+                    </div>
+                    <textarea class="demo-textarea" rows="3" placeholder="A chance encounter in a Parisian café..."></textarea>
+                </div>
+                
+                <div class="style-buttons">
+                    <button class="style-btn">
+                        💕 Romantic
+                    </button>
+                    <button class="style-btn">
+                        🔥 Sensual
+                    </button>
+                    <button class="style-btn">
+                        🌙 Mysterious
+                    </button>
+                </div>
+                
+                <button class="generate-btn">
+                    Generate Story
+                    <div class="typing-dots" style="display: none;">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Features -->
+    <section class="features">
+        <div class="section-header">
+            <h2 class="section-title">Experience the Magic</h2>
+            <p class="section-subtitle">Everything you need to bring your fantasies to life</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">✨</div>
+                <h3 class="feature-title">AI Creation</h3>
+                <p class="feature-text">Advanced AI understands your desires and creates unique stories tailored perfectly to you.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎧</div>
+                <h3 class="feature-title">Immersive Audio</h3>
+                <p class="feature-text">Premium narration brings your stories to life with captivating, natural voices.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">100% Private</h3>
+                <p class="feature-text">Your stories remain completely confidential with end-to-end encryption.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3 class="feature-title">Your Library</h3>
+                <p class="feature-text">Save, organize, and revisit your favorite creations anytime, anywhere.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3 class="feature-title">Full Control</h3>
+                <p class="feature-text">Customize characters, settings, intensity, and every detail of your story.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">♾️</div>
+                <h3 class="feature-title">Endless Stories</h3>
+                <p class="feature-text">Continue your favorites, explore alternatives, create entire series.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- How it Works -->
+    <section class="how-it-works">
+        <div class="section-header">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Your perfect story in four simple steps</p>
+        </div>
+        
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Describe</h3>
+                <p class="step-text">Share your desires</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3 class="step-title">Customize</h3>
+                <p class="step-text">Choose your style</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3 class="step-title">Generate</h3>
+                <p class="step-text">AI creates magic</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3 class="step-title">Enjoy</h3>
+                <p class="step-text">Read or listen</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Pricing -->
+    <section class="pricing">
+        <div class="section-header">
+            <h2 class="section-title">Choose Your Experience</h2>
+            <p class="section-subtitle">Start with 3 free stories, no credit card required</p>
+        </div>
+        
+        <div class="pricing-cards">
+            <div class="price-card">
+                <div class="plan-icon">🌱</div>
+                <h3 class="plan-name">Discovery</h3>
+                <div class="plan-price">9.99<sup>€</sup>/month</div>
+                <ul class="plan-features">
+                    <li>Up to <strong>10 stories or chapters</strong></li>
+                    <li><strong>5 audio narrations</strong> included</li>
+                    <li>Access to classic voices</li>
+                    <li>Standard genres available</li>
+                </ul>
+                <div class="bonus-badge">🎁 Welcome: +2 audios first month</div>
+                <button class="plan-btn">Get Started</button>
+            </div>
+            
+            <div class="price-card featured">
+                <div class="plan-icon">🔥</div>
+                <h3 class="plan-name">Passion</h3>
+                <div class="plan-price">18.99<sup>€</sup>/month</div>
+                <ul class="plan-features">
+                    <li>Up to <strong>20 stories or chapters</strong></li>
+                    <li><strong>10 audio narrations</strong> included</li>
+                    <li><strong>Premium voices</strong> & expanded selection</li>
+                    <li>Exclusive styles (including basic roleplay)</li>
+                </ul>
+                <div class="bonus-badge">🎁 Welcome: 1 premium story free</div>
+                <button class="plan-btn">Most Popular</button>
+            </div>
+            
+            <div class="price-card">
+                <div class="plan-icon">🌟</div>
+                <h3 class="plan-name">Creator</h3>
+                <div class="plan-price">29.99<sup>€</sup>/month</div>
+                <ul class="plan-features">
+                    <li>Up to <strong>30 stories or chapters</strong></li>
+                    <li><strong>15 audio narrations</strong> included</li>
+                    <li><strong>1-3 personalized stories</strong> on request</li>
+                    <li>Immersive sound effects & exclusive voices</li>
+                    <li>Early access to new features</li>
+                </ul>
+                <div class="bonus-badge">🎁 Welcome: 1 personalized story free</div>
+                <button class="plan-btn">Go Premium</button>
+            </div>
+        </div>
+    </section>
+    
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="cta-container">
+            <h2 class="cta-title">Ready to Start Your Journey?</h2>
+            <p class="cta-text">
+                Join thousands discovering the pleasure of personalized storytelling
+            </p>
+            <div class="cta-buttons">
+                <button class="cta-btn-primary">Try 3 Stories Free</button>
+                <button class="cta-btn-secondary">View Plans</button>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-top">
+                <div class="footer-logo">Seduice</div>
+                <div class="footer-links-container">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <ul class="footer-links">
+                            <li><a href="#">Features</a></li>
+                            <li><a href="#">Pricing</a></li>
+                            <li><a href="#">App</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Support</h4>
+                        <ul class="footer-links">
+                            <li><a href="#">Help</a></li>
+                            <li><a href="#">Contact</a></li>
+                            <li><a href="#">FAQ</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Legal</h4>
+                        <ul class="footer-links">
+                            <li><a href="#">Privacy</a></li>
+                            <li><a href="#">Terms</a></li>
+                            <li><a href="#">Cookies</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2024 Seduice. All rights reserved. Your stories remain 100% private and confidential.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        // Style button interaction
+        document.querySelectorAll('.style-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+        });
+        
+        // Generate button animation
+        document.querySelector('.generate-btn').addEventListener('click', function() {
+            const btnText = this.innerHTML;
+            this.innerHTML = 'Creating your story... <div class="typing-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+            
+            setTimeout(() => {
+                this.innerHTML = btnText;
+                alert('Story preview would appear here!');
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
