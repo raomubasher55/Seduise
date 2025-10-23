@@ -802,7 +802,7 @@ export default function AdminDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-isPremium"
                     checked={selectedUser.isPremium}
@@ -811,7 +811,7 @@ export default function AdminDashboard() {
                     }
                   />
                   <Label htmlFor="edit-isPremium">Premium Account</Label>
-                </div>
+                </div> */}
               </div>
               <DialogFooter>
                 <Button

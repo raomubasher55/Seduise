@@ -1,6 +1,6 @@
 import { User } from '../models/user.model';
 import { Story } from '../models/story.model';
-import { BADGE_DEFINITIONS, BADGE_CHECK_ORDER, BadgeDefinition, getBadgeById } from '../constants/badges';
+import { BADGE_DEFINITIONS, BADGE_CHECK_ORDER, BadgeDefinition, getBadgeById, getBadgesByCategory, getBadgesByRarity } from '../constants/badges';
 
 export interface BadgeAward {
   badgeId: string;
@@ -349,3 +349,76 @@ export class BadgeService {
 
 // Export singleton instance
 export const badgeService = new BadgeService();
+
+// Additional badge-related services used by routes/controllers
+export const listBadgeDefinitionsService = (category?: string, rarity?: string) => {
+  let badges = Object.values(BADGE_DEFINITIONS);
+  if (category) badges = getBadgesByCategory(category as any);
+  if (rarity) badges = getBadgesByRarity(rarity as any);
+  return { badges, total: badges.length };
+};
+
+export const getUserBadgesWithSummaryService = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user) return null;
+  const badgeSummary = await badgeService.getUserBadgeSummary(userId);
+  const userStats = await badgeService.getUserStats(userId);
+  return {
+    badges: user.badges || [],
+    summary: badgeSummary,
+    stats: userStats,
+  };
+};
+
+export const getBadgeLeaderboardService = async (limit: number = 10) => {
+  const users = await User.find({ badges: { $exists: true, $ne: [] } })
+    .select('name badges')
+    .limit(limit);
+
+  const leaderboard = users.map((user: any) => {
+    const badges = user.badges || [];
+    const badgeCounts = {
+      total: badges.length,
+      legendary: badges.filter((b: any) => b.rarity === 'legendary').length,
+      epic: badges.filter((b: any) => b.rarity === 'epic').length,
+      rare: badges.filter((b: any) => b.rarity === 'rare').length,
+      common: badges.filter((b: any) => b.rarity === 'common').length,
+    };
+    const score = badgeCounts.legendary * 100 + badgeCounts.epic * 25 + badgeCounts.rare * 5 + badgeCounts.common * 1;
+    return {
+      userId: user._id,
+      name: user.name,
+      badgeCounts,
+      score,
+      recentBadges: badges
+        .sort((a: any, b: any) => new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime())
+        .slice(0, 3),
+    };
+  }).sort((a: any, b: any) => b.score - a.score);
+
+  return { leaderboard, total: leaderboard.length };
+};
+
+export const getBadgeStatsService = async () => {
+  const totalBadgeDefinitions = Object.keys(BADGE_DEFINITIONS).length;
+  const userCount = await User.countDocuments({ badges: { $exists: true, $ne: [] } });
+  const badgesByRarity = await User.aggregate([
+    { $match: { badges: { $exists: true, $ne: [] } } },
+    { $unwind: '$badges' },
+    { $group: { _id: '$badges.rarity', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+  ]);
+  const mostAwardedBadges = await User.aggregate([
+    { $match: { badges: { $exists: true, $ne: [] } } },
+    { $unwind: '$badges' },
+    { $group: { _id: '$badges.id', name: { $first: '$badges.name' }, count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 10 },
+  ]);
+  return {
+    totalBadgeDefinitions,
+    usersWithBadges: userCount,
+    badgesByRarity,
+    mostAwardedBadges,
+  };
+};

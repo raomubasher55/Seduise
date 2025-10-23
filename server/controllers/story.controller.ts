@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { getStory as getStoryService } from "../services/story.service";
 import { getStoryAudio as getStoryAudioService } from "../services/story.service";
 import { createStory as createStoryService } from "../services/story.service";
-import { continueStoryService, deleteStory as deleteStoryService } from "../services/story.service";
+import { continueStoryService, deleteStory as deleteStoryService, setStoryVisibility, getVoiceOptionsService, getPublicStoriesService, getStoriesByCategoryService, getPremiumStoriesService } from "../services/story.service";
 import { storySettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateTitleSuggestions } from "server/utils/openai";
@@ -11,7 +11,7 @@ import path from "path";
 import fs from "fs";
 import { Story } from "../models/story.model";
 import { User } from "../models/user.model";
-import { trackStoryInteraction } from "../middleware/engagement.middleware";
+import { trackStoryInteraction } from "../middlewares/engagement.middleware";
 
 // Function to track story generation for subscription limits
 const trackStoryGeneration = async (userId: string) => {
@@ -695,5 +695,76 @@ export const downvoteStory = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error downvoting story:", error);
     res.status(500).json({ message: "Failed to downvote story" });
+  }
+};
+
+export const updateVisibility = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isPublic } = req.body as { isPublic: boolean };
+    const userId = req.session?.userId;
+
+    const updated = await setStoryVisibility(userId, id, isPublic);
+    return res.json(updated);
+  } catch (error: any) {
+    console.error('Error updating story visibility:', error);
+    const status = error?.status || 500;
+    const body: any = { message: error?.message || 'Failed to update story visibility' };
+    if (error?.code) {
+      body.code = error.code;
+      if (error.code === 'PREMIUM_REQUIRED') body.isPremiumRequired = true;
+    }
+    return res.status(status).json(body);
+  }
+};
+
+export const voiceOptions = async (_req: Request, res: Response) => {
+  try {
+    const voices = await getVoiceOptionsService();
+    res.json(voices);
+  } catch (error) {
+    console.error('Error fetching voice options:', error);
+    res.status(500).json({ message: 'Failed to fetch voice options' });
+  }
+};
+
+export const getPublicStoriesList = async (req: Request, res: Response) => {
+  try {
+    const userId = req.session?.userId;
+    const stories = await getPublicStoriesService(userId);
+    res.json(stories);
+  } catch (error) {
+    console.error('Error fetching public stories:', error);
+    res.status(500).json({ message: 'Failed to fetch public stories' });
+  }
+};
+
+export const getStoriesByCategoryController = async (req: Request, res: Response) => {
+  try {
+    const { category } = req.params as { category: string };
+    const stories = await getStoriesByCategoryService(category);
+    res.json(stories);
+  } catch (error: any) {
+    const status = error?.status || 500;
+    const msg = error?.message || 'Failed to fetch stories by category';
+    console.error('Error fetching stories for category:', error);
+    res.status(status).json({ message: msg });
+  }
+};
+
+export const getPremiumStoriesController = async (req: Request, res: Response) => {
+  try {
+    const userId = req.session.userId;
+    const stories = await getPremiumStoriesService(userId);
+    res.json(stories);
+  } catch (error: any) {
+    const status = error?.status || 500;
+    const body: any = { message: error?.message || 'Failed to fetch premium stories' };
+    if (error?.code === 'PREMIUM_REQUIRED') {
+      body.currentSubscription = error.currentSubscription;
+      body.requiredSubscriptions = error.requiredSubscriptions;
+    }
+    console.error('Error fetching premium stories:', error);
+    res.status(status).json(body);
   }
 };

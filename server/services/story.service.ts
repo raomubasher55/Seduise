@@ -4,6 +4,18 @@ import { continueStory, generateStory, generateChapterTitle, generateChapterSumm
 import { User } from "../models/user.model";
 import { elevenlabs } from "../utils/elevenlabs";
 import { awardBadge } from "./reward.service";
+import type { Document } from "mongoose";
+
+class VisibilityError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, status?: number, code?: string) {
+    super(message);
+    this.name = 'VisibilityError';
+    if (status) this.status = status;
+    if (code) this.code = code;
+  }
+}
 
 export const createStory = async (title: string, settings: StorySettings, maxTokens: number | undefined, userId: string, isPublic: boolean = false, category: string = "romance", accessType: string = "public", textCreditCost: number = 1) => {
     const user = await User.findById(userId);
@@ -306,4 +318,235 @@ export const getChapterChoices = async (storyId: string, chapterNumber: number) 
     }
 
     return chapter.choices || [];
+};
+
+export const setStoryVisibility = async (
+  userId: string | undefined,
+  storyId: string,
+  isPublic: boolean
+): Promise<Document & any> => {
+  if (!userId) {
+    throw new VisibilityError('Not authenticated', 401);
+  }
+  if (typeof isPublic !== 'boolean') {
+    throw new VisibilityError('Invalid visibility status', 400);
+  }
+
+  // If setting to private, ensure user is premium
+  if (!isPublic) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new VisibilityError('User not found', 404);
+    }
+    if (!user.isPremium) {
+      throw new VisibilityError('Only premium users can set stories to private', 403, 'PREMIUM_REQUIRED');
+    }
+  }
+
+  const story = await Story.findById(storyId);
+  if (!story) {
+    throw new VisibilityError('Story not found', 404);
+  }
+  if (story.userId !== userId) {
+    throw new VisibilityError("You don't have permission to update this story", 403);
+  }
+
+  story.isPublic = isPublic;
+  await story.save();
+  return story;
+};
+
+// Voice options with enhanced labels
+export const getVoiceOptionsService = async () => {
+  const voices = await elevenlabs.getVoices();
+
+  const determineVoiceGender = (voiceName: string, labels?: Record<string, string>): string => {
+    if (labels && labels.gender && (labels.gender.toLowerCase() === 'male' || labels.gender.toLowerCase() === 'female')) {
+      return labels.gender.toLowerCase();
+    }
+    const maleNames = ['adam','josh','thomas','charlie','james','matthew','daniel','michael','david','william','joseph','chris','george','robert','jack','john','henry','jacob','sam','samuel','tom','callum','harry','oliver','peter','will','liam','lucas'];
+    const femaleNames = ['rachel','sarah','emily','bella','domi','charlotte','olivia','emma','ava','sophia','isabella','mia','amelia','alice','lily','grace','chloe','jessica','sophia','amy','katie','susan','jennifer','elizabeth','mary','kathy','matilda','river'];
+    const normalizedName = voiceName.toLowerCase().trim();
+    const firstNamePart = normalizedName.split(' ')[0];
+    if (normalizedName.includes('female') || normalizedName.includes('woman')) return 'female';
+    if (normalizedName.includes('male') || normalizedName.includes('man')) return 'male';
+    if (maleNames.includes(firstNamePart)) return 'male';
+    if (femaleNames.includes(firstNamePart)) return 'female';
+    if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) return 'male';
+    if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) return 'female';
+    if (normalizedName === 'river') return 'female';
+    return 'unknown';
+  };
+
+  return voices.map((voice: any) => {
+    const nameParts = voice.name.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+    const cleanName = nameParts ? nameParts[1].trim() : voice.name;
+    const description = nameParts && nameParts[2] ? nameParts[2].trim() : '';
+    const isFree = voice.category === 'premade';
+    return {
+      id: voice.voice_id,
+      name: cleanName,
+      fullName: voice.name,
+      category: voice.category,
+      isPremium: !isFree,
+      description: description || (voice.labels && voice.labels.description) || '',
+      labels: {
+        ...voice.labels,
+        gender: determineVoiceGender(voice.name, voice.labels),
+        accent: (voice.labels && voice.labels.accent) || 'neutral',
+        age: (voice.labels && voice.labels.age) || 'adult',
+        style: (voice.labels && voice.labels.style) || 'natural'
+      },
+      preview_url: voice.preview_url || ''
+    };
+  });
+};
+
+export const getPublicStoriesService = async (userId?: string) => {
+  const currentDate = new Date();
+  const publicStories = await Story.find({
+    $or: [
+      { accessType: 'public' },
+      { accessType: 'premium_early_access', publicReleaseDate: { $lte: currentDate } }
+    ]
+  }).sort({ createdAt: -1 }).limit(12);
+
+  const storiesWithUserNames = await Promise.all(
+    publicStories.map(async (story: any) => {
+      try {
+        const likedBy = story.likedBy || [];
+        const upvotedBy = story.upvotedBy || [];
+        const downvotedBy = story.downvotedBy || [];
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const user = await User.findById(story.userId).select('name badges');
+          return {
+            ...story.toObject(),
+            userName: user ? user.name : 'Anonymous',
+            authorBadges: user ? user.badges : [],
+            hasLiked: userId ? likedBy.includes(userId) : false,
+            hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+            hasDownvoted: userId ? downvotedBy.includes(userId) : false
+          };
+        } else {
+          return {
+            ...story.toObject(),
+            userName: 'Anonymous',
+            authorBadges: [],
+            hasLiked: userId ? likedBy.includes(userId) : false,
+            hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+            hasDownvoted: userId ? downvotedBy.includes(userId) : false
+          };
+        }
+      } catch (err) {
+        return {
+          ...story.toObject(),
+          userName: 'Anonymous',
+          authorBadges: [],
+          hasLiked: false,
+          hasUpvoted: false,
+          hasDownvoted: false
+        };
+      }
+    })
+  );
+  return storiesWithUserNames;
+};
+
+export const getStoriesByCategoryService = async (category: string) => {
+  if (!category) {
+    throw new VisibilityError('Category is required', 400);
+  }
+  let query: any = { isPublic: true };
+  switch (category) {
+    case 'romance':
+      query = { isPublic: true, $or: [{ category: 'romance' }, { 'settings.atmosphere': 'Romantic' }, { 'settings.writingTone': 'Romantic' }] };
+      break;
+    case 'fantasy':
+      query = { isPublic: true, $or: [{ category: 'fantasy' }, { 'settings.timePeriod': 'Fantasy Realm' }] };
+      break;
+    case 'historical':
+      query = { isPublic: true, $or: [{ category: 'historical' }, { 'settings.timePeriod': { $in: ['Medieval', 'Victorian'] } }] };
+      break;
+    case 'contemporary':
+      query = { isPublic: true, $or: [{ category: 'contemporary' }, { 'settings.timePeriod': 'Contemporary' }] };
+      break;
+    case 'adventure':
+      query = { isPublic: true, $or: [{ category: 'adventure' }, { 'settings.atmosphere': 'Mysterious' }] };
+      break;
+    case 'passionate':
+      query = { isPublic: true, $or: [{ category: 'passionate' }, { 'settings.writingTone': 'Passionate' }] };
+      break;
+    case 'playful':
+      query = { isPublic: true, $or: [{ category: 'playful' }, { 'settings.writingTone': 'Playful' }] };
+      break;
+    case 'intense':
+      query = { isPublic: true, $or: [{ category: 'intense' }, { 'settings.writingTone': 'Intense' }] };
+      break;
+    default:
+      query = { isPublic: true, category };
+  }
+
+  const categoryStories = await Story.find(query).sort({ createdAt: -1 }).limit(8);
+  const storiesWithUserNames = await Promise.all(
+    categoryStories.map(async (story: any) => {
+      try {
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const user = await User.findById(story.userId);
+          return { ...story.toObject(), userName: user ? user.name : 'Anonymous' };
+        } else {
+          return { ...story.toObject(), userName: 'Anonymous' };
+        }
+      } catch (err) {
+        return { ...story.toObject(), userName: 'Anonymous' };
+      }
+    })
+  );
+  return storiesWithUserNames;
+};
+
+export const getPremiumStoriesService = async (userId: string) => {
+  const user = await User.findById(userId);
+  const hasGalleryAccess = ['essentiel', 'seduction', 'intimacy'].includes(user?.subscription || '');
+  if (!user || !hasGalleryAccess) {
+    const err: any = new Error('Access denied. Premium subscription required for premium gallery access.');
+    err.status = 403;
+    err.code = 'PREMIUM_REQUIRED';
+    err.currentSubscription = user?.subscription || 'none';
+    err.requiredSubscriptions = ['essentiel', 'seduction', 'intimacy'];
+    throw err;
+  }
+
+  const currentDate = new Date();
+  let storyQuery: any = {};
+  let limit = 20;
+  if (user.subscription === 'essentiel') {
+    storyQuery = { accessType: 'premium_early_access', $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 10;
+  } else if (user.subscription === 'seduction') {
+    storyQuery = { accessType: { $in: ['premium_early_access', 'premium_exclusive'] }, $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 20;
+  } else if (user.subscription === 'intimacy') {
+    storyQuery = { accessType: { $in: ['premium_early_access', 'premium_exclusive'] }, $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 30;
+  } else {
+    storyQuery = { accessType: 'premium_early_access' };
+    limit = 5;
+  }
+
+  const premiumStories = await Story.find(storyQuery).sort({ createdAt: -1 }).limit(limit);
+  const storiesWithUserNames = await Promise.all(
+    premiumStories.map(async (story: any) => {
+      try {
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const author = await User.findById(story.userId).select('name badges');
+          return { ...story.toObject(), userName: author ? author.name : 'Anonymous', authorBadges: author ? author.badges : [] };
+        } else {
+          return { ...story.toObject(), userName: 'Anonymous', authorBadges: [] };
+        }
+      } catch (err) {
+        return { ...story.toObject(), userName: 'Anonymous', authorBadges: [] };
+      }
+    })
+  );
+  return storiesWithUserNames;
 };

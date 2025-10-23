@@ -148,11 +148,21 @@ export default function Profile() {
             
             {user.badges && user.badges.length > 0 && (
               <div className="flex flex-wrap justify-center gap-2 mb-4">
-                {user.badges.map((badge: string) => (
-                  <span key={badge} className="px-3 py-1 rounded-full text-xs bg-blue-600 text-white">
-                    {badge}
-                  </span>
-                ))}
+                {user.badges.map((badge: any) => {
+                  const key = badge?.id || badge?._id || badge?.name || String(badge);
+                  const label = typeof badge === "string" ? badge : (badge?.name || "Badge");
+                  const bg = typeof badge === "object" && badge?.color ? badge.color : "#2563eb"; // default blue-600
+                  return (
+                    <span
+                      key={key}
+                      className="px-3 py-1 rounded-full text-xs text-white"
+                      style={{ backgroundColor: bg }}
+                      title={typeof badge === "object" ? badge?.description : undefined}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             )}
             

@@ -163,6 +163,376 @@ var init_story_model = __esm({
   }
 });
 
+// server/constants/badges.ts
+var BADGE_DEFINITIONS, getBadgesByCategory, getBadgesByRarity, getBadgeById, BADGE_CHECK_ORDER;
+var init_badges = __esm({
+  "server/constants/badges.ts"() {
+    "use strict";
+    BADGE_DEFINITIONS = {
+      // ==================== ENGAGEMENT BADGES ====================
+      "first_like": {
+        id: "first_like",
+        name: "First Heart",
+        description: "Received your first like on a story",
+        icon: "\u{1F49D}",
+        color: "#FFB6C1",
+        category: "engagement",
+        rarity: "common",
+        criteria: {
+          type: "likes",
+          threshold: 1,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 5
+        }
+      },
+      "popular_author": {
+        id: "popular_author",
+        name: "Popular Author",
+        description: "Received 50+ likes across all stories",
+        icon: "\u2B50",
+        color: "#FFD700",
+        category: "engagement",
+        rarity: "rare",
+        criteria: {
+          type: "likes",
+          threshold: 50,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 25
+        }
+      },
+      "viral_storyteller": {
+        id: "viral_storyteller",
+        name: "Viral Storyteller",
+        description: "Received 200+ likes across all stories",
+        icon: "\u{1F525}",
+        color: "#FF4500",
+        category: "engagement",
+        rarity: "epic",
+        criteria: {
+          type: "likes",
+          threshold: 200,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 100,
+          premium_days: 3
+        }
+      },
+      "legend_author": {
+        id: "legend_author",
+        name: "Legend Author",
+        description: "Received 1000+ likes across all stories",
+        icon: "\u{1F451}",
+        color: "#8A2BE2",
+        category: "engagement",
+        rarity: "legendary",
+        criteria: {
+          type: "likes",
+          threshold: 1e3,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 500,
+          premium_days: 30
+        }
+      },
+      // ==================== QUALITY BADGES ====================
+      "quality_writer": {
+        id: "quality_writer",
+        name: "Quality Writer",
+        description: "High engagement ratio (likes/plays > 0.3)",
+        icon: "\u2728",
+        color: "#4169E1",
+        category: "quality",
+        rarity: "rare",
+        criteria: {
+          type: "engagement_ratio",
+          threshold: 0.3,
+          timeframe: "all_time",
+          additional_conditions: {
+            min_plays: 20
+            // Must have at least 20 plays to qualify
+          }
+        },
+        rewards: {
+          credits: 30
+        }
+      },
+      "masterpiece_creator": {
+        id: "masterpiece_creator",
+        name: "Masterpiece Creator",
+        description: "Exceptional engagement ratio (likes/plays > 0.5)",
+        icon: "\u{1F3A8}",
+        color: "#9932CC",
+        category: "quality",
+        rarity: "epic",
+        criteria: {
+          type: "engagement_ratio",
+          threshold: 0.5,
+          timeframe: "all_time",
+          additional_conditions: {
+            min_plays: 50
+          }
+        },
+        rewards: {
+          credits: 75,
+          premium_days: 7
+        }
+      },
+      // ==================== COMMUNITY BADGES ====================
+      "community_favorite": {
+        id: "community_favorite",
+        name: "Community Favorite",
+        description: "More upvotes than downvotes with 10+ total votes",
+        icon: "\u{1F3C6}",
+        color: "#32CD32",
+        category: "community",
+        rarity: "rare",
+        criteria: {
+          type: "upvotes",
+          threshold: 10,
+          timeframe: "all_time",
+          additional_conditions: {
+            upvote_ratio: 0.7
+            // 70% upvotes
+          }
+        },
+        rewards: {
+          credits: 40
+        }
+      },
+      "peoples_choice": {
+        id: "peoples_choice",
+        name: "People's Choice",
+        description: "Overwhelmingly positive community response (90%+ upvotes)",
+        icon: "\u{1F396}\uFE0F",
+        color: "#FF6347",
+        category: "community",
+        rarity: "epic",
+        criteria: {
+          type: "upvotes",
+          threshold: 25,
+          timeframe: "all_time",
+          additional_conditions: {
+            upvote_ratio: 0.9,
+            min_total_votes: 30
+          }
+        },
+        rewards: {
+          credits: 100,
+          premium_days: 5
+        }
+      },
+      // ==================== MILESTONE BADGES ====================
+      "storyteller": {
+        id: "storyteller",
+        name: "Storyteller",
+        description: "Created your first story",
+        icon: "\u{1F4DA}",
+        color: "#8B4513",
+        category: "milestone",
+        rarity: "common",
+        criteria: {
+          type: "stories_created",
+          threshold: 1,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 0
+        }
+      },
+      "prolific_writer": {
+        id: "prolific_writer",
+        name: "Prolific Writer",
+        description: "Created 10+ stories",
+        icon: "\u{1F4D6}",
+        color: "#228B22",
+        category: "milestone",
+        rarity: "rare",
+        criteria: {
+          type: "stories_created",
+          threshold: 10,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 50
+        }
+      },
+      "story_master": {
+        id: "story_master",
+        name: "Story Master",
+        description: "Created 50+ stories",
+        icon: "\u{1F4DD}",
+        color: "#B8860B",
+        category: "milestone",
+        rarity: "epic",
+        criteria: {
+          type: "stories_created",
+          threshold: 50,
+          timeframe: "all_time"
+        },
+        rewards: {
+          credits: 200,
+          premium_days: 14
+        }
+      },
+      // ==================== MONTHLY ACHIEVEMENTS ====================
+      "monthly_star": {
+        id: "monthly_star",
+        name: "Monthly Star",
+        description: "Top engagement this month",
+        icon: "\u{1F31F}",
+        color: "#FFD700",
+        category: "community",
+        rarity: "epic",
+        criteria: {
+          type: "likes",
+          threshold: 20,
+          timeframe: "monthly"
+        },
+        rewards: {
+          credits: 75,
+          premium_days: 3
+        }
+      }
+    };
+    getBadgesByCategory = (category) => {
+      return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.category === category);
+    };
+    getBadgesByRarity = (rarity) => {
+      return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.rarity === rarity);
+    };
+    getBadgeById = (id) => {
+      return BADGE_DEFINITIONS[id];
+    };
+    BADGE_CHECK_ORDER = Object.values(BADGE_DEFINITIONS).sort((a, b) => {
+      const rarityOrder = { "legendary": 0, "epic": 1, "rare": 2, "common": 3 };
+      return rarityOrder[a.rarity] - rarityOrder[b.rarity];
+    }).map((badge) => badge.id);
+  }
+});
+
+// server/services/reward.service.ts
+var reward_service_exports = {};
+__export(reward_service_exports, {
+  awardBadge: () => awardBadge,
+  awardReward: () => awardReward,
+  checkAndAwardTopAuthor: () => checkAndAwardTopAuthor
+});
+async function awardBadge(userId, badgeName) {
+  console.warn("awardBadge is deprecated. Use badgeService.processUserBadges() for automatic badge awarding.");
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.warn(`User ${userId} not found for badge award.`);
+      return false;
+    }
+    if (typeof badgeName === "string" && !getBadgeById(badgeName)) {
+      const legacyBadge = {
+        id: badgeName.toLowerCase().replace(/\s+/g, "_"),
+        name: badgeName,
+        description: `Legacy badge: ${badgeName}`,
+        icon: "\u{1F3C6}",
+        color: "#FFD700",
+        rarity: "common",
+        awardedAt: /* @__PURE__ */ new Date()
+      };
+      if (!user.badges) {
+        user.badges = [];
+      }
+      const existingBadge = user.badges.find(
+        (badge) => badge.name === badgeName || badge.id === legacyBadge.id
+      );
+      if (!existingBadge) {
+        user.badges.push(legacyBadge);
+        await user.save();
+        console.log(`Awarded legacy badge "${badgeName}" to user ${userId}.`);
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error(`Error awarding badge "${badgeName}" to user ${userId}:`, error);
+    return false;
+  }
+}
+async function awardReward(userId, rewardName) {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      console.warn(`User ${userId} not found for reward award.`);
+      return false;
+    }
+    if (!user.badges.includes(rewardName)) {
+      user.badges.push(rewardName);
+      await user.save();
+      console.log(`Awarded reward "${rewardName}" to user ${userId}.`);
+      return true;
+    } else {
+      console.log(`User ${userId} already has reward "${rewardName}".`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error awarding reward "${rewardName}" to user ${userId}:`, error);
+    return false;
+  }
+}
+async function checkAndAwardTopAuthor() {
+  try {
+    const topAuthor = await User.aggregate([
+      {
+        $lookup: {
+          from: "stories",
+          localField: "stories",
+          foreignField: "_id",
+          as: "userStories"
+        }
+      },
+      {
+        $unwind: "$userStories"
+      },
+      {
+        $match: {
+          "userStories.isPublic": true
+          // Only consider public stories
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          totalLikes: { $sum: "$userStories.likes" },
+          user: { $first: "$ROOT" }
+        }
+      },
+      {
+        $sort: { totalLikes: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]);
+    if (topAuthor.length > 0) {
+      const authorId = topAuthor[0].user._id;
+      await awardReward(authorId, "Top Author");
+    } else {
+      console.log("No stories found to determine top author.");
+    }
+  } catch (error) {
+    console.error("Error checking and awarding top author:", error);
+  }
+}
+var init_reward_service = __esm({
+  "server/services/reward.service.ts"() {
+    "use strict";
+    init_user_model();
+    init_badges();
+  }
+});
+
 // server/constants/plans.ts
 var plans_exports = {};
 __export(plans_exports, {
@@ -2055,362 +2425,17 @@ IMPORTANT: Conclude the story from the exact point where it ended. Provide a sat
 
 // server/services/story.service.ts
 init_user_model();
-
-// server/services/reward.service.ts
-init_user_model();
-
-// server/constants/badges.ts
-var BADGE_DEFINITIONS = {
-  // ==================== ENGAGEMENT BADGES ====================
-  "first_like": {
-    id: "first_like",
-    name: "First Heart",
-    description: "Received your first like on a story",
-    icon: "\u{1F49D}",
-    color: "#FFB6C1",
-    category: "engagement",
-    rarity: "common",
-    criteria: {
-      type: "likes",
-      threshold: 1,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 5
-    }
-  },
-  "popular_author": {
-    id: "popular_author",
-    name: "Popular Author",
-    description: "Received 50+ likes across all stories",
-    icon: "\u2B50",
-    color: "#FFD700",
-    category: "engagement",
-    rarity: "rare",
-    criteria: {
-      type: "likes",
-      threshold: 50,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 25
-    }
-  },
-  "viral_storyteller": {
-    id: "viral_storyteller",
-    name: "Viral Storyteller",
-    description: "Received 200+ likes across all stories",
-    icon: "\u{1F525}",
-    color: "#FF4500",
-    category: "engagement",
-    rarity: "epic",
-    criteria: {
-      type: "likes",
-      threshold: 200,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 100,
-      premium_days: 3
-    }
-  },
-  "legend_author": {
-    id: "legend_author",
-    name: "Legend Author",
-    description: "Received 1000+ likes across all stories",
-    icon: "\u{1F451}",
-    color: "#8A2BE2",
-    category: "engagement",
-    rarity: "legendary",
-    criteria: {
-      type: "likes",
-      threshold: 1e3,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 500,
-      premium_days: 30
-    }
-  },
-  // ==================== QUALITY BADGES ====================
-  "quality_writer": {
-    id: "quality_writer",
-    name: "Quality Writer",
-    description: "High engagement ratio (likes/plays > 0.3)",
-    icon: "\u2728",
-    color: "#4169E1",
-    category: "quality",
-    rarity: "rare",
-    criteria: {
-      type: "engagement_ratio",
-      threshold: 0.3,
-      timeframe: "all_time",
-      additional_conditions: {
-        min_plays: 20
-        // Must have at least 20 plays to qualify
-      }
-    },
-    rewards: {
-      credits: 30
-    }
-  },
-  "masterpiece_creator": {
-    id: "masterpiece_creator",
-    name: "Masterpiece Creator",
-    description: "Exceptional engagement ratio (likes/plays > 0.5)",
-    icon: "\u{1F3A8}",
-    color: "#9932CC",
-    category: "quality",
-    rarity: "epic",
-    criteria: {
-      type: "engagement_ratio",
-      threshold: 0.5,
-      timeframe: "all_time",
-      additional_conditions: {
-        min_plays: 50
-      }
-    },
-    rewards: {
-      credits: 75,
-      premium_days: 7
-    }
-  },
-  // ==================== COMMUNITY BADGES ====================
-  "community_favorite": {
-    id: "community_favorite",
-    name: "Community Favorite",
-    description: "More upvotes than downvotes with 10+ total votes",
-    icon: "\u{1F3C6}",
-    color: "#32CD32",
-    category: "community",
-    rarity: "rare",
-    criteria: {
-      type: "upvotes",
-      threshold: 10,
-      timeframe: "all_time",
-      additional_conditions: {
-        upvote_ratio: 0.7
-        // 70% upvotes
-      }
-    },
-    rewards: {
-      credits: 40
-    }
-  },
-  "peoples_choice": {
-    id: "peoples_choice",
-    name: "People's Choice",
-    description: "Overwhelmingly positive community response (90%+ upvotes)",
-    icon: "\u{1F396}\uFE0F",
-    color: "#FF6347",
-    category: "community",
-    rarity: "epic",
-    criteria: {
-      type: "upvotes",
-      threshold: 25,
-      timeframe: "all_time",
-      additional_conditions: {
-        upvote_ratio: 0.9,
-        min_total_votes: 30
-      }
-    },
-    rewards: {
-      credits: 100,
-      premium_days: 5
-    }
-  },
-  // ==================== MILESTONE BADGES ====================
-  "storyteller": {
-    id: "storyteller",
-    name: "Storyteller",
-    description: "Created your first story",
-    icon: "\u{1F4DA}",
-    color: "#8B4513",
-    category: "milestone",
-    rarity: "common",
-    criteria: {
-      type: "stories_created",
-      threshold: 1,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 0
-    }
-  },
-  "prolific_writer": {
-    id: "prolific_writer",
-    name: "Prolific Writer",
-    description: "Created 10+ stories",
-    icon: "\u{1F4D6}",
-    color: "#228B22",
-    category: "milestone",
-    rarity: "rare",
-    criteria: {
-      type: "stories_created",
-      threshold: 10,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 50
-    }
-  },
-  "story_master": {
-    id: "story_master",
-    name: "Story Master",
-    description: "Created 50+ stories",
-    icon: "\u{1F4DD}",
-    color: "#B8860B",
-    category: "milestone",
-    rarity: "epic",
-    criteria: {
-      type: "stories_created",
-      threshold: 50,
-      timeframe: "all_time"
-    },
-    rewards: {
-      credits: 200,
-      premium_days: 14
-    }
-  },
-  // ==================== MONTHLY ACHIEVEMENTS ====================
-  "monthly_star": {
-    id: "monthly_star",
-    name: "Monthly Star",
-    description: "Top engagement this month",
-    icon: "\u{1F31F}",
-    color: "#FFD700",
-    category: "community",
-    rarity: "epic",
-    criteria: {
-      type: "likes",
-      threshold: 20,
-      timeframe: "monthly"
-    },
-    rewards: {
-      credits: 75,
-      premium_days: 3
-    }
+init_reward_service();
+var VisibilityError = class extends Error {
+  code;
+  status;
+  constructor(message, status, code) {
+    super(message);
+    this.name = "VisibilityError";
+    if (status) this.status = status;
+    if (code) this.code = code;
   }
 };
-var getBadgesByCategory = (category) => {
-  return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.category === category);
-};
-var getBadgesByRarity = (rarity) => {
-  return Object.values(BADGE_DEFINITIONS).filter((badge) => badge.rarity === rarity);
-};
-var getBadgeById = (id) => {
-  return BADGE_DEFINITIONS[id];
-};
-var BADGE_CHECK_ORDER = Object.values(BADGE_DEFINITIONS).sort((a, b) => {
-  const rarityOrder = { "legendary": 0, "epic": 1, "rare": 2, "common": 3 };
-  return rarityOrder[a.rarity] - rarityOrder[b.rarity];
-}).map((badge) => badge.id);
-
-// server/services/reward.service.ts
-async function awardBadge(userId, badgeName) {
-  console.warn("awardBadge is deprecated. Use badgeService.processUserBadges() for automatic badge awarding.");
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      console.warn(`User ${userId} not found for badge award.`);
-      return false;
-    }
-    if (typeof badgeName === "string" && !getBadgeById(badgeName)) {
-      const legacyBadge = {
-        id: badgeName.toLowerCase().replace(/\s+/g, "_"),
-        name: badgeName,
-        description: `Legacy badge: ${badgeName}`,
-        icon: "\u{1F3C6}",
-        color: "#FFD700",
-        rarity: "common",
-        awardedAt: /* @__PURE__ */ new Date()
-      };
-      if (!user.badges) {
-        user.badges = [];
-      }
-      const existingBadge = user.badges.find(
-        (badge) => badge.name === badgeName || badge.id === legacyBadge.id
-      );
-      if (!existingBadge) {
-        user.badges.push(legacyBadge);
-        await user.save();
-        console.log(`Awarded legacy badge "${badgeName}" to user ${userId}.`);
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    console.error(`Error awarding badge "${badgeName}" to user ${userId}:`, error);
-    return false;
-  }
-}
-async function awardReward(userId, rewardName) {
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      console.warn(`User ${userId} not found for reward award.`);
-      return false;
-    }
-    if (!user.badges.includes(rewardName)) {
-      user.badges.push(rewardName);
-      await user.save();
-      console.log(`Awarded reward "${rewardName}" to user ${userId}.`);
-      return true;
-    } else {
-      console.log(`User ${userId} already has reward "${rewardName}".`);
-      return false;
-    }
-  } catch (error) {
-    console.error(`Error awarding reward "${rewardName}" to user ${userId}:`, error);
-    return false;
-  }
-}
-async function checkAndAwardTopAuthor() {
-  try {
-    const topAuthor = await User.aggregate([
-      {
-        $lookup: {
-          from: "stories",
-          localField: "stories",
-          foreignField: "_id",
-          as: "userStories"
-        }
-      },
-      {
-        $unwind: "$userStories"
-      },
-      {
-        $match: {
-          "userStories.isPublic": true
-          // Only consider public stories
-        }
-      },
-      {
-        $group: {
-          _id: "$_id",
-          totalLikes: { $sum: "$userStories.likes" },
-          user: { $first: "$ROOT" }
-        }
-      },
-      {
-        $sort: { totalLikes: -1 }
-      },
-      {
-        $limit: 1
-      }
-    ]);
-    if (topAuthor.length > 0) {
-      const authorId = topAuthor[0].user._id;
-      await awardReward(authorId, "Top Author");
-    } else {
-      console.log("No stories found to determine top author.");
-    }
-  } catch (error) {
-    console.error("Error checking and awarding top author:", error);
-  }
-}
-
-// server/services/story.service.ts
 var createStory = async (title, settings, maxTokens, userId, isPublic = false, category = "romance", accessType = "public", textCreditCost = 1) => {
   const user = await User.findById(userId);
   if (!user) {
@@ -2627,6 +2652,217 @@ var deleteStory = async (id, userId) => {
   await user.save();
   return story;
 };
+var setStoryVisibility = async (userId, storyId, isPublic) => {
+  if (!userId) {
+    throw new VisibilityError("Not authenticated", 401);
+  }
+  if (typeof isPublic !== "boolean") {
+    throw new VisibilityError("Invalid visibility status", 400);
+  }
+  if (!isPublic) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new VisibilityError("User not found", 404);
+    }
+    if (!user.isPremium) {
+      throw new VisibilityError("Only premium users can set stories to private", 403, "PREMIUM_REQUIRED");
+    }
+  }
+  const story = await Story.findById(storyId);
+  if (!story) {
+    throw new VisibilityError("Story not found", 404);
+  }
+  if (story.userId !== userId) {
+    throw new VisibilityError("You don't have permission to update this story", 403);
+  }
+  story.isPublic = isPublic;
+  await story.save();
+  return story;
+};
+var getVoiceOptionsService = async () => {
+  const voices = await elevenlabs.getVoices();
+  const determineVoiceGender = (voiceName, labels) => {
+    if (labels && labels.gender && (labels.gender.toLowerCase() === "male" || labels.gender.toLowerCase() === "female")) {
+      return labels.gender.toLowerCase();
+    }
+    const maleNames = ["adam", "josh", "thomas", "charlie", "james", "matthew", "daniel", "michael", "david", "william", "joseph", "chris", "george", "robert", "jack", "john", "henry", "jacob", "sam", "samuel", "tom", "callum", "harry", "oliver", "peter", "will", "liam", "lucas"];
+    const femaleNames = ["rachel", "sarah", "emily", "bella", "domi", "charlotte", "olivia", "emma", "ava", "sophia", "isabella", "mia", "amelia", "alice", "lily", "grace", "chloe", "jessica", "sophia", "amy", "katie", "susan", "jennifer", "elizabeth", "mary", "kathy", "matilda", "river"];
+    const normalizedName = voiceName.toLowerCase().trim();
+    const firstNamePart = normalizedName.split(" ")[0];
+    if (normalizedName.includes("female") || normalizedName.includes("woman")) return "female";
+    if (normalizedName.includes("male") || normalizedName.includes("man")) return "male";
+    if (maleNames.includes(firstNamePart)) return "male";
+    if (femaleNames.includes(firstNamePart)) return "female";
+    if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) return "male";
+    if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) return "female";
+    if (normalizedName === "river") return "female";
+    return "unknown";
+  };
+  return voices.map((voice) => {
+    const nameParts = voice.name.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+    const cleanName = nameParts ? nameParts[1].trim() : voice.name;
+    const description = nameParts && nameParts[2] ? nameParts[2].trim() : "";
+    const isFree = voice.category === "premade";
+    return {
+      id: voice.voice_id,
+      name: cleanName,
+      fullName: voice.name,
+      category: voice.category,
+      isPremium: !isFree,
+      description: description || voice.labels && voice.labels.description || "",
+      labels: {
+        ...voice.labels,
+        gender: determineVoiceGender(voice.name, voice.labels),
+        accent: voice.labels && voice.labels.accent || "neutral",
+        age: voice.labels && voice.labels.age || "adult",
+        style: voice.labels && voice.labels.style || "natural"
+      },
+      preview_url: voice.preview_url || ""
+    };
+  });
+};
+var getPublicStoriesService = async (userId) => {
+  const currentDate = /* @__PURE__ */ new Date();
+  const publicStories = await Story.find({
+    $or: [
+      { accessType: "public" },
+      { accessType: "premium_early_access", publicReleaseDate: { $lte: currentDate } }
+    ]
+  }).sort({ createdAt: -1 }).limit(12);
+  const storiesWithUserNames = await Promise.all(
+    publicStories.map(async (story) => {
+      try {
+        const likedBy = story.likedBy || [];
+        const upvotedBy = story.upvotedBy || [];
+        const downvotedBy = story.downvotedBy || [];
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const user = await User.findById(story.userId).select("name badges");
+          return {
+            ...story.toObject(),
+            userName: user ? user.name : "Anonymous",
+            authorBadges: user ? user.badges : [],
+            hasLiked: userId ? likedBy.includes(userId) : false,
+            hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+            hasDownvoted: userId ? downvotedBy.includes(userId) : false
+          };
+        } else {
+          return {
+            ...story.toObject(),
+            userName: "Anonymous",
+            authorBadges: [],
+            hasLiked: userId ? likedBy.includes(userId) : false,
+            hasUpvoted: userId ? upvotedBy.includes(userId) : false,
+            hasDownvoted: userId ? downvotedBy.includes(userId) : false
+          };
+        }
+      } catch (err) {
+        return {
+          ...story.toObject(),
+          userName: "Anonymous",
+          authorBadges: [],
+          hasLiked: false,
+          hasUpvoted: false,
+          hasDownvoted: false
+        };
+      }
+    })
+  );
+  return storiesWithUserNames;
+};
+var getStoriesByCategoryService = async (category) => {
+  if (!category) {
+    throw new VisibilityError("Category is required", 400);
+  }
+  let query = { isPublic: true };
+  switch (category) {
+    case "romance":
+      query = { isPublic: true, $or: [{ category: "romance" }, { "settings.atmosphere": "Romantic" }, { "settings.writingTone": "Romantic" }] };
+      break;
+    case "fantasy":
+      query = { isPublic: true, $or: [{ category: "fantasy" }, { "settings.timePeriod": "Fantasy Realm" }] };
+      break;
+    case "historical":
+      query = { isPublic: true, $or: [{ category: "historical" }, { "settings.timePeriod": { $in: ["Medieval", "Victorian"] } }] };
+      break;
+    case "contemporary":
+      query = { isPublic: true, $or: [{ category: "contemporary" }, { "settings.timePeriod": "Contemporary" }] };
+      break;
+    case "adventure":
+      query = { isPublic: true, $or: [{ category: "adventure" }, { "settings.atmosphere": "Mysterious" }] };
+      break;
+    case "passionate":
+      query = { isPublic: true, $or: [{ category: "passionate" }, { "settings.writingTone": "Passionate" }] };
+      break;
+    case "playful":
+      query = { isPublic: true, $or: [{ category: "playful" }, { "settings.writingTone": "Playful" }] };
+      break;
+    case "intense":
+      query = { isPublic: true, $or: [{ category: "intense" }, { "settings.writingTone": "Intense" }] };
+      break;
+    default:
+      query = { isPublic: true, category };
+  }
+  const categoryStories = await Story.find(query).sort({ createdAt: -1 }).limit(8);
+  const storiesWithUserNames = await Promise.all(
+    categoryStories.map(async (story) => {
+      try {
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const user = await User.findById(story.userId);
+          return { ...story.toObject(), userName: user ? user.name : "Anonymous" };
+        } else {
+          return { ...story.toObject(), userName: "Anonymous" };
+        }
+      } catch (err) {
+        return { ...story.toObject(), userName: "Anonymous" };
+      }
+    })
+  );
+  return storiesWithUserNames;
+};
+var getPremiumStoriesService = async (userId) => {
+  const user = await User.findById(userId);
+  const hasGalleryAccess = ["essentiel", "seduction", "intimacy"].includes(user?.subscription || "");
+  if (!user || !hasGalleryAccess) {
+    const err = new Error("Access denied. Premium subscription required for premium gallery access.");
+    err.status = 403;
+    err.code = "PREMIUM_REQUIRED";
+    err.currentSubscription = user?.subscription || "none";
+    err.requiredSubscriptions = ["essentiel", "seduction", "intimacy"];
+    throw err;
+  }
+  const currentDate = /* @__PURE__ */ new Date();
+  let storyQuery = {};
+  let limit = 20;
+  if (user.subscription === "essentiel") {
+    storyQuery = { accessType: "premium_early_access", $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 10;
+  } else if (user.subscription === "seduction") {
+    storyQuery = { accessType: { $in: ["premium_early_access", "premium_exclusive"] }, $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 20;
+  } else if (user.subscription === "intimacy") {
+    storyQuery = { accessType: { $in: ["premium_early_access", "premium_exclusive"] }, $or: [{ premiumAccessDate: { $lte: currentDate } }, { premiumAccessDate: { $exists: false } }] };
+    limit = 30;
+  } else {
+    storyQuery = { accessType: "premium_early_access" };
+    limit = 5;
+  }
+  const premiumStories = await Story.find(storyQuery).sort({ createdAt: -1 }).limit(limit);
+  const storiesWithUserNames = await Promise.all(
+    premiumStories.map(async (story) => {
+      try {
+        if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
+          const author = await User.findById(story.userId).select("name badges");
+          return { ...story.toObject(), userName: author ? author.name : "Anonymous", authorBadges: author ? author.badges : [] };
+        } else {
+          return { ...story.toObject(), userName: "Anonymous", authorBadges: [] };
+        }
+      } catch (err) {
+        return { ...story.toObject(), userName: "Anonymous", authorBadges: [] };
+      }
+    })
+  );
+  return storiesWithUserNames;
+};
 
 // shared/schema.ts
 import { z } from "zod";
@@ -2746,6 +2982,7 @@ import fs2 from "fs";
 // server/services/badge.service.ts
 init_user_model();
 init_story_model();
+init_badges();
 var BadgeService = class {
   /**
    * Get comprehensive user statistics for badge evaluation
@@ -2995,8 +3232,70 @@ var BadgeService = class {
   }
 };
 var badgeService = new BadgeService();
+var listBadgeDefinitionsService = (category, rarity) => {
+  let badges = Object.values(BADGE_DEFINITIONS);
+  if (category) badges = getBadgesByCategory(category);
+  if (rarity) badges = getBadgesByRarity(rarity);
+  return { badges, total: badges.length };
+};
+var getUserBadgesWithSummaryService = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) return null;
+  const badgeSummary = await badgeService.getUserBadgeSummary(userId);
+  const userStats = await badgeService.getUserStats(userId);
+  return {
+    badges: user.badges || [],
+    summary: badgeSummary,
+    stats: userStats
+  };
+};
+var getBadgeLeaderboardService = async (limit = 10) => {
+  const users = await User.find({ badges: { $exists: true, $ne: [] } }).select("name badges").limit(limit);
+  const leaderboard = users.map((user) => {
+    const badges = user.badges || [];
+    const badgeCounts = {
+      total: badges.length,
+      legendary: badges.filter((b) => b.rarity === "legendary").length,
+      epic: badges.filter((b) => b.rarity === "epic").length,
+      rare: badges.filter((b) => b.rarity === "rare").length,
+      common: badges.filter((b) => b.rarity === "common").length
+    };
+    const score = badgeCounts.legendary * 100 + badgeCounts.epic * 25 + badgeCounts.rare * 5 + badgeCounts.common * 1;
+    return {
+      userId: user._id,
+      name: user.name,
+      badgeCounts,
+      score,
+      recentBadges: badges.sort((a, b) => new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime()).slice(0, 3)
+    };
+  }).sort((a, b) => b.score - a.score);
+  return { leaderboard, total: leaderboard.length };
+};
+var getBadgeStatsService = async () => {
+  const totalBadgeDefinitions = Object.keys(BADGE_DEFINITIONS).length;
+  const userCount = await User.countDocuments({ badges: { $exists: true, $ne: [] } });
+  const badgesByRarity = await User.aggregate([
+    { $match: { badges: { $exists: true, $ne: [] } } },
+    { $unwind: "$badges" },
+    { $group: { _id: "$badges.rarity", count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  const mostAwardedBadges = await User.aggregate([
+    { $match: { badges: { $exists: true, $ne: [] } } },
+    { $unwind: "$badges" },
+    { $group: { _id: "$badges.id", name: { $first: "$badges.name" }, count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 10 }
+  ]);
+  return {
+    totalBadgeDefinitions,
+    usersWithBadges: userCount,
+    badgesByRarity,
+    mostAwardedBadges
+  };
+};
 
-// server/middleware/engagement.middleware.ts
+// server/middlewares/engagement.middleware.ts
 var EngagementTracker = class {
   badgeCheckQueue = [];
   isProcessingQueue = false;
@@ -3652,387 +3951,80 @@ var downvoteStory = async (req, res) => {
     res.status(500).json({ message: "Failed to downvote story" });
   }
 };
-
-// server/routes/story.route.ts
-init_story_model();
-init_user_model();
-function determineVoiceGender(voiceName, labels) {
-  if (labels && labels.gender && (labels.gender.toLowerCase() === "male" || labels.gender.toLowerCase() === "female")) {
-    return labels.gender.toLowerCase();
-  }
-  const maleNames = [
-    "adam",
-    "josh",
-    "thomas",
-    "charlie",
-    "james",
-    "matthew",
-    "daniel",
-    "michael",
-    "david",
-    "william",
-    "joseph",
-    "chris",
-    "george",
-    "robert",
-    "jack",
-    "john",
-    "henry",
-    "jacob",
-    "sam",
-    "samuel",
-    "tom",
-    "callum",
-    "harry",
-    "oliver",
-    "peter",
-    "will",
-    "liam",
-    "lucas"
-  ];
-  const femaleNames = [
-    "rachel",
-    "sarah",
-    "emily",
-    "bella",
-    "domi",
-    "charlotte",
-    "olivia",
-    "emma",
-    "ava",
-    "sophia",
-    "isabella",
-    "mia",
-    "amelia",
-    "alice",
-    "lily",
-    "grace",
-    "chloe",
-    "jessica",
-    "sophia",
-    "amy",
-    "katie",
-    "susan",
-    "jennifer",
-    "elizabeth",
-    "mary",
-    "kathy",
-    "matilda",
-    "river"
-  ];
-  const normalizedName = voiceName.toLowerCase().trim();
-  const firstNamePart = normalizedName.split(" ")[0];
-  if (normalizedName.includes("female") || normalizedName.includes("woman")) {
-    return "female";
-  }
-  if (normalizedName.includes("male") || normalizedName.includes("man")) {
-    return "male";
-  }
-  if (maleNames.includes(firstNamePart)) {
-    return "male";
-  }
-  if (femaleNames.includes(firstNamePart)) {
-    return "female";
-  }
-  if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) {
-    return "male";
-  }
-  if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) {
-    return "female";
-  }
-  if (normalizedName === "river") {
-    return "female";
-  }
-  return "unknown";
-}
-var router2 = Router2();
-router2.get("/voice-options", async (req, res) => {
+var updateVisibility = async (req, res) => {
   try {
-    const voices = await elevenlabs.getVoices();
-    const mappedVoices = voices.map((voice) => {
-      const nameParts = voice.name.match(/^(.*?)(?:\s*\((.*?)\))?$/);
-      const cleanName = nameParts ? nameParts[1].trim() : voice.name;
-      const description = nameParts && nameParts[2] ? nameParts[2].trim() : "";
-      const isFree = voice.category === "premade";
-      return {
-        id: voice.voice_id,
-        name: cleanName,
-        fullName: voice.name,
-        category: voice.category,
-        isPremium: !isFree,
-        description: description || voice.labels && voice.labels.description || "",
-        labels: {
-          ...voice.labels,
-          // Add some defaults if missing with improved gender detection
-          gender: determineVoiceGender(voice.name, voice.labels),
-          accent: voice.labels && voice.labels.accent || "neutral",
-          age: voice.labels && voice.labels.age || "adult",
-          style: voice.labels && voice.labels.style || "natural"
-        },
-        preview_url: voice.preview_url || ""
-      };
-    });
-    console.log(`Returning ${mappedVoices.length} voice options with enhanced details`);
-    res.json(mappedVoices);
+    const { id } = req.params;
+    const { isPublic } = req.body;
+    const userId = req.session?.userId;
+    const updated = await setStoryVisibility(userId, id, isPublic);
+    return res.json(updated);
+  } catch (error) {
+    console.error("Error updating story visibility:", error);
+    const status = error?.status || 500;
+    const body = { message: error?.message || "Failed to update story visibility" };
+    if (error?.code) {
+      body.code = error.code;
+      if (error.code === "PREMIUM_REQUIRED") body.isPremiumRequired = true;
+    }
+    return res.status(status).json(body);
+  }
+};
+var voiceOptions = async (_req, res) => {
+  try {
+    const voices = await getVoiceOptionsService();
+    res.json(voices);
   } catch (error) {
     console.error("Error fetching voice options:", error);
     res.status(500).json({ message: "Failed to fetch voice options" });
   }
-});
-router2.route("/generate").post(authMiddleware, trackEngagement("story_created"), createStory2);
-router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
-router2.get("/public", async (req, res) => {
+};
+var getPublicStoriesList = async (req, res) => {
   try {
-    const currentDate = /* @__PURE__ */ new Date();
     const userId = req.session?.userId;
-    const publicStories = await Story.find({
-      $or: [
-        { accessType: "public" },
-        { accessType: "premium_early_access", publicReleaseDate: { $lte: currentDate } }
-      ]
-    }).sort({ createdAt: -1 }).limit(12);
-    const storiesWithUserNames = await Promise.all(
-      publicStories.map(async (story) => {
-        try {
-          const likedBy = story.likedBy || [];
-          const upvotedBy = story.upvotedBy || [];
-          const downvotedBy = story.downvotedBy || [];
-          if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const user = await User.findById(story.userId).select("name badges");
-            return {
-              ...story.toObject(),
-              userName: user ? user.name : "Anonymous",
-              authorBadges: user ? user.badges : [],
-              // Add user interaction state
-              hasLiked: userId ? likedBy.includes(userId) : false,
-              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
-              hasDownvoted: userId ? downvotedBy.includes(userId) : false
-            };
-          } else {
-            return {
-              ...story.toObject(),
-              userName: "Anonymous",
-              authorBadges: [],
-              // Add user interaction state
-              hasLiked: userId ? likedBy.includes(userId) : false,
-              hasUpvoted: userId ? upvotedBy.includes(userId) : false,
-              hasDownvoted: userId ? downvotedBy.includes(userId) : false
-            };
-          }
-        } catch (err) {
-          return {
-            ...story.toObject(),
-            userName: "Anonymous",
-            authorBadges: [],
-            hasLiked: false,
-            hasUpvoted: false,
-            hasDownvoted: false
-          };
-        }
-      })
-    );
-    res.json(storiesWithUserNames);
+    const stories = await getPublicStoriesService(userId);
+    res.json(stories);
   } catch (error) {
     console.error("Error fetching public stories:", error);
     res.status(500).json({ message: "Failed to fetch public stories" });
   }
-});
-router2.get("/by-category/:category", async (req, res) => {
+};
+var getStoriesByCategoryController = async (req, res) => {
   try {
     const { category } = req.params;
-    if (!category) {
-      return res.status(400).json({ message: "Category is required" });
-    }
-    let query = { isPublic: true };
-    switch (category) {
-      case "romance":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "romance" },
-            { "settings.atmosphere": "Romantic" },
-            { "settings.writingTone": "Romantic" }
-          ]
-        };
-        break;
-      case "fantasy":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "fantasy" },
-            { "settings.timePeriod": "Fantasy Realm" }
-          ]
-        };
-        break;
-      case "historical":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "historical" },
-            { "settings.timePeriod": { $in: ["Medieval", "Victorian"] } }
-          ]
-        };
-        break;
-      case "contemporary":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "contemporary" },
-            { "settings.timePeriod": "Contemporary" }
-          ]
-        };
-        break;
-      case "adventure":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "adventure" },
-            { "settings.atmosphere": "Mysterious" }
-          ]
-        };
-        break;
-      case "passionate":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "passionate" },
-            { "settings.writingTone": "Passionate" }
-          ]
-        };
-        break;
-      case "playful":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "playful" },
-            { "settings.writingTone": "Playful" }
-          ]
-        };
-        break;
-      case "intense":
-        query = {
-          isPublic: true,
-          $or: [
-            { category: "intense" },
-            { "settings.writingTone": "Intense" }
-          ]
-        };
-        break;
-      default:
-        query = { isPublic: true, category };
-    }
-    console.log(`Query for category ${category}:`, JSON.stringify(query));
-    const categoryStories = await Story.find(query).sort({ createdAt: -1 }).limit(8);
-    const storiesWithUserNames = await Promise.all(
-      categoryStories.map(async (story) => {
-        try {
-          if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const user = await User.findById(story.userId);
-            return {
-              ...story.toObject(),
-              userName: user ? user.name : "Anonymous"
-            };
-          } else {
-            return {
-              ...story.toObject(),
-              userName: "Anonymous"
-            };
-          }
-        } catch (err) {
-          return {
-            ...story.toObject(),
-            userName: "Anonymous"
-          };
-        }
-      })
-    );
-    res.json(storiesWithUserNames);
+    const stories = await getStoriesByCategoryService(category);
+    res.json(stories);
   } catch (error) {
-    console.error(`Error fetching stories for category:`, error);
-    res.status(500).json({ message: "Failed to fetch stories by category" });
+    const status = error?.status || 500;
+    const msg = error?.message || "Failed to fetch stories by category";
+    console.error("Error fetching stories for category:", error);
+    res.status(status).json({ message: msg });
   }
-});
-router2.get("/premium-stories", authMiddleware, async (req, res) => {
+};
+var getPremiumStoriesController = async (req, res) => {
   try {
     const userId = req.session.userId;
-    const user = await User.findById(userId);
-    const hasGalleryAccess = ["essentiel", "seduction", "intimacy"].includes(user?.subscription || "");
-    if (!user || !hasGalleryAccess) {
-      return res.status(403).json({
-        message: "Access denied. Premium subscription required for premium gallery access.",
-        currentSubscription: user?.subscription || "none",
-        requiredSubscriptions: ["essentiel", "seduction", "intimacy"]
-      });
-    }
-    const currentDate = /* @__PURE__ */ new Date();
-    let storyQuery = {};
-    let limit = 20;
-    if (user.subscription === "essentiel") {
-      storyQuery = {
-        accessType: "premium_early_access",
-        $or: [
-          { premiumAccessDate: { $lte: currentDate } },
-          { premiumAccessDate: { $exists: false } }
-        ]
-      };
-      limit = 10;
-    } else if (user.subscription === "seduction") {
-      storyQuery = {
-        accessType: { $in: ["premium_early_access", "premium_exclusive"] },
-        $or: [
-          { premiumAccessDate: { $lte: currentDate } },
-          { premiumAccessDate: { $exists: false } }
-        ]
-      };
-      limit = 20;
-    } else if (user.subscription === "intimacy") {
-      storyQuery = {
-        accessType: { $in: ["premium_early_access", "premium_exclusive"] },
-        $or: [
-          { premiumAccessDate: { $lte: currentDate } },
-          { premiumAccessDate: { $exists: false } }
-        ]
-      };
-      limit = 30;
-    } else {
-      storyQuery = {
-        accessType: "premium_early_access"
-      };
-      limit = 5;
-    }
-    const premiumStories = await Story.find(storyQuery).sort({ createdAt: -1 }).limit(limit);
-    const storiesWithUserNames = await Promise.all(
-      premiumStories.map(async (story) => {
-        try {
-          if (story.userId && /^[0-9a-fA-F]{24}$/.test(story.userId)) {
-            const author = await User.findById(story.userId).select("name badges");
-            return {
-              ...story.toObject(),
-              userName: author ? author.name : "Anonymous",
-              authorBadges: author ? author.badges : []
-            };
-          } else {
-            return {
-              ...story.toObject(),
-              userName: "Anonymous",
-              authorBadges: []
-            };
-          }
-        } catch (err) {
-          return {
-            ...story.toObject(),
-            userName: "Anonymous",
-            authorBadges: []
-          };
-        }
-      })
-    );
-    res.json(storiesWithUserNames);
+    const stories = await getPremiumStoriesService(userId);
+    res.json(stories);
   } catch (error) {
+    const status = error?.status || 500;
+    const body = { message: error?.message || "Failed to fetch premium stories" };
+    if (error?.code === "PREMIUM_REQUIRED") {
+      body.currentSubscription = error.currentSubscription;
+      body.requiredSubscriptions = error.requiredSubscriptions;
+    }
     console.error("Error fetching premium stories:", error);
-    res.status(500).json({ message: "Failed to fetch premium stories" });
+    res.status(status).json(body);
   }
-});
+};
+
+// server/routes/story.route.ts
+var router2 = Router2();
+router2.get("/voice-options", voiceOptions);
+router2.route("/generate").post(authMiddleware, trackEngagement("story_created"), createStory2);
+router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
+router2.get("/public", getPublicStoriesList);
+router2.get("/by-category/:category", getStoriesByCategoryController);
+router2.get("/premium-stories", authMiddleware, getPremiumStoriesController);
 router2.route("/:id").get(getStory2);
 router2.route("/:id").put(authMiddleware, updateStory);
 router2.route("/:id").delete(authMiddleware, deleteStory2);
@@ -4046,248 +4038,284 @@ router2.route("/:id/chapters/:chapterNumber/unlock").post(authMiddleware, unlock
 router2.route("/:id/like").post(authMiddleware, likeStory);
 router2.route("/:id/upvote").post(authMiddleware, upvoteStory);
 router2.route("/:id/downvote").post(authMiddleware, downvoteStory);
-router2.patch("/:id/visibility", authMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isPublic } = req.body;
-    const userId = req.session.userId;
-    if (typeof isPublic !== "boolean") {
-      return res.status(400).json({ message: "Invalid visibility status" });
-    }
-    if (!isPublic) {
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      if (!user.isPremium) {
-        return res.status(403).json({
-          message: "Only premium users can set stories to private",
-          code: "PREMIUM_REQUIRED",
-          isPremiumRequired: true
-        });
-      }
-    }
-    const story = await Story.findById(id);
-    if (!story) {
-      return res.status(404).json({ message: "Story not found" });
-    }
-    if (story.userId !== userId) {
-      return res.status(403).json({ message: "You don't have permission to update this story" });
-    }
-    story.isPublic = isPublic;
-    await story.save();
-    res.json(story);
-  } catch (error) {
-    console.error("Error updating story visibility:", error);
-    res.status(500).json({ message: "Failed to update story visibility" });
-  }
-});
+router2.patch("/:id/visibility", authMiddleware, updateVisibility);
 var story_route_default = router2;
 
 // server/routes/admin.route.ts
 import { Router as Router3 } from "express";
+
+// server/services/admin.service.ts
 init_user_model();
 init_story_model();
 import { hash } from "bcrypt";
-var router3 = Router3();
-router3.get("/users", isAdmin, async (req, res) => {
+var AdminServiceError = class extends Error {
+  status;
+  code;
+  constructor(message, status, code) {
+    super(message);
+    this.name = "AdminServiceError";
+    if (status) this.status = status;
+    if (code) this.code = code;
+  }
+};
+var listUsers = async () => {
+  const users = await User.find().select("-password").sort({ createdAt: -1 });
+  return users;
+};
+var getUserById = async (id) => {
+  const user = await User.findById(id).select("-password");
+  if (!user) throw new AdminServiceError("User not found", 404);
+  return user;
+};
+var createUserAdmin = async (data) => {
+  const { name, email, password, role, isPremium } = data;
+  const existing = await User.findOne({ email });
+  if (existing) throw new AdminServiceError("Email already in use", 400, "EMAIL_IN_USE");
+  const hashedPassword = await hash(password, 10);
+  const newUser = new User({
+    name,
+    email,
+    password: hashedPassword,
+    role: role || "user",
+    isPremium: isPremium || false
+  });
+  await newUser.save();
+  const out = { ...newUser.toObject() };
+  delete out.password;
+  return out;
+};
+var updateUserAdmin = async (id, data) => {
+  const { name, email, role, isPremium } = data;
+  const user = await User.findById(id);
+  if (!user) throw new AdminServiceError("User not found", 404);
+  if (email && email !== user.email) {
+    const existing = await User.findOne({ email });
+    if (existing) throw new AdminServiceError("Email already in use", 400, "EMAIL_IN_USE");
+  }
+  if (name) user.name = name;
+  if (email) user.email = email;
+  if (role) user.role = role;
+  if (typeof isPremium !== "undefined") user.isPremium = !!isPremium;
+  await user.save();
+  const out = { ...user.toObject() };
+  delete out.password;
+  return out;
+};
+var deleteUserAdmin = async (id) => {
+  const result = await User.findByIdAndDelete(id);
+  if (!result) throw new AdminServiceError("User not found", 404);
+  await Story.deleteMany({ userId: id });
+  return { message: "User and associated stories deleted successfully" };
+};
+var listStoriesAdmin = async () => {
+  const stories = await Story.find().sort({ createdAt: -1 });
+  const enhanced = await Promise.all(stories.map(async (story) => {
+    const user = await User.findById(story.userId).select("name");
+    const obj = story.toObject();
+    obj.userName = user ? user.name : "Unknown User";
+    return obj;
+  }));
+  return enhanced;
+};
+var setStoryVisibilityAdmin = async (storyId, isPublic) => {
+  const story = await Story.findById(storyId);
+  if (!story) throw new AdminServiceError("Story not found", 404);
+  story.isPublic = isPublic;
+  await story.save();
+  return story;
+};
+var deleteStoryAdmin = async (storyId) => {
+  const result = await Story.findByIdAndDelete(storyId);
+  if (!result) throw new AdminServiceError("Story not found", 404);
+  return { message: "Story deleted successfully" };
+};
+var awardTopAuthorAdmin = async () => {
+  const { checkAndAwardTopAuthor: checkAndAwardTopAuthor2 } = await Promise.resolve().then(() => (init_reward_service(), reward_service_exports));
+  await checkAndAwardTopAuthor2();
+  return { message: "Top author check and award initiated." };
+};
+
+// server/controllers/admin.controller.ts
+var getAllUsers = async (_req, res) => {
   try {
-    const users = await User.find().select("-password").sort({ createdAt: -1 });
+    const users = await listUsers();
     res.json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ message: "Failed to fetch users" });
   }
-});
-router3.get("/users/:id", isAdmin, async (req, res) => {
+};
+var getUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const user = await getUserById(req.params.id);
     res.json(user);
   } catch (error) {
-    console.error("Error fetching user:", error);
-    res.status(500).json({ message: "Failed to fetch user" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to fetch user" });
   }
-});
-router3.post("/users", isAdmin, async (req, res) => {
+};
+var createUser = async (req, res) => {
   try {
     const { name, email, password, role, isPremium } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" });
-    }
-    const hashedPassword = await hash(password, 10);
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || "user",
-      isPremium: isPremium || false
-    });
-    await newUser.save();
-    const userResponse = { ...newUser.toObject() };
-    delete userResponse.password;
-    res.status(201).json(userResponse);
+    const created = await createUserAdmin({ name, email, password, role, isPremium });
+    res.status(201).json(created);
   } catch (error) {
-    console.error("Error creating user:", error);
-    res.status(500).json({ message: "Failed to create user" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to create user", code: error?.code });
   }
-});
-router3.patch("/users/:id", isAdmin, async (req, res) => {
+};
+var updateUser = async (req, res) => {
   try {
     const { name, email, role, isPremium } = req.body;
-    const userId = req.params.id;
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
-      }
-    }
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (role) user.role = role;
-    if (typeof isPremium !== "undefined") user.isPremium = isPremium;
-    await user.save();
-    const userResponse = { ...user.toObject() };
-    delete userResponse.password;
-    res.json(userResponse);
+    const updated = await updateUserAdmin(req.params.id, { name, email, role, isPremium });
+    res.json(updated);
   } catch (error) {
-    console.error("Error updating user:", error);
-    res.status(500).json({ message: "Failed to update user" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to update user", code: error?.code });
   }
-});
-router3.delete("/users/:id", isAdmin, async (req, res) => {
+};
+var deleteUser = async (req, res) => {
   try {
-    const result = await User.findByIdAndDelete(req.params.id);
-    if (!result) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    await Story.deleteMany({ userId: req.params.id });
-    res.json({ message: "User and associated stories deleted successfully" });
+    const result = await deleteUserAdmin(req.params.id);
+    res.json(result);
   } catch (error) {
-    console.error("Error deleting user:", error);
-    res.status(500).json({ message: "Failed to delete user" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to delete user" });
   }
-});
-router3.get("/stories", isAdmin, async (req, res) => {
+};
+var getAllStories = async (_req, res) => {
   try {
-    const stories = await Story.find().sort({ createdAt: -1 });
-    const enhancedStories = await Promise.all(stories.map(async (story) => {
-      const user = await User.findById(story.userId).select("name");
-      const storyObj = story.toObject();
-      storyObj.userName = user ? user.name : "Unknown User";
-      return storyObj;
-    }));
-    res.json(enhancedStories);
+    const stories = await listStoriesAdmin();
+    res.json(stories);
   } catch (error) {
     console.error("Error fetching stories:", error);
     res.status(500).json({ message: "Failed to fetch stories" });
   }
-});
-router3.patch("/stories/:id/visibility", isAdmin, async (req, res) => {
+};
+var updateStoryVisibility = async (req, res) => {
   try {
     const { isPublic } = req.body;
-    const storyId = req.params.id;
-    const story = await Story.findById(storyId);
-    if (!story) {
-      return res.status(404).json({ message: "Story not found" });
-    }
-    story.isPublic = isPublic;
-    await story.save();
+    const story = await setStoryVisibilityAdmin(req.params.id, isPublic);
     res.json(story);
   } catch (error) {
-    console.error("Error updating story visibility:", error);
-    res.status(500).json({ message: "Failed to update story visibility" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to update story visibility" });
   }
-});
-router3.delete("/stories/:id", isAdmin, async (req, res) => {
+};
+var deleteStory3 = async (req, res) => {
   try {
-    const result = await Story.findByIdAndDelete(req.params.id);
-    if (!result) {
-      return res.status(404).json({ message: "Story not found" });
-    }
-    res.json({ message: "Story deleted successfully" });
+    const result = await deleteStoryAdmin(req.params.id);
+    res.json(result);
   } catch (error) {
-    console.error("Error deleting story:", error);
-    res.status(500).json({ message: "Failed to delete story" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to delete story" });
   }
-});
-router3.post("/award-top-author", isAdmin, async (req, res) => {
+};
+var awardTopAuthor = async (_req, res) => {
   try {
-    await checkAndAwardTopAuthor();
-    res.json({ message: "Top author check and award initiated." });
+    const result = await awardTopAuthorAdmin();
+    res.json(result);
   } catch (error) {
     console.error("Error awarding top author:", error);
     res.status(500).json({ message: "Failed to award top author." });
   }
-});
+};
+
+// server/routes/admin.route.ts
+var router3 = Router3();
+router3.get("/users", isAdmin, getAllUsers);
+router3.get("/users/:id", isAdmin, getUser);
+router3.post("/users", isAdmin, createUser);
+router3.patch("/users/:id", isAdmin, updateUser);
+router3.delete("/users/:id", isAdmin, deleteUser);
+router3.get("/stories", isAdmin, getAllStories);
+router3.patch("/stories/:id/visibility", isAdmin, updateStoryVisibility);
+router3.delete("/stories/:id", isAdmin, deleteStory3);
+router3.post("/award-top-author", isAdmin, awardTopAuthor);
 var admin_route_default = router3;
 
 // server/routes/user.route.ts
 import { Router as Router4 } from "express";
-init_story_model();
+
+// server/services/user.service.ts
 init_user_model();
-var router4 = Router4();
-router4.use(authMiddleware);
-router4.get("/debug-subscription", async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    if (user.isPremium && user.subscription === "free") {
-      let inferredPlan = "essentiel";
-      if (user.credits >= 70) {
-        inferredPlan = "escape";
-      } else if (user.credits >= 35) {
-        inferredPlan = "passion";
-      } else {
-        inferredPlan = "essentiel";
-      }
-      user.subscription = inferredPlan;
-      await user.save();
-      return res.json({
-        message: "Fixed subscription status",
-        before: "free",
-        after: inferredPlan,
-        userStatus: {
-          isPremium: user.isPremium,
-          subscription: user.subscription,
-          credits: user.credits
-        }
-      });
-    }
-    return res.json({
-      message: "Subscription status is correct",
+init_story_model();
+var UserServiceError = class extends Error {
+  status;
+  code;
+  constructor(message, status, code) {
+    super(message);
+    this.name = "UserServiceError";
+    if (status) this.status = status;
+    if (code) this.code = code;
+  }
+};
+var debugAndFixSubscription = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new UserServiceError("User not found", 404);
+  if (user.isPremium && user.subscription === "free") {
+    const before = "free";
+    const inferredPlan = "essentiel";
+    user.subscription = inferredPlan;
+    await user.save();
+    return {
+      message: "Fixed subscription status",
+      before,
+      after: inferredPlan,
       userStatus: {
         isPremium: user.isPremium,
         subscription: user.subscription,
-        credits: user.credits
+        textCredits: user.textCredits,
+        audioCredits: user.audioCredits
       }
-    });
-  } catch (error) {
-    console.error("Error checking subscription:", error);
-    res.status(500).json({ message: "Failed to check subscription" });
+    };
   }
-});
-router4.get("/stories", async (req, res) => {
+  return {
+    message: "Subscription status is correct",
+    userStatus: {
+      isPremium: user.isPremium,
+      subscription: user.subscription,
+      textCredits: user.textCredits,
+      audioCredits: user.audioCredits
+    }
+  };
+};
+var getStoriesForUser = async (userId) => {
+  const stories = await Story.find({ userId }).sort({ createdAt: -1 });
+  return stories;
+};
+var setUserStoryVisibility = async (userId, storyId, isPublic) => {
+  return await setStoryVisibility(userId, storyId, isPublic);
+};
+var deleteUserStory = async (userId, storyId) => {
+  const story = await Story.findById(storyId);
+  if (!story) throw new UserServiceError("Story not found", 404);
+  if (story.userId !== userId) throw new UserServiceError("You don't have permission to delete this story", 403);
+  return await deleteStory(storyId, userId);
+};
+
+// server/controllers/user.controller.ts
+var debugSubscription = async (req, res) => {
   try {
     const userId = req.session.userId;
-    const stories = await Story.find({ userId }).sort({ createdAt: -1 });
+    const result = await debugAndFixSubscription(userId);
+    res.json(result);
+  } catch (error) {
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to check subscription" });
+  }
+};
+var getMyStories = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const stories = await getStoriesForUser(userId);
     res.json(stories);
   } catch (error) {
     console.error("Error fetching user stories:", error);
     res.status(500).json({ message: "Failed to fetch stories" });
   }
-});
-router4.patch("/stories/:id/visibility", async (req, res) => {
+};
+var updateMyStoryVisibility = async (req, res) => {
   try {
     const { id } = req.params;
     const { isPublic } = req.body;
@@ -4295,39 +4323,34 @@ router4.patch("/stories/:id/visibility", async (req, res) => {
     if (typeof isPublic !== "boolean") {
       return res.status(400).json({ message: "Invalid visibility status" });
     }
-    const story = await Story.findById(id);
-    if (!story) {
-      return res.status(404).json({ message: "Story not found" });
-    }
-    if (story.userId !== userId) {
-      return res.status(403).json({ message: "You don't have permission to update this story" });
-    }
-    story.isPublic = isPublic;
-    await story.save();
+    const story = await setUserStoryVisibility(userId, id, isPublic);
     res.json(story);
   } catch (error) {
-    console.error("Error updating story visibility:", error);
-    res.status(500).json({ message: "Failed to update story visibility" });
+    const status = error?.status || 500;
+    const body = { message: error?.message || "Failed to update story visibility" };
+    if (error?.code) body.code = error.code;
+    res.status(status).json(body);
   }
-});
-router4.delete("/stories/:id", async (req, res) => {
+};
+var removeMyStory = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.session.userId;
-    const story = await Story.findById(id);
-    if (!story) {
-      return res.status(404).json({ message: "Story not found" });
-    }
-    if (story.userId !== userId) {
-      return res.status(403).json({ message: "You don't have permission to delete this story" });
-    }
-    await Story.findByIdAndDelete(id);
+    const result = await deleteUserStory(userId, id);
     res.json({ message: "Story deleted successfully" });
   } catch (error) {
-    console.error("Error deleting story:", error);
-    res.status(500).json({ message: "Failed to delete story" });
+    const status = error?.status || 500;
+    res.status(status).json({ message: error?.message || "Failed to delete story" });
   }
-});
+};
+
+// server/routes/user.route.ts
+var router4 = Router4();
+router4.use(authMiddleware);
+router4.get("/debug-subscription", debugSubscription);
+router4.get("/stories", getMyStories);
+router4.patch("/stories/:id/visibility", updateMyStoryVisibility);
+router4.delete("/stories/:id", removeMyStory);
 var user_route_default = router4;
 
 // server/routes/payment.route.ts
@@ -4943,67 +4966,41 @@ var payment_route_default = router5;
 
 // server/routes/badge.route.ts
 import { Router as Router6 } from "express";
-init_user_model();
-var router6 = Router6();
-router6.get("/definitions", async (req, res) => {
+
+// server/controllers/badge.controller.ts
+var getBadgeDefinitions = async (req, res) => {
   try {
     const { category, rarity } = req.query;
-    let badges = Object.values(BADGE_DEFINITIONS);
-    if (category) {
-      badges = getBadgesByCategory(category);
-    }
-    if (rarity) {
-      badges = getBadgesByRarity(rarity);
-    }
-    res.json({
-      success: true,
-      badges,
-      total: badges.length
-    });
+    const { badges, total } = listBadgeDefinitionsService(category, rarity);
+    res.json({ success: true, badges, total });
   } catch (error) {
     console.error("Error fetching badge definitions:", error);
     res.status(500).json({ success: false, message: "Failed to fetch badge definitions" });
   }
-});
-router6.get("/user/:userId", authMiddleware, async (req, res) => {
+};
+var getUserBadges = async (req, res) => {
   try {
     const { userId } = req.params;
     const requestingUserId = req.session.userId;
     if (userId !== requestingUserId) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only view your own badges"
-      });
+      return res.status(403).json({ success: false, message: "You can only view your own badges" });
     }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
+    const data = await getUserBadgesWithSummaryService(userId);
+    if (!data) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-    const badgeSummary = await badgeService.getUserBadgeSummary(userId);
-    const userStats = await badgeService.getUserStats(userId);
-    res.json({
-      success: true,
-      badges: user.badges || [],
-      summary: badgeSummary,
-      stats: userStats
-    });
+    res.json({ success: true, ...data });
   } catch (error) {
     console.error("Error fetching user badges:", error);
     res.status(500).json({ success: false, message: "Failed to fetch user badges" });
   }
-});
-router6.post("/check/:userId", authMiddleware, async (req, res) => {
+};
+var checkUserBadges = async (req, res) => {
   try {
     const { userId } = req.params;
     const requestingUserId = req.session.userId;
     if (userId !== requestingUserId) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only check your own badges"
-      });
+      return res.status(403).json({ success: false, message: "You can only check your own badges" });
     }
     const result = await engagementTracker.checkBadgesNow(userId);
     res.json({
@@ -5016,98 +5013,49 @@ router6.post("/check/:userId", authMiddleware, async (req, res) => {
     console.error("Error checking user badges:", error);
     res.status(500).json({ success: false, message: "Failed to check badges" });
   }
-});
-router6.get("/leaderboard", async (req, res) => {
+};
+var getLeaderboard = async (req, res) => {
   try {
-    const { category = "all", limit = 10 } = req.query;
-    const users = await User.find({ badges: { $exists: true, $ne: [] } }).select("name badges").limit(parseInt(limit));
-    const leaderboard = users.map((user) => {
-      const badges = user.badges || [];
-      const badgeCounts = {
-        total: badges.length,
-        legendary: badges.filter((b) => b.rarity === "legendary").length,
-        epic: badges.filter((b) => b.rarity === "epic").length,
-        rare: badges.filter((b) => b.rarity === "rare").length,
-        common: badges.filter((b) => b.rarity === "common").length
-      };
-      const score = badgeCounts.legendary * 100 + badgeCounts.epic * 25 + badgeCounts.rare * 5 + badgeCounts.common * 1;
-      return {
-        userId: user._id,
-        name: user.name,
-        badgeCounts,
-        score,
-        recentBadges: badges.sort((a, b) => new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime()).slice(0, 3)
-      };
-    }).sort((a, b) => b.score - a.score);
-    res.json({
-      success: true,
-      leaderboard,
-      total: leaderboard.length
-    });
+    const { limit = "10" } = req.query;
+    const n = parseInt(limit, 10) || 10;
+    const { leaderboard, total } = await getBadgeLeaderboardService(n);
+    res.json({ success: true, leaderboard, total });
   } catch (error) {
     console.error("Error fetching badge leaderboard:", error);
     res.status(500).json({ success: false, message: "Failed to fetch leaderboard" });
   }
-});
-router6.post("/admin/daily-check", authMiddleware, async (req, res) => {
+};
+var runDailyCheck = async (req, res) => {
   try {
-    const user = await User.findById(req.session.userId);
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Admin access required"
-      });
+    const userRole = req.session.role;
+    if (userRole !== "admin") {
+      return res.status(403).json({ success: false, message: "Admin access required" });
     }
-    runDailyBadgeCheck().catch((error) => {
-      console.error("Error in daily badge check:", error);
-    });
-    res.json({
-      success: true,
-      message: "Daily badge check initiated"
-    });
+    runDailyBadgeCheck().catch((error) => console.error("Error in daily badge check:", error));
+    res.json({ success: true, message: "Daily badge check initiated" });
   } catch (error) {
     console.error("Error initiating daily badge check:", error);
     res.status(500).json({ success: false, message: "Failed to initiate daily badge check" });
   }
-});
-router6.get("/stats", async (req, res) => {
+};
+var getBadgeStats = async (_req, res) => {
   try {
-    const totalBadgeDefinitions = Object.keys(BADGE_DEFINITIONS).length;
-    const userCount = await User.countDocuments({ badges: { $exists: true, $ne: [] } });
-    const badgeStats = await User.aggregate([
-      { $match: { badges: { $exists: true, $ne: [] } } },
-      { $unwind: "$badges" },
-      { $group: {
-        _id: "$badges.rarity",
-        count: { $sum: 1 }
-      } },
-      { $sort: { count: -1 } }
-    ]);
-    const mostAwardedBadges = await User.aggregate([
-      { $match: { badges: { $exists: true, $ne: [] } } },
-      { $unwind: "$badges" },
-      { $group: {
-        _id: "$badges.id",
-        name: { $first: "$badges.name" },
-        count: { $sum: 1 }
-      } },
-      { $sort: { count: -1 } },
-      { $limit: 10 }
-    ]);
-    res.json({
-      success: true,
-      stats: {
-        totalBadgeDefinitions,
-        usersWithBadges: userCount,
-        badgesByRarity: badgeStats,
-        mostAwardedBadges
-      }
-    });
+    const stats = await getBadgeStatsService();
+    res.json({ success: true, stats });
   } catch (error) {
     console.error("Error fetching badge stats:", error);
     res.status(500).json({ success: false, message: "Failed to fetch badge stats" });
   }
-});
+};
+
+// server/routes/badge.route.ts
+var router6 = Router6();
+router6.get("/definitions", getBadgeDefinitions);
+router6.get("/user/:userId", authMiddleware, getUserBadges);
+router6.post("/check/:userId", authMiddleware, checkUserBadges);
+router6.get("/leaderboard", getLeaderboard);
+router6.post("/admin/daily-check", authMiddleware, runDailyCheck);
+router6.get("/stats", getBadgeStats);
 var badge_route_default = router6;
 
 // server/routes.ts
@@ -5168,92 +5116,6 @@ async function registerRoutes(app2) {
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
-  });
-  app2.get("/audio-test", (req, res) => {
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Audio Playback Test</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-          .player { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-          button { padding: 8px 16px; margin: 5px; cursor: pointer; }
-          .status { margin: 10px 0; padding: 10px; border-radius: 4px; }
-          .success { background-color: #d4edda; color: #155724; }
-          .error { background-color: #f8d7da; color: #721c24; }
-        </style>
-      </head>
-      <body>
-        <h1>Audio Playback Test</h1>
-        
-        <div class="player">
-          <h2>Test Generated Audio</h2>
-          <div id="status"></div>
-          <button id="fetch-btn">Fetch Latest Test Story</button>
-          <div id="story-info"></div>
-          <div id="player-container"></div>
-        </div>
-        
-        <script>
-          const fetchBtn = document.getElementById('fetch-btn');
-          const statusDiv = document.getElementById('status');
-          const storyInfoDiv = document.getElementById('story-info');
-          const playerContainer = document.getElementById('player-container');
-          
-          fetchBtn.addEventListener('click', async () => {
-            try {
-              statusDiv.innerHTML = 'Fetching public stories...';
-              statusDiv.className = 'status';
-              
-              // Fetch the latest public stories
-              const response = await fetch('/api/stories/public');
-              const stories = await response.json();
-              
-              if (stories && stories.length > 0) {
-                // Use the latest story
-                const story = stories[0];
-                
-                storyInfoDiv.innerHTML = \`
-                  <h3>\${story.title}</h3>
-                  <p>\${story.content}</p>
-                  <p><strong>Story ID:</strong> \${story._id}</p>
-                  <p><strong>Audio URL:</strong> \${story.audioUrl || 'None'}</p>
-                \`;
-                
-                if (story.audioUrl) {
-                  // Create audio player
-                  playerContainer.innerHTML = \`
-                    <h3>Audio Player</h3>
-                    <audio controls src="\${story.audioUrl}" style="width: 100%"></audio>
-                    <p>If audio doesn't play, <a href="\${story.audioUrl}" target="_blank">click here to download</a></p>
-                  \`;
-                  
-                  statusDiv.innerHTML = 'Success! Story found with audio.';
-                  statusDiv.className = 'status success';
-                } else {
-                  playerContainer.innerHTML = '<p>No audio available for this story</p>';
-                  statusDiv.innerHTML = 'Story found but has no audio URL.';
-                  statusDiv.className = 'status error';
-                }
-              } else {
-                storyInfoDiv.innerHTML = '<p>No stories found</p>';
-                playerContainer.innerHTML = '';
-                statusDiv.innerHTML = 'No stories found in the database.';
-                statusDiv.className = 'status error';
-              }
-            } catch (error) {
-              console.error('Error fetching story:', error);
-              statusDiv.innerHTML = \`Error: \${error.message}\`;
-              statusDiv.className = 'status error';
-            }
-          });
-        </script>
-      </body>
-      </html>
-    `);
   });
   app2.post("/api/speech/generate", isAuthenticated, async (req, res) => {
     const userId = req.session.userId;

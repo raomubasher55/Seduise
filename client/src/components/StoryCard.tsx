@@ -133,7 +133,12 @@ const StoryCard = ({ story }: StoryCardProps) => {
               <span className="text-xs text-gray-400">{story.downvotes}</span>
             </div>
           </div>
-          {story.authorBadges && story.authorBadges.includes("Top Author") && (
+          {story.authorBadges && (
+            (Array.isArray(story.authorBadges) && (
+              story.authorBadges.includes("Top Author" as any) ||
+              (story.authorBadges as any[]).some((b: any) => typeof b === 'object' && b?.name === 'Top Author')
+            ))
+          ) && (
             <div className="mt-2 text-center">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                 <Star className="-ml-0.5 mr-1 h-3 w-3" />

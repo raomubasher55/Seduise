@@ -2,6 +2,17 @@ import { createContext, useContext, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
+interface UserBadge {
+  id?: string;
+  _id?: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  rarity?: string;
+  awardedAt?: string;
+}
+
 interface User {
   _id: string;
   email: string;
@@ -16,6 +27,7 @@ interface User {
   updatedAt: string;
   subscription: string;
   stories: string[];
+  badges?: (string | UserBadge)[];
 }
 
 interface AuthContextType {
