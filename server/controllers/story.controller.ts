@@ -61,7 +61,7 @@ export const createStory = async (req: Request, res: Response) => {
       settings: storySettingsSchema,
       maxTokens: z.number().optional(),
       isPublic: z.boolean().optional().default(false),
-      accessType: z.enum(['public', 'private', 'premium_exclusive']).optional().default('public'),
+      accessType: z.enum(['public', 'private', 'premium_early_access', 'premium_exclusive']).optional().default('public'),
       category: z.string().optional().default("romance")
     });
 

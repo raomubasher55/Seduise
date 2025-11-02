@@ -36,7 +36,7 @@ const storySchema = new Schema({
   isPremiumContent: { type: Boolean, default: false },
   accessType: {
     type: String,
-    enum: ['public', 'premium_early_access', 'premium_exclusive'],
+    enum: ['public', 'private', 'premium_early_access', 'premium_exclusive'],
     default: 'public'
   },
   premiumAccessDate: { type: Date },

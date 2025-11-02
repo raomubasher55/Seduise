@@ -89,7 +89,7 @@ export const storySchema = z.object({
   totalChapters: z.number().default(1),
   isChapterBased: z.boolean().default(false),
   isPremiumContent: z.boolean().default(false),
-  accessType: z.enum(['public', 'premium_early_access', 'premium_exclusive']).default('public'),
+  accessType: z.enum(['public', 'private', 'premium_early_access', 'premium_exclusive']).default('public'),
   premiumAccessDate: z.date().optional(),
   publicReleaseDate: z.date().optional(),
   // User interaction state (populated at runtime)

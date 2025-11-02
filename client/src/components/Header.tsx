@@ -1,9 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, Crown, User, Menu, X, LogOut, CreditCard } from "lucide-react";
+import { Search, Crown, User, Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +16,6 @@ const Header = () => {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isPremium, logout } = useAuth();
-  const isMobile = useIsMobile();
   
   // Close mobile menu when location changes
   useEffect(() => {
@@ -59,7 +57,11 @@ const Header = () => {
           </nav>
           
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#D9B08C] transition-colors">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden md:inline-flex text-gray-400 hover:text-[#D9B08C] transition-colors"
+            >
               {/* <Search size={20} /> */}
             </Button>
             
@@ -80,9 +82,9 @@ const Header = () => {
             
             {/* Credits button - always show when authenticated */}
             {isAuthenticated && (
-              <Link href="/credits">
+              <Link href="/credits" className="hidden md:block">
                 <Button variant="outline" 
-                  className={`flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group ${isMobile ? 'px-2' : 'px-3'}`}
+                  className="flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group px-3"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
                     <circle cx="12" cy="12" r="8" />
@@ -100,7 +102,7 @@ const Header = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className="relative w-10 h-10 rounded-full bg-[#574873] flex items-center justify-center cursor-pointer overflow-hidden">
+                  <div className="relative hidden md:flex w-10 h-10 rounded-full bg-[#574873] items-center justify-center cursor-pointer overflow-hidden">
                     {/* If we had user avatars, they would go here */}
                     <User size={18} className="text-white" />
                   </div>
@@ -154,10 +156,10 @@ const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="hidden md:flex items-center space-x-2">
                 <Link href="/login">
                   <Button variant="outline" 
-                    className={`text-[#D9B08C] border-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E] ${isMobile ? 'px-3 text-sm' : ''}`}
+                    className="text-[#D9B08C] border-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E]"
                   >
                     Login
                   </Button>

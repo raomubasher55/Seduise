@@ -145,7 +145,7 @@ var init_story_model = __esm({
       isPremiumContent: { type: Boolean, default: false },
       accessType: {
         type: String,
-        enum: ["public", "premium_early_access", "premium_exclusive"],
+        enum: ["public", "private", "premium_early_access", "premium_exclusive"],
         default: "public"
       },
       premiumAccessDate: { type: Date },
@@ -2676,6 +2676,11 @@ var setStoryVisibility = async (userId, storyId, isPublic) => {
     throw new VisibilityError("You don't have permission to update this story", 403);
   }
   story.isPublic = isPublic;
+  if (!isPublic && story.accessType === "public") {
+    story.accessType = "private";
+  } else if (isPublic && story.accessType === "private") {
+    story.accessType = "public";
+  }
   await story.save();
   return story;
 };
@@ -2940,7 +2945,7 @@ var storySchema2 = z.object({
   totalChapters: z.number().default(1),
   isChapterBased: z.boolean().default(false),
   isPremiumContent: z.boolean().default(false),
-  accessType: z.enum(["public", "premium_early_access", "premium_exclusive"]).default("public"),
+  accessType: z.enum(["public", "private", "premium_early_access", "premium_exclusive"]).default("public"),
   premiumAccessDate: z.date().optional(),
   publicReleaseDate: z.date().optional(),
   // User interaction state (populated at runtime)
@@ -3476,7 +3481,7 @@ var createStory2 = async (req, res) => {
       settings: storySettingsSchema,
       maxTokens: z2.number().optional(),
       isPublic: z2.boolean().optional().default(false),
-      accessType: z2.enum(["public", "private", "premium_exclusive"]).optional().default("public"),
+      accessType: z2.enum(["public", "private", "premium_early_access", "premium_exclusive"]).optional().default("public"),
       category: z2.string().optional().default("romance")
     });
     const { title, settings, maxTokens, isPublic, accessType, category } = settingsSchema.parse(req.body);

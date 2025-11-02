@@ -352,6 +352,11 @@ export const setStoryVisibility = async (
   }
 
   story.isPublic = isPublic;
+  if (!isPublic && story.accessType === 'public') {
+    story.accessType = 'private';
+  } else if (isPublic && story.accessType === 'private') {
+    story.accessType = 'public';
+  }
   await story.save();
   return story;
 };
