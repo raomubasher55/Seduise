@@ -43,7 +43,7 @@
 
   // For Replit environment, we need to completely disable CSP for development purposes
   // This is not recommended for production!
-  if (process.env.REPL_ID) {
+  if (process.env.REPL_ID ) {
     app.use((req, res, next) => {
       // Completely disable CSP in the Replit environment to avoid issues with cross-origin requests
       // Note: This is ONLY for development and would be a security risk in production

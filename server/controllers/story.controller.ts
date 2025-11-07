@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { getStory as getStoryService } from "../services/story.service";
 import { getStoryAudio as getStoryAudioService } from "../services/story.service";
 import { createStory as createStoryService } from "../services/story.service";
-import { continueStoryService, deleteStory as deleteStoryService, setStoryVisibility, getVoiceOptionsService, getPublicStoriesService, getStoriesByCategoryService, getPremiumStoriesService } from "../services/story.service";
+import { continueStoryService, deleteStory as deleteStoryService, setStoryVisibility, getPublicStoriesService, getStoriesByCategoryService, getPremiumStoriesService } from "../services/story.service";
 import { storySettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateTitleSuggestions } from "server/utils/openai";
@@ -715,16 +715,6 @@ export const updateVisibility = async (req: Request, res: Response) => {
       if (error.code === 'PREMIUM_REQUIRED') body.isPremiumRequired = true;
     }
     return res.status(status).json(body);
-  }
-};
-
-export const voiceOptions = async (_req: Request, res: Response) => {
-  try {
-    const voices = await getVoiceOptionsService();
-    res.json(voices);
-  } catch (error) {
-    console.error('Error fetching voice options:', error);
-    res.status(500).json({ message: 'Failed to fetch voice options' });
   }
 };
 

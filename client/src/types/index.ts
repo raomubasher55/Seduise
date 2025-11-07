@@ -18,9 +18,9 @@ export interface StoryWithAudio extends Omit<StorySettings, 'narrationVoice'> {
 export interface VoiceOption {
   id: string;
   name: string;
-  gender: string;
-  style: string;
-  isPremium: boolean;
+  language: string;
+  provider?: string;
+  isPremium?: boolean;
 }
 
 export interface StoryGenerationParams {
@@ -34,7 +34,7 @@ export interface StoryGenerationParams {
 export interface TextToSpeechParams {
   text: string;
   voiceId: string;
-  storyId?: number;
+  storyId?: string;
 }
 
 export interface ForumTopic {

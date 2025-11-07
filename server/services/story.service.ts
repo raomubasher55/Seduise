@@ -2,7 +2,6 @@ import { Story } from "../models/story.model";
 import { StorySettings } from "@shared/schema";
 import { continueStory, generateStory, generateChapterTitle, generateChapterSummary, generateChoices, concludeStory } from "../utils/openai";
 import { User } from "../models/user.model";
-import { elevenlabs } from "../utils/elevenlabs";
 import { awardBadge } from "./reward.service";
 import type { Document } from "mongoose";
 
@@ -34,19 +33,14 @@ export const createStory = async (title: string, settings: StorySettings, maxTok
     user.textCredits -= textCreditCost;
     await user.save();
     
-    // Validate and process narration voice - ensure we have a valid voice ID
-    // Handle case where we have been provided a narrationVoiceId directly
+    // Validate narration voice for MiniMax
     if (settings.narrationVoiceId) {
-        console.log(`Using provided voice ID: ${settings.narrationVoiceId}`);
-    } else if (settings.narrationVoice) {
-        // Map the voice name to a valid ElevenLabs voice ID
-        const voiceId = elevenlabs.getVoiceId(settings.narrationVoice);
-        console.log(`Mapped voice name "${settings.narrationVoice}" to ID: ${voiceId}`);
-        settings.narrationVoiceId = voiceId;
+        console.log(`Using provided MiniMax voice ID: ${settings.narrationVoiceId}`);
     } else {
-        // Default to Adam (male voice) if no voice specified
-        console.log("No narration voice specified, defaulting to Adam (male voice)");
-        settings.narrationVoiceId = "VR6AewLTigWG4xSOukaG"; // Adam's voice ID
+        const defaultVoiceId = process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
+        settings.narrationVoiceId = defaultVoiceId;
+        settings.narrationVoice = settings.narrationVoice || "MiniMax Voice";
+        console.log(`No narration voice provided; defaulting to MiniMax voice ${defaultVoiceId}`);
     }
     
     // Generate the story content
@@ -359,52 +353,6 @@ export const setStoryVisibility = async (
   }
   await story.save();
   return story;
-};
-
-// Voice options with enhanced labels
-export const getVoiceOptionsService = async () => {
-  const voices = await elevenlabs.getVoices();
-
-  const determineVoiceGender = (voiceName: string, labels?: Record<string, string>): string => {
-    if (labels && labels.gender && (labels.gender.toLowerCase() === 'male' || labels.gender.toLowerCase() === 'female')) {
-      return labels.gender.toLowerCase();
-    }
-    const maleNames = ['adam','josh','thomas','charlie','james','matthew','daniel','michael','david','william','joseph','chris','george','robert','jack','john','henry','jacob','sam','samuel','tom','callum','harry','oliver','peter','will','liam','lucas'];
-    const femaleNames = ['rachel','sarah','emily','bella','domi','charlotte','olivia','emma','ava','sophia','isabella','mia','amelia','alice','lily','grace','chloe','jessica','sophia','amy','katie','susan','jennifer','elizabeth','mary','kathy','matilda','river'];
-    const normalizedName = voiceName.toLowerCase().trim();
-    const firstNamePart = normalizedName.split(' ')[0];
-    if (normalizedName.includes('female') || normalizedName.includes('woman')) return 'female';
-    if (normalizedName.includes('male') || normalizedName.includes('man')) return 'male';
-    if (maleNames.includes(firstNamePart)) return 'male';
-    if (femaleNames.includes(firstNamePart)) return 'female';
-    if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) return 'male';
-    if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) return 'female';
-    if (normalizedName === 'river') return 'female';
-    return 'unknown';
-  };
-
-  return voices.map((voice: any) => {
-    const nameParts = voice.name.match(/^(.*?)(?:\s*\((.*?)\))?$/);
-    const cleanName = nameParts ? nameParts[1].trim() : voice.name;
-    const description = nameParts && nameParts[2] ? nameParts[2].trim() : '';
-    const isFree = voice.category === 'premade';
-    return {
-      id: voice.voice_id,
-      name: cleanName,
-      fullName: voice.name,
-      category: voice.category,
-      isPremium: !isFree,
-      description: description || (voice.labels && voice.labels.description) || '',
-      labels: {
-        ...voice.labels,
-        gender: determineVoiceGender(voice.name, voice.labels),
-        accent: (voice.labels && voice.labels.accent) || 'neutral',
-        age: (voice.labels && voice.labels.age) || 'adult',
-        style: (voice.labels && voice.labels.style) || 'natural'
-      },
-      preview_url: voice.preview_url || ''
-    };
-  });
 };
 
 export const getPublicStoriesService = async (userId?: string) => {

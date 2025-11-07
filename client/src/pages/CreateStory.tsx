@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,15 @@ import { Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { VoiceOption } from "@/types";
-import { apiRequest } from "@/lib/queryClient";
 import { VoiceSelector } from "../components/VoiceSelector";
 import { PremiumUpgradeDialog } from "../components/PremiumUpgradeDialog";
+import { MINIMAX_VOICE_OPTIONS } from "@/constants/minimaxVoices";
 
 const TIME_PERIODS = ["Contemporary", "Medieval", "Victorian", "Future", "Fantasy Realm"];
 const LOCATIONS = ["Urban City", "Beach Resort", "Mountain Retreat", "Luxury Estate", "Exotic Island"];
 const ATMOSPHERES = ["Romantic", "Mysterious", "Passionate", "Playful", "Intense"];
 const RELATIONSHIPS = ["Strangers", "Dating", "Married", "Friends", "Colleagues"];
 const WRITING_TONES = ["Romantic", "Sensual", "Intense", "Playful", "Explicit"];
-const NARRATION_VOICES = ["Soft Female", "Deep Male", "Sensual Female", "Authoritative Male", "Playful Female"];
 const WRITING_STYLES = ["Romantic", "Passionate", "Playful", "Intense"];
 const CATEGORIES = [
   { id: "romance", name: "Romance", icon: "❤️", color: "#FF6B8B" },
@@ -81,42 +79,33 @@ const CreateStory = () => {
   const [explicitLevel, setExplicitLevel] = useState(50);
   const [creditsWarningShown, setCreditsWarningShown] = useState(false);
 
+  const voiceOptions = MINIMAX_VOICE_OPTIONS;
+  const voiceNameMap = useMemo(
+    () => new Map(voiceOptions.map((voice) => [voice.id, voice.name])),
+    [voiceOptions],
+  );
+
+  const updateSetting = useCallback((key: keyof StorySettings, value: string | number) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!settings.narrationVoiceId && voiceOptions.length > 0) {
+      const defaultVoice = voiceOptions[0];
+      updateSetting("narrationVoiceId", defaultVoice.id);
+      updateSetting("narrationVoice", defaultVoice.name);
+    }
+  }, [settings.narrationVoiceId, updateSetting, voiceOptions]);
+
   // For additional inputs in the Setting tab
   const [settingDescription, setSettingDescription] = useState<string>("");
 
   // For additional inputs in the Characters tab
   const [protagonistDescription, setProtagonistDescription] = useState<string>("");
   const [loveInterestDescription, setLoveInterestDescription] = useState<string>("");
-
-  // State for voice options
-  const [voices, setVoices] = useState<VoiceOption[]>([]);
-  const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = useState(false);
-  const [audioPreviewSrc, setAudioPreviewSrc] = useState<string | null>(null);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
-
-  // Fetch voice options when component mounts
-  useEffect(() => {
-    const fetchVoiceOptions = async () => {
-      try {
-        const response = await apiRequest('GET', '/api/stories/voice-options');
-        const data = await response.json();
-        console.log("Fetched voice options:", data);
-        setVoices(data);
-
-        // Set a default voice if one hasn't been selected already
-        if (!settings.narrationVoiceId && data.length > 0) {
-          const defaultVoice = data.find((v: VoiceOption) => v.category === 'premade') || data[0];
-          updateSetting("narrationVoiceId", defaultVoice.id);
-          updateSetting("narrationVoice", defaultVoice.name);
-          console.log(`Set default voice: ${defaultVoice.name} (${defaultVoice.id})`);
-        }
-      } catch (error) {
-        console.error("Failed to fetch voice options:", error);
-      }
-    };
-
-    fetchVoiceOptions();
-  }, []);
 
   const storyGenerationMutation = useMutation({
     mutationFn: generateStory,
@@ -187,13 +176,6 @@ const CreateStory = () => {
       accessType: accessType,
       category: category
     });
-  };
-
-  const updateSetting = (key: keyof StorySettings, value: string | number) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
   };
 
   const handleGenderSelect = (type: "protagonistGender" | "partnerGender", gender: string) => {
@@ -465,22 +447,13 @@ const CreateStory = () => {
               <div>
                 <h3 className="text-lg font-medium text-white mb-3">Choose Narration Voice</h3>
                 <VoiceSelector
+                  voices={voiceOptions}
                   selectedVoice={settings.narrationVoiceId}
                   onVoiceSelect={(voiceId: string) => {
-                    // Find the selected voice in the list to get its name
-                    const selectedVoice = voices.find((v: VoiceOption) => v.id === voiceId);
                     updateSetting("narrationVoiceId", voiceId);
-
-                    // Also update narrationVoice with the name if we have it
-                    if (selectedVoice) {
-                      updateSetting("narrationVoice", selectedVoice.name);
-                      console.log(`Selected voice: ${selectedVoice.name} (${voiceId})`);
-                    } else {
-                      // Fallback to a description based on the ID
-                      const defaultVoiceName = "Custom Voice";
-                      updateSetting("narrationVoice", defaultVoiceName);
-                      console.log(`Selected voice ID: ${voiceId} (name not found)`);
-                    }
+                    const name = voiceNameMap.get(voiceId) || "MiniMax Voice";
+                    updateSetting("narrationVoice", name);
+                    console.log(`Selected voice: ${name} (${voiceId})`);
                   }}
                 />
               </div>

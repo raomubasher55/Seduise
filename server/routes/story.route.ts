@@ -1,12 +1,9 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices, likeStory, upvoteStory, downvoteStory, unlockChapter, updateVisibility, voiceOptions, getPublicStoriesList, getStoriesByCategoryController, getPremiumStoriesController } from "../controllers/story.controller";
+import { createStory, getStory, updateStory, deleteStory, getStoryAudio, continueStory, titleSuggestions, getStoryChapters, getStoryChapter, getChapterChoices, likeStory, upvoteStory, downvoteStory, unlockChapter, updateVisibility, getPublicStoriesList, getStoriesByCategoryController, getPremiumStoriesController } from "../controllers/story.controller";
 import { trackEngagement } from "../middlewares/engagement.middleware";
 
 const router = Router();
-
-// Voice options endpoint - must be before generic story routes
-router.get("/voice-options", voiceOptions);
 
 // Story CRUD operations
 router.route("/generate").post(authMiddleware, trackEngagement('story_created'), createStory);

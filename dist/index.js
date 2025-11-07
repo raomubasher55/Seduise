@@ -1136,458 +1136,264 @@ var storage = new MemStorage();
 // server/routes.ts
 import { z as z5 } from "zod";
 
-// server/utils/elevenlabs.ts
+// server/utils/minimax.ts
 import dotenv from "dotenv";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
-import ffmpeg from "fluent-ffmpeg";
 dotenv.config();
-ffmpeg.setFfmpegPath("/nix/store/3zc5jbvqzrn8zmva4fx5p0nh4yy03wk4-ffmpeg-6.1.1-bin/bin/ffmpeg");
-ffmpeg.setFfprobePath("/nix/store/3zc5jbvqzrn8zmva4fx5p0nh4yy03wk4-ffmpeg-6.1.1-bin/bin/ffprobe");
 var writeFileAsync = promisify(fs.writeFile);
 var mkdirAsync = promisify(fs.mkdir);
-var ElevenLabsService = class {
+var DEFAULT_MINIMAX_VOICE = "English_expressive_narrator";
+var DEFAULT_TTS_ENDPOINT = "https://api.minimax.io/v1/t2a_v2";
+var SUPPORTED_TTS_MODELS = /* @__PURE__ */ new Set([
+  "speech-2.6-hd",
+  "speech-2.6",
+  "speech-2.5-hd",
+  "speech-2.5",
+  "speech-2.0"
+]);
+var LEGACY_VOICE_MAP = {
+  "minimax soft female": "English_captivating_female1",
+  "minimax female soft": "English_captivating_female1",
+  "minimax_female_soft": "English_captivating_female1",
+  "soft female": "English_captivating_female1",
+  "minimax deep male": "English_magnetic_voiced_man",
+  "minimax male deep": "English_magnetic_voiced_man",
+  "minimax_male_deep": "English_magnetic_voiced_man",
+  "deep male": "English_magnetic_voiced_man",
+  "expressive narrator": DEFAULT_MINIMAX_VOICE
+};
+var MinimaxService = class {
   apiKey;
+  groupId;
+  ttsEndpoint;
+  defaultVoice;
+  defaultModel;
   audioDir;
-  constructor(apiKey) {
-    const envKey = process.env.ELEVENLABS_API_KEY;
-    if (envKey) {
-      this.apiKey = envKey;
-      console.log("Using ElevenLabs API key from environment variable");
-    } else if (apiKey) {
-      this.apiKey = apiKey;
-      console.log("Using provided ElevenLabs API key parameter");
-    } else {
-      this.apiKey = "";
-      console.error("ERROR: No ElevenLabs API key provided. Audio generation will not work.");
+  constructor() {
+    this.apiKey = process.env.MINIMAX_API_KEY || "";
+    this.groupId = process.env.MINIMAX_GROUP_ID || "";
+    const configuredEndpoint = process.env.MINIMAX_TTS_ENDPOINT?.trim();
+    this.ttsEndpoint = configuredEndpoint && configuredEndpoint.length > 0 ? configuredEndpoint : DEFAULT_TTS_ENDPOINT;
+    if (!this.ttsEndpoint.includes("t2a_v2") || !this.ttsEndpoint.includes("api.minimax.io")) {
+      if (configuredEndpoint) {
+        console.warn(
+          `[MiniMax] Overriding provided MINIMAX_TTS_ENDPOINT "${configuredEndpoint}" with official endpoint "${DEFAULT_TTS_ENDPOINT}".`
+        );
+      }
+      this.ttsEndpoint = DEFAULT_TTS_ENDPOINT;
     }
-    if (this.apiKey) {
-      const censoredKey = this.apiKey.substring(0, 6) + "..." + this.apiKey.substring(this.apiKey.length - 4);
-      console.log(`ElevenLabs API key is configured: ${censoredKey}`);
-    }
+    const configuredDefaultVoice = process.env.MINIMAX_DEFAULT_VOICE_ID?.trim();
+    this.defaultVoice = configuredDefaultVoice && configuredDefaultVoice.length > 0 ? configuredDefaultVoice : DEFAULT_MINIMAX_VOICE;
+    this.defaultModel = this.normalizeModel(process.env.MINIMAX_TTS_MODEL);
     this.audioDir = path.join(process.cwd(), "dist", "public", "audio");
-    this.ensureAudioDir();
+    this.ensureAudioDir().catch((error) => {
+      console.error("[MiniMax] Failed to prepare audio directory:", error);
+    });
   }
-  // Ensure audio directory exists
   async ensureAudioDir() {
     try {
       await mkdirAsync(this.audioDir, { recursive: true });
-      console.log(`Audio directory ensured at: ${this.audioDir}`);
     } catch (error) {
-      if (!(error instanceof Error && error.message.includes("already exists"))) {
-        console.error("Error creating audio directory:", error);
-      }
-    }
-  }
-  // Create a fallback audio file when TTS fails
-  async createFallbackAudio() {
-    const fallbackFilename = `fallback_${Date.now()}.mp3`;
-    const fallbackPath = path.join(this.audioDir, fallbackFilename);
-    try {
-      await writeFileAsync(fallbackPath, Buffer.from([255, 251, 144, 68, 0]));
-      console.log(`Created fallback audio file: ${fallbackPath}`);
-      return `/audio/${fallbackFilename}`;
-    } catch (error) {
-      console.error("Error creating fallback audio file:", error);
-      throw error;
-    }
-  }
-  // Get available ElevenLabs voices
-  async getVoices() {
-    try {
-      console.log("Fetching voices from ElevenLabs API...");
-      const response = await axios.get("https://api.elevenlabs.io/v1/voices", {
-        headers: {
-          "xi-api-key": this.apiKey,
-          "Content-Type": "application/json"
-        }
-      });
-      if (response.data && response.data.voices && Array.isArray(response.data.voices)) {
-        return response.data.voices.map((voice) => ({
-          voice_id: voice.voice_id || "",
-          name: voice.name || "Unknown",
-          preview_url: voice.preview_url || "",
-          category: voice.category || "elevenlabs",
-          labels: {
-            gender: this.determineGender(voice),
-            style: this.determineStyle(voice)
-          }
-        }));
-      }
-      console.log("response.data is ", response.data);
-      console.warn("No voices found in API response, returning predefined voices");
-      return this.getPredefinedVoices();
-    } catch (error) {
-      console.error("Error fetching voices from ElevenLabs:", error);
-      return this.getPredefinedVoices();
-    }
-  }
-  // Convert text to speech using ElevenLabs
-  async textToSpeech({
-    text,
-    voiceId,
-    model: model3 = "eleven_monolingual_v1",
-    stability = 0.5,
-    similarityBoost = 0.75
-  }) {
-    try {
-      console.log(`Starting text-to-speech generation with voice ID: ${voiceId}`);
-      if (!this.apiKey || this.apiKey.trim() === "") {
-        console.error("ElevenLabs API key is not configured. Cannot generate speech.");
-        throw new Error("ElevenLabs API key is missing or empty. Please configure it in your environment variables.");
-      }
-      const sanitizedText = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").replace(/\n+/g, " ").replace(/\s{2,}/g, " ").replace(/'/g, "'").replace(/"/g, '"').trim();
-      const chunks = this.splitTextIntoChunks(sanitizedText, 1e4);
-      console.log(`Split text into ${chunks.length} chunks for processing (max 10000 chars each)`);
-      const baseFilename = `story_${Date.now()}`;
-      const tempFiles = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const chunkFilename = `${baseFilename}_part${i}.mp3`;
-        const chunkFilePath = path.join(this.audioDir, chunkFilename);
-        console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
-        try {
-          const actualVoiceId = this.getActualVoiceId(voiceId);
-          let retryCount = 0;
-          const maxRetries = 3;
-          while (retryCount < maxRetries) {
-            try {
-              console.log(`Calling ElevenLabs API with voice ID: ${actualVoiceId}, chunk length: ${chunk.length} chars, API key length: ${this.apiKey.length} chars`);
-              const response = await axios({
-                method: "post",
-                url: `https://api.elevenlabs.io/v1/text-to-speech/${actualVoiceId}`,
-                headers: {
-                  "xi-api-key": this.apiKey,
-                  "Content-Type": "application/json",
-                  "Accept": "audio/mpeg"
-                },
-                data: {
-                  text: chunk,
-                  model_id: model3,
-                  voice_settings: {
-                    stability,
-                    similarity_boost: similarityBoost
-                  }
-                },
-                responseType: "arraybuffer"
-              });
-              console.log(`ElevenLabs API call successful for chunk ${i + 1}/${chunks.length}`);
-              await writeFileAsync(chunkFilePath, Buffer.from(response.data));
-              tempFiles.push(chunkFilePath);
-              break;
-            } catch (error) {
-              retryCount++;
-              console.error(`Error calling ElevenLabs API (attempt ${retryCount}/${maxRetries}):`, error.message);
-              if (error.response?.status === 401 || error.message && (error.message.includes("401") || error.message.includes("Unauthorized") || error.message.includes("api-key"))) {
-                console.error("API authentication error - check your ElevenLabs API key");
-                throw error;
-              }
-              if (retryCount === maxRetries) {
-                throw error;
-              }
-              await new Promise((resolve) => setTimeout(resolve, 1e3 * Math.pow(2, retryCount)));
-            }
-          }
-          if (i < chunks.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 1e3));
-          }
-        } catch (chunkError) {
-          console.error(`Error processing chunk ${i + 1}:`, chunkError);
-          throw chunkError;
-        }
-      }
-      const finalFilename = `${baseFilename}.mp3`;
-      const finalFilePath = path.join(this.audioDir, finalFilename);
-      try {
-        if (tempFiles.length === 0) {
-          throw new Error("No audio chunks were generated");
-        } else if (tempFiles.length === 1) {
-          console.log("Only one audio chunk, copying directly to final file");
-          fs.copyFileSync(tempFiles[0], finalFilePath);
-        } else {
-          console.log(`Combining ${tempFiles.length} audio chunks with ffmpeg`);
-          try {
-            await new Promise((resolve, reject) => {
-              const command = ffmpeg();
-              tempFiles.forEach((file) => {
-                command.input(file);
-              });
-              command.on("end", () => {
-                console.log("FFmpeg successfully combined audio chunks");
-                resolve(null);
-              }).on("error", (err) => {
-                console.error("FFmpeg error:", err);
-                reject(err);
-              }).mergeToFile(finalFilePath, this.audioDir);
-            });
-          } catch (ffmpegError) {
-            console.error("FFmpeg failed, falling back to using just the first chunk:", ffmpegError);
-            console.log("Using first chunk as fallback in case of FFmpeg failure");
-            fs.copyFileSync(tempFiles[0], finalFilePath);
-          }
-        }
-        tempFiles.forEach((file) => {
-          try {
-            fs.unlinkSync(file);
-            console.log(`Deleted temp file: ${file}`);
-          } catch (e) {
-            console.error("Error deleting temp file:", e);
-          }
-        });
-      } catch (error) {
-        console.error("Error combining audio chunks:", error);
+      if (!(error instanceof Error) || !error.message.includes("exists")) {
         throw error;
       }
-      const fileStats = fs.statSync(finalFilePath);
-      console.log(`Final audio file size: ${fileStats.size} bytes`);
-      if (fileStats.size < 1024) {
-        throw new Error("Generated audio file is too small, likely invalid");
-      }
-      return `/audio/${finalFilename}`;
-    } catch (error) {
-      console.error("Error generating speech:", error);
-      if (error.message && (error.message.includes("401") || error.message.includes("Unauthorized") || error.message.includes("api-key"))) {
-        throw new Error("ElevenLabs API authentication failed. Please check your API key.");
-      }
-      throw error;
     }
   }
-  splitTextIntoChunks(text, maxChunkSize) {
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-    const chunks = [];
-    let currentChunk = "";
-    for (const sentence of sentences) {
-      if (sentence.length > maxChunkSize) {
-        const words = sentence.split(/\s+/);
-        let tempChunk = "";
-        for (const word of words) {
-          if ((tempChunk + " " + word).length <= maxChunkSize) {
-            tempChunk += (tempChunk ? " " : "") + word;
-          } else {
-            if (tempChunk) chunks.push(tempChunk.trim());
-            tempChunk = word;
-          }
-        }
-        if (tempChunk) chunks.push(tempChunk.trim());
-        continue;
-      }
-      if ((currentChunk + " " + sentence).length <= maxChunkSize) {
-        currentChunk += (currentChunk ? " " : "") + sentence;
-      } else {
-        if (currentChunk) chunks.push(currentChunk.trim());
-        currentChunk = sentence;
-      }
-    }
-    if (currentChunk) chunks.push(currentChunk.trim());
-    return chunks;
-  }
-  // Determine gender based on voice metadata
-  determineGender(voice) {
-    const name = (voice.name || "").toLowerCase();
-    const labels = Object.keys(voice.labels || {}).join(" ").toLowerCase();
-    if (name.includes("female") || labels.includes("female")) {
-      return "female";
-    } else if (name.includes("male") || labels.includes("male")) {
-      return "male";
-    }
-    const femaleNames = ["rachel", "domi", "bella", "elli", "anna", "matilda", "charlotte"];
-    const maleNames = ["antoni", "josh", "arnold", "adam", "sam", "harry", "james"];
-    for (const femaleName of femaleNames) {
-      if (name.includes(femaleName)) return "female";
-    }
-    for (const maleName of maleNames) {
-      if (name.includes(maleName)) return "male";
-    }
-    return "unknown";
-  }
-  // Determine style based on voice metadata
-  determineStyle(voice) {
-    const name = (voice.name || "").toLowerCase();
-    const labels = Object.keys(voice.labels || {}).join(" ").toLowerCase();
-    if (labels.includes("soft") || name.includes("soft")) {
-      return "soft";
-    } else if (labels.includes("deep") || name.includes("deep")) {
-      return "deep";
-    } else if (labels.includes("sensual") || name.includes("sensual")) {
-      return "sensual";
-    } else if (labels.includes("authoritative") || name.includes("authoritative")) {
-      return "authoritative";
-    } else if (labels.includes("playful") || name.includes("playful")) {
-      return "playful";
-    }
-    return "natural";
-  }
-  // Get actual ElevenLabs voice ID from input
-  getActualVoiceId(voiceId) {
-    const voiceMappings = {
-      // Main voice categories with their IDs
-      male: {
-        default: "VR6AewLTigWG4xSOukaG",
-        // Adam (Deep Male)
-        deep: "VR6AewLTigWG4xSOukaG",
-        // Adam
-        authoritative: "TxGEqnHWrfWFTfGW9XjX"
-        // Josh
-      },
-      female: {
-        default: "EXAVITQu4vr4xnSDxMaL",
-        // Rachel (Soft Female)
-        soft: "EXAVITQu4vr4xnSDxMaL",
-        // Rachel
-        sensual: "yoZ06aMxZJJ28mfd3POQ",
-        // Bella
-        playful: "21m00Tcm4TlvDq8ikWAM"
-        // Domi
-      }
+  buildHeaders() {
+    const headers = {
+      "Content-Type": "application/json"
     };
-    const directMappings = {
-      "Rachel": voiceMappings.female.soft,
-      "Adam": voiceMappings.male.deep,
-      "Bella": voiceMappings.female.sensual,
-      "Josh": voiceMappings.male.authoritative,
-      "Domi": voiceMappings.female.playful,
-      "Charlie": "IKne3meq5aSn9XLyUdCD",
-      "Will": "bIHbv24MWmeRgasZH58o",
-      "George": "VR6AewLTigWG4xSOukaG",
-      // Map George to Adam's voice ID (male voice)
-      "Aria": "EXAVITQu4vr4xnSDxMaL",
-      // Map to Rachel's voice ID
-      "Roger": "TxGEqnHWrfWFTfGW9XjX",
-      // Map to Josh's voice ID
-      "Sarah": "21m00Tcm4TlvDq8ikWAM",
-      // Map to Domi's voice ID
-      "Laura": "yoZ06aMxZJJ28mfd3POQ",
-      // Map to Bella's voice ID
-      "Callum": "VR6AewLTigWG4xSOukaG",
-      // Map to Adam's voice ID
-      "Liam": "IKne3meq5aSn9XLyUdCD",
-      // Map to Charlie's voice ID
-      "River": "yoZ06aMxZJJ28mfd3POQ",
-      // Map to Bella's voice ID
-      "Charlotte": "21m00Tcm4TlvDq8ikWAM",
-      // Map to Domi's voice ID
-      "Soft Female": voiceMappings.female.soft,
-      "Deep Male": voiceMappings.male.deep,
-      "Sensual Female": voiceMappings.female.sensual,
-      "Authoritative Male": voiceMappings.male.authoritative,
-      "Playful Female": voiceMappings.female.playful
-    };
-    console.log(`Mapping voice ID/name input: "${voiceId}"`);
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+    if (this.groupId) {
+      headers["X-Group-Id"] = this.groupId;
+      headers["Group-Id"] = this.groupId;
+    }
+    return headers;
+  }
+  get isConfigured() {
+    if (!this.apiKey) {
+      console.warn("[MiniMax] Missing MINIMAX_API_KEY environment variable.");
+      return false;
+    }
+    if (!this.groupId) {
+      console.warn("[MiniMax] Missing MINIMAX_GROUP_ID environment variable.");
+    }
+    return true;
+  }
+  async textToSpeech(params) {
+    if (!this.isConfigured) {
+      throw new Error("MiniMax service is not configured.");
+    }
+    let voiceId = (params.voiceId || this.defaultVoice || "").trim();
     if (!voiceId) {
-      console.warn("Voice ID is undefined or null, defaulting to Rachel (Soft Female)");
-      return voiceMappings.female.default;
+      throw new Error("No MiniMax voice ID provided.");
     }
-    if (voiceId && voiceId.length >= 20 && /^[a-zA-Z0-9]+$/.test(voiceId)) {
-      console.log(`Using direct ElevenLabs voice ID: ${voiceId}`);
-      return voiceId;
+    const normalizedVoiceKey = voiceId.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    if (LEGACY_VOICE_MAP[normalizedVoiceKey]) {
+      console.warn(
+        `[MiniMax] Mapping legacy voice name "${voiceId}" to MiniMax voice_id "${LEGACY_VOICE_MAP[normalizedVoiceKey]}".`
+      );
+      voiceId = LEGACY_VOICE_MAP[normalizedVoiceKey];
+    } else if (/\s/.test(voiceId)) {
+      console.warn(
+        `[MiniMax] Voice identifier "${voiceId}" looks like a label. Falling back to default voice "${this.defaultVoice}".`
+      );
+      voiceId = this.defaultVoice;
     }
-    const normalizedInput = voiceId.toLowerCase().trim();
-    if (directMappings[voiceId]) {
-      console.log(`Found direct mapping for "${voiceId}": ${directMappings[voiceId]}`);
-      return directMappings[voiceId];
-    }
-    const voiceKey = Object.keys(directMappings).find(
-      (key) => key.toLowerCase() === normalizedInput
+    const audioFormat = params.audioFormat || params.audioSetting?.format || "mp3";
+    const model3 = this.normalizeModel(params.model);
+    const voiceSetting = {
+      voice_id: voiceId,
+      speed: typeof params.speed === "number" ? params.speed : 1,
+      vol: typeof params.volume === "number" ? params.volume : 1,
+      pitch: typeof params.pitch === "number" ? params.pitch : 0
+    };
+    const audioSetting = {
+      sample_rate: params.audioSetting?.sampleRate ?? 32e3,
+      bitrate: params.audioSetting?.bitrate ?? 128e3,
+      format: audioFormat,
+      channel: params.audioSetting?.channel ?? 1
+    };
+    const voiceModifyRaw = {
+      pitch: params.voiceModify?.pitch,
+      intensity: params.voiceModify?.intensity,
+      timbre: params.voiceModify?.timbre,
+      sound_effects: params.voiceModify?.sound_effects
+    };
+    const voiceModify = Object.fromEntries(
+      Object.entries(voiceModifyRaw).filter(
+        ([, value]) => typeof value === "number" || typeof value === "string" && value.trim().length > 0
+      )
     );
-    if (voiceKey) {
-      console.log(`Found case-insensitive mapping for "${voiceId}" \u2192 "${voiceKey}": ${directMappings[voiceKey]}`);
-      return directMappings[voiceKey];
-    }
-    const validVoiceIds = [
-      ...Object.values(voiceMappings.male),
-      ...Object.values(voiceMappings.female)
-    ];
-    if (validVoiceIds.includes(voiceId)) {
-      console.log(`Using provided valid voice ID from our known list: ${voiceId}`);
-      return voiceId;
-    }
-    if (normalizedInput.includes("male") && !normalizedInput.includes("female")) {
-      if (normalizedInput.includes("authoritative")) {
-        return voiceMappings.male.authoritative;
+    const payload = {
+      model: model3,
+      text: params.text,
+      stream: false,
+      language_boost: params.languageBoost || "auto",
+      output_format: params.outputFormat || "hex",
+      voice_setting: voiceSetting,
+      audio_setting: audioSetting,
+      stream_options: {
+        exclude_aggregated_audio: params.streamOptions?.exclude_aggregated_audio ?? true
       }
-      return voiceMappings.male.default;
+    };
+    if (Object.keys(voiceModify).length > 0) {
+      payload["voice_modify"] = voiceModify;
     }
-    if (normalizedInput.includes("sensual")) {
-      return voiceMappings.female.sensual;
-    } else if (normalizedInput.includes("playful")) {
-      return voiceMappings.female.playful;
-    } else if (normalizedInput.includes("soft")) {
-      return voiceMappings.female.soft;
+    if (this.groupId) {
+      payload["group_id"] = this.groupId;
     }
-    console.warn(`No specific match found for "${voiceId}", defaulting to Rachel (Soft Female)`);
-    return voiceMappings.female.default;
-  }
-  // Get predefined voices if API isn't available
-  getPredefinedVoices() {
-    return [
-      {
-        voice_id: "EXAVITQu4vr4xnSDxMaL",
-        name: "Rachel (Soft Female)",
-        preview_url: "https://api.elevenlabs.io/v1/voices/EXAVITQu4vr4xnSDxMaL/preview",
-        category: "elevenlabs",
-        labels: { gender: "female", style: "soft" }
-      },
-      {
-        voice_id: "VR6AewLTigWG4xSOukaG",
-        name: "Adam (Deep Male)",
-        preview_url: "https://api.elevenlabs.io/v1/voices/VR6AewLTigWG4xSOukaG/preview",
-        category: "elevenlabs",
-        labels: { gender: "male", style: "deep" }
-      },
-      {
-        voice_id: "yoZ06aMxZJJ28mfd3POQ",
-        name: "Bella (Sensual Female)",
-        preview_url: "https://api.elevenlabs.io/v1/voices/yoZ06aMxZJJ28mfd3POQ/preview",
-        category: "elevenlabs",
-        labels: { gender: "female", style: "sensual" }
-      },
-      {
-        voice_id: "TxGEqnHWrfWFTfGW9XjX",
-        name: "Josh (Authoritative Male)",
-        preview_url: "https://api.elevenlabs.io/v1/voices/TxGEqnHWrfWFTfGW9XjX/preview",
-        category: "elevenlabs",
-        labels: { gender: "male", style: "authoritative" }
-      },
-      {
-        voice_id: "21m00Tcm4TlvDq8ikWAM",
-        name: "Domi (Playful Female)",
-        preview_url: "https://api.elevenlabs.io/v1/voices/21m00Tcm4TlvDq8ikWAM/preview",
-        category: "elevenlabs",
-        labels: { gender: "female", style: "playful" }
-      },
-      {
-        voice_id: "IKne3meq5aSn9XLyUdCD",
-        name: "Charlie",
-        preview_url: "https://api.elevenlabs.io/v1/voices/IKne3meq5aSn9XLyUdCD/preview",
-        category: "elevenlabs",
-        labels: { gender: "male", style: "conversational" }
-      },
-      {
-        voice_id: "VR6AewLTigWG4xSOukaG",
-        // Using Adam's voice ID for George
-        name: "George",
-        preview_url: "https://api.elevenlabs.io/v1/voices/VR6AewLTigWG4xSOukaG/preview",
-        category: "elevenlabs",
-        labels: { gender: "male", style: "deep" }
-      },
-      {
-        voice_id: "bIHbv24MWmeRgasZH58o",
-        name: "Will",
-        preview_url: "https://api.elevenlabs.io/v1/voices/bIHbv24MWmeRgasZH58o/preview",
-        category: "elevenlabs",
-        labels: { gender: "male", style: "casual" }
+    if (params.pronunciationDict) {
+      payload["pronunciation_dict"] = params.pronunciationDict;
+    }
+    try {
+      const response = await axios.post(this.ttsEndpoint, payload, {
+        headers: this.buildHeaders(),
+        timeout: 6e4
+      });
+      console.log(response.data);
+      const data = response?.data;
+      const candidateUrls = [
+        data?.data?.audio_url,
+        data?.data?.audio?.download_url,
+        data?.audio_url,
+        data?.audio?.download_url,
+        data?.result?.audio_url,
+        data?.audio?.url
+      ];
+      const remoteUrl = candidateUrls.find((url) => typeof url === "string" && url.length > 0);
+      if (remoteUrl) {
+        return remoteUrl;
       }
-    ];
+      const hexCandidates = [
+        data?.data?.audio,
+        data?.data?.audio_data,
+        data?.data?.audio_hex,
+        data?.audio,
+        data?.audio_hex,
+        data?.result?.audio_hex
+      ];
+      const hexAudio = hexCandidates.find((candidate) => {
+        if (typeof candidate !== "string") return false;
+        const trimmed = candidate.trim();
+        return trimmed.length > 0 && /^[0-9a-fA-F]+$/.test(trimmed);
+      });
+      if (hexAudio) {
+        return await this.saveAudio(Buffer.from(hexAudio.trim(), "hex"), audioFormat);
+      }
+      const base64Candidates = [
+        data?.data?.audio_base64,
+        data?.data?.audio?.base64,
+        data?.audio_base64,
+        data?.audio?.data,
+        data?.result?.audio
+      ];
+      const base64Audio = base64Candidates.find(
+        (candidate) => typeof candidate === "string" && candidate.length > 0
+      );
+      if (!base64Audio) {
+        console.warn("[MiniMax] TTS response did not contain audio data.");
+        return await this.createFallbackAudio();
+      }
+      return await this.saveAudio(Buffer.from(base64Audio, "base64"), audioFormat);
+    } catch (error) {
+      console.error("[MiniMax] Text-to-speech request failed:", error?.response?.data || error);
+      if (error?.response?.status === 401 || typeof error?.message === "string" && error.message.includes("401")) {
+        throw new Error("MiniMax authentication failed. Check your API key and group ID.");
+      }
+      throw new Error(
+        error?.response?.data?.message || error?.message || "MiniMax text-to-speech request failed."
+      );
+    }
   }
-  // Map frontend voice name to ElevenLabs voice ID (public method)
-  getVoiceId(voiceName) {
-    console.log(`getVoiceId called with: "${voiceName}"`);
-    return this.getActualVoiceId(voiceName);
+  async createFallbackAudio() {
+    const fallbackFilename = `minimax_fallback_${Date.now()}.mp3`;
+    const fallbackPath = path.join(this.audioDir, fallbackFilename);
+    await writeFileAsync(fallbackPath, Buffer.from([255, 251, 144, 68, 0]));
+    return `/audio/${fallbackFilename}`;
+  }
+  normalizeModel(model3) {
+    const fallback = "speech-2.6-hd";
+    if (!model3) {
+      return fallback;
+    }
+    const sanitized = model3.trim().toLowerCase();
+    if (!sanitized) {
+      return fallback;
+    }
+    if (!SUPPORTED_TTS_MODELS.has(sanitized)) {
+      console.warn(
+        `[MiniMax] Model "${model3}" is not supported by t2a_v2. Falling back to "${fallback}".`
+      );
+      return fallback;
+    }
+    return sanitized;
+  }
+  getAudioExtension(format) {
+    const fallbackExt = "mp3";
+    if (!format) {
+      return fallbackExt;
+    }
+    const sanitized = format.toString().trim().toLowerCase();
+    if (!sanitized) {
+      return fallbackExt;
+    }
+    return sanitized.replace(/[^a-z0-9]/g, "") || fallbackExt;
+  }
+  async saveAudio(buffer, format) {
+    const extension = this.getAudioExtension(format);
+    const filename = `minimax_${Date.now()}.${extension}`;
+    const filePath = path.join(this.audioDir, filename);
+    await writeFileAsync(filePath, buffer);
+    return `/audio/${filename}`;
   }
 };
-var elevenlabs = new ElevenLabsService();
+var minimax = new MinimaxService();
 
 // server/routes.ts
 import path3 from "path";
@@ -2447,14 +2253,12 @@ var createStory = async (title, settings, maxTokens, userId, isPublic = false, c
   user.textCredits -= textCreditCost;
   await user.save();
   if (settings.narrationVoiceId) {
-    console.log(`Using provided voice ID: ${settings.narrationVoiceId}`);
-  } else if (settings.narrationVoice) {
-    const voiceId = elevenlabs.getVoiceId(settings.narrationVoice);
-    console.log(`Mapped voice name "${settings.narrationVoice}" to ID: ${voiceId}`);
-    settings.narrationVoiceId = voiceId;
+    console.log(`Using provided MiniMax voice ID: ${settings.narrationVoiceId}`);
   } else {
-    console.log("No narration voice specified, defaulting to Adam (male voice)");
-    settings.narrationVoiceId = "VR6AewLTigWG4xSOukaG";
+    const defaultVoiceId = process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
+    settings.narrationVoiceId = defaultVoiceId;
+    settings.narrationVoice = settings.narrationVoice || "MiniMax Voice";
+    console.log(`No narration voice provided; defaulting to MiniMax voice ${defaultVoiceId}`);
   }
   const { title: generatedTitle, content } = await generateStory({
     title,
@@ -2683,48 +2487,6 @@ var setStoryVisibility = async (userId, storyId, isPublic) => {
   }
   await story.save();
   return story;
-};
-var getVoiceOptionsService = async () => {
-  const voices = await elevenlabs.getVoices();
-  const determineVoiceGender = (voiceName, labels) => {
-    if (labels && labels.gender && (labels.gender.toLowerCase() === "male" || labels.gender.toLowerCase() === "female")) {
-      return labels.gender.toLowerCase();
-    }
-    const maleNames = ["adam", "josh", "thomas", "charlie", "james", "matthew", "daniel", "michael", "david", "william", "joseph", "chris", "george", "robert", "jack", "john", "henry", "jacob", "sam", "samuel", "tom", "callum", "harry", "oliver", "peter", "will", "liam", "lucas"];
-    const femaleNames = ["rachel", "sarah", "emily", "bella", "domi", "charlotte", "olivia", "emma", "ava", "sophia", "isabella", "mia", "amelia", "alice", "lily", "grace", "chloe", "jessica", "sophia", "amy", "katie", "susan", "jennifer", "elizabeth", "mary", "kathy", "matilda", "river"];
-    const normalizedName = voiceName.toLowerCase().trim();
-    const firstNamePart = normalizedName.split(" ")[0];
-    if (normalizedName.includes("female") || normalizedName.includes("woman")) return "female";
-    if (normalizedName.includes("male") || normalizedName.includes("man")) return "male";
-    if (maleNames.includes(firstNamePart)) return "male";
-    if (femaleNames.includes(firstNamePart)) return "female";
-    if (/\b(mr|sir|guy|boy|bro|dude)\b/.test(normalizedName)) return "male";
-    if (/\b(mrs|ms|miss|lady|girl|sis)\b/.test(normalizedName)) return "female";
-    if (normalizedName === "river") return "female";
-    return "unknown";
-  };
-  return voices.map((voice) => {
-    const nameParts = voice.name.match(/^(.*?)(?:\s*\((.*?)\))?$/);
-    const cleanName = nameParts ? nameParts[1].trim() : voice.name;
-    const description = nameParts && nameParts[2] ? nameParts[2].trim() : "";
-    const isFree = voice.category === "premade";
-    return {
-      id: voice.voice_id,
-      name: cleanName,
-      fullName: voice.name,
-      category: voice.category,
-      isPremium: !isFree,
-      description: description || voice.labels && voice.labels.description || "",
-      labels: {
-        ...voice.labels,
-        gender: determineVoiceGender(voice.name, voice.labels),
-        accent: voice.labels && voice.labels.accent || "neutral",
-        age: voice.labels && voice.labels.age || "adult",
-        style: voice.labels && voice.labels.style || "natural"
-      },
-      preview_url: voice.preview_url || ""
-    };
-  });
 };
 var getPublicStoriesService = async (userId) => {
   const currentDate = /* @__PURE__ */ new Date();
@@ -3974,15 +3736,6 @@ var updateVisibility = async (req, res) => {
     return res.status(status).json(body);
   }
 };
-var voiceOptions = async (_req, res) => {
-  try {
-    const voices = await getVoiceOptionsService();
-    res.json(voices);
-  } catch (error) {
-    console.error("Error fetching voice options:", error);
-    res.status(500).json({ message: "Failed to fetch voice options" });
-  }
-};
 var getPublicStoriesList = async (req, res) => {
   try {
     const userId = req.session?.userId;
@@ -4024,7 +3777,6 @@ var getPremiumStoriesController = async (req, res) => {
 
 // server/routes/story.route.ts
 var router2 = Router2();
-router2.get("/voice-options", voiceOptions);
 router2.route("/generate").post(authMiddleware, trackEngagement("story_created"), createStory2);
 router2.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 router2.get("/public", getPublicStoriesList);
@@ -5072,27 +4824,12 @@ async function registerRoutes(app2) {
   app2.use("/api/admin", admin_route_default);
   app2.use("/api/payment", payment_route_default);
   app2.use("/api/badges", badge_route_default);
-  app2.get("/api/speech/voices", async (req, res) => {
-    try {
-      const voices = await elevenlabs.getVoices();
-      const mappedVoices = voices.map((voice) => ({
-        id: voice.voice_id,
-        name: voice.name,
-        gender: voice.labels?.gender || "unknown",
-        style: voice.labels?.accent || "neutral",
-        isPremium: voice.category !== "premade"
-      }));
-      res.json(mappedVoices);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch voices" });
-    }
-  });
-  app2.get("/api/speech/test", async (req, res) => {
+  app2.get("/api/speech/test", async (_req, res) => {
     try {
       console.log("Testing audio generation...");
       const sampleText = "This is a test audio file to verify voice generation.";
-      const voiceId = "EXAVITQu4vr4xnSDxMaL";
-      const audioUrl = await elevenlabs.textToSpeech({
+      const voiceId = process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
+      const audioUrl = await minimax.textToSpeech({
         text: sampleText,
         voiceId
       });
@@ -5131,12 +4868,6 @@ async function registerRoutes(app2) {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    if (user.subscription === "free") {
-      return res.status(403).json({
-        message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
-        code: "PREMIUM_REQUIRED"
-      });
-    }
     let creditsDeducted = 0;
     try {
       const { text, voiceId, storyId } = z5.object({
@@ -5160,77 +4891,63 @@ async function registerRoutes(app2) {
         }
       }
       processedText = processedText.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\n{3,}/g, "\n\n").replace(/\s{3,}/g, " ").trim();
-      const estimatedAudioLengthMinutes = Math.ceil(processedText.length / 750);
-      let processedVoiceId = voiceId;
-      if (voiceId === "George") {
-        processedVoiceId = "VR6AewLTigWG4xSOukaG";
-      } else if (voiceId === "Charlie") {
-        processedVoiceId = "IKne3meq5aSn9XLyUdCD";
-      } else if (voiceId === "Will") {
-        processedVoiceId = "bIHbv24MWmeRgasZH58o";
-      }
-      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
-      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
       console.log(`Processed text length: ${processedText.length} characters`);
       if (processedText.length > 4800) {
-        console.log(`Warning: Text is very long (${processedText.length} chars), may be truncated by ElevenLabs API`);
+        console.log(
+          `Warning: Text is very long (${processedText.length} chars), may be truncated by the TTS service`
+        );
       }
+      if (!process.env.MINIMAX_API_KEY) {
+        return res.status(401).json({
+          message: "MiniMax API key is required for voice generation",
+          error: "No API key configured",
+          apiKeyIssue: true
+        });
+      }
+      let audioUrl;
+      let isFallback = false;
+      const targetVoiceId = voiceId || process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
       try {
-        if (!process.env.ELEVENLABS_API_KEY) {
-          return res.status(401).json({
-            message: "ElevenLabs API key is required for voice generation",
-            error: "No API key configured",
-            apiKeyIssue: true
-          });
-        }
-        const audioUrl = await elevenlabs.textToSpeech({
+        const generatedUrl = await minimax.textToSpeech({
           text: processedText,
-          voiceId: actualVoiceId,
-          model: "eleven_monolingual_v1",
-          stability: 0.5,
-          similarityBoost: 0.75
+          voiceId: targetVoiceId
         });
-        console.log(`Generated audio URL: ${audioUrl}`);
-        const filePath = path3.join(process.cwd(), "dist", "public", audioUrl.replace(/^\//, ""));
-        if (!fs3.existsSync(filePath)) {
-          throw new Error("Generated audio file not found");
-        }
-        const fileStats = fs3.statSync(filePath);
-        const fileSize = fileStats.size;
-        const fileSizeInKB = fileSize / 1024;
-        const isFallback = fileSizeInKB < 1;
-        if (storyId && !isFallback) {
-          if (mongoose.Types.ObjectId.isValid(storyId)) {
-            const story = await Story.findById(storyId);
-            if (story) {
-              story.audioUrl = audioUrl;
-              await story.save();
-              console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
-            } else {
-              console.log(`Story with ID ${storyId} not found in MongoDB`);
-            }
+        if (generatedUrl.startsWith("/audio/")) {
+          const filePath = path3.join(process.cwd(), "dist", "public", generatedUrl.replace(/^\//, ""));
+          if (!fs3.existsSync(filePath)) {
+            throw new Error("Generated audio file not found");
           }
+          const fileStats = fs3.statSync(filePath);
+          const fileSizeInKB = fileStats.size / 1024;
+          isFallback = fileSizeInKB < 1;
         }
-        res.json({
-          audioUrl,
-          fallback: isFallback,
-          message: isFallback ? "Generated a fallback audio file. The text may be too complex or long for the TTS service." : void 0
-        });
+        audioUrl = generatedUrl;
       } catch (error) {
-        console.error("ElevenLabs API error during generation:", error);
-        if (error instanceof Error && (error.message.includes("401") || error.message.includes("Unauthorized") || error.message.includes("api-key") || error.message.includes("authentication"))) {
-          return res.status(401).json({
-            message: "Speech generation failed due to API authentication issues",
-            error: "The ElevenLabs API key is invalid or has expired. Please update it with a valid key.",
-            apiKeyIssue: true
-          });
-        }
-        res.status(500).json({
+        console.error("MiniMax API error during generation:", error);
+        return res.status(500).json({
           message: "Speech generation failed",
-          error: error.message || "Unknown error",
+          error: error?.message || "Unknown error",
           fallback: true
         });
       }
+      if (storyId && !isFallback) {
+        if (mongoose.Types.ObjectId.isValid(storyId)) {
+          const story = await Story.findById(storyId);
+          if (story) {
+            story.audioUrl = audioUrl;
+            await story.save();
+            console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
+          } else {
+            console.log(`Story with ID ${storyId} not found in MongoDB`);
+          }
+        }
+      }
+      res.json({
+        audioUrl,
+        fallback: isFallback,
+        provider: "minimax",
+        message: isFallback ? "Generated a fallback audio file. The text may be too complex or long for the TTS service." : void 0
+      });
     } catch (error) {
       console.error("Error in speech generation request parsing/initial checks:", error);
       if (error instanceof Error) {
@@ -5255,45 +4972,31 @@ async function registerRoutes(app2) {
         voiceId: z5.string()
       }).parse(req.body);
       console.log(`Test speech generation - Voice: ${voiceId}, Text length: ${text.length} chars`);
-      let processedVoiceId = voiceId;
-      if (voiceId === "George") {
-        console.log("Explicitly mapping George to Adam's deep male voice");
-        processedVoiceId = "VR6AewLTigWG4xSOukaG";
-      } else if (voiceId === "Charlie") {
-        console.log("Explicitly mapping Charlie to Charlie's male voice");
-        processedVoiceId = "IKne3meq5aSn9XLyUdCD";
-      } else if (voiceId === "Will") {
-        console.log("Explicitly mapping Will to Will's male voice");
-        processedVoiceId = "bIHbv24MWmeRgasZH58o";
-      }
-      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
-      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
       const processedText = text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\n{3,}/g, "\n\n").replace(/\s{3,}/g, " ").trim();
-      const audioUrl = await elevenlabs.textToSpeech({
+      const audioUrl = await minimax.textToSpeech({
         text: processedText,
-        voiceId: actualVoiceId,
-        model: "eleven_monolingual_v1",
-        stability: 0.5,
-        similarityBoost: 0.75
+        voiceId
       });
-      const filePath = path3.join(process.cwd(), "dist", "public", audioUrl.replace(/^\//, ""));
-      if (!fs3.existsSync(filePath)) {
-        return res.status(500).json({
-          message: "Generated audio file not found",
-          error: "File generation failed"
-        });
+      let fileSizeInKB = 0;
+      if (audioUrl.startsWith("/audio/")) {
+        const filePath = path3.join(process.cwd(), "dist", "public", audioUrl.replace(/^\//, ""));
+        if (!fs3.existsSync(filePath)) {
+          return res.status(500).json({
+            message: "Generated audio file not found",
+            error: "File generation failed"
+          });
+        }
+        const fileStats = fs3.statSync(filePath);
+        fileSizeInKB = fileStats.size / 1024;
       }
-      const fileStats = fs3.statSync(filePath);
-      const fileSize = fileStats.size;
-      const fileSizeInKB = fileSize / 1024;
       return res.status(200).json({
         message: "Speech generated successfully",
         audioUrl,
-        fileSize: fileSizeInKB.toFixed(2) + " KB",
+        fileSize: fileSizeInKB ? fileSizeInKB.toFixed(2) + " KB" : void 0,
         success: true
       });
     } catch (error) {
-      console.error("ElevenLabs API error:", error);
+      console.error("Speech test generation error:", error);
       return res.status(500).json({
         message: "Speech generation failed",
         error: error.message || String(error),

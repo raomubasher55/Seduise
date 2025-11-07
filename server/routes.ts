@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { storySettingsSchema, insertStorySchema, insertCommentSchema } from "@shared/schema";
 import { generateStory, continueStory, generateTitleSuggestions } from "./utils/openai";
-import { elevenlabs } from "./utils/elevenlabs";
+import { minimax } from "./utils/minimax";
 import path from "path";
 import fs from "fs";
 import { isAuthenticated } from "./middlewares/auth.middleware";
@@ -39,36 +39,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Speech/Audio endpoints
-  app.get("/api/speech/voices", async (req, res) => {
-    try {
-      const voices = await elevenlabs.getVoices();
-      
-      // Map to simpler format
-      const mappedVoices = voices.map(voice => ({
-        id: voice.voice_id,
-        name: voice.name,
-        gender: voice.labels?.gender || 'unknown',
-        style: voice.labels?.accent || 'neutral',
-        isPremium: voice.category !== 'premade'
-      }));
-      
-      res.json(mappedVoices);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch voices" });
-    }
-  });
-  
   // Debug endpoint to test audio generation and storage
-  app.get("/api/speech/test", async (req, res) => {
+  app.get("/api/speech/test", async (_req, res) => {
     try {
       console.log("Testing audio generation...");
       
       // Generate a simple test audio
       const sampleText = "This is a test audio file to verify voice generation.";
-      const voiceId = "EXAVITQu4vr4xnSDxMaL"; // Rachel voice ID
+      const voiceId = process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
       
       // Generate speech
-      const audioUrl = await elevenlabs.textToSpeech({
+      const audioUrl = await minimax.textToSpeech({
         text: sampleText,
         voiceId: voiceId
       });
@@ -121,12 +102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     // Explicitly block audio generation for free users
-    if (user.subscription === 'free') {
-      return res.status(403).json({
-        message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
-        code: "PREMIUM_REQUIRED"
-      });
-    }
+    // if (user.subscription === 'free') {
+    //   return res.status(403).json({
+    //     message: "Audio generation is not available on the Free plan. Please upgrade your subscription.",
+    //     code: "PREMIUM_REQUIRED"
+    //   });
+    // }
 
     let creditsDeducted = 0; // Track credits deducted for potential refund
 
@@ -162,99 +143,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .replace(/\s{3,}/g, ' ')
         .trim();
 
-      // Calculate estimated audio length in minutes (rough estimate: 150 words/minute, 5 chars/word) -> 750 chars/minute
-      const estimatedAudioLengthMinutes = Math.ceil(processedText.length / 750);
-
-     
-
-      let processedVoiceId = voiceId;
-      if (voiceId === "George") {
-        processedVoiceId = "VR6AewLTigWG4xSOukaG";
-      } else if (voiceId === "Charlie") {
-        processedVoiceId = "IKne3meq5aSn9XLyUdCD";
-      } else if (voiceId === "Will") {
-        processedVoiceId = "bIHbv24MWmeRgasZH58o";
-      }
-
-      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
-      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
-
       console.log(`Processed text length: ${processedText.length} characters`);
       if (processedText.length > 4800) {
-        console.log(`Warning: Text is very long (${processedText.length} chars), may be truncated by ElevenLabs API`);
+        console.log(
+          `Warning: Text is very long (${processedText.length} chars), may be truncated by the TTS service`,
+        );
       }
+
+      if (!process.env.MINIMAX_API_KEY) {
+        return res.status(401).json({
+          message: "MiniMax API key is required for voice generation",
+          error: "No API key configured",
+          apiKeyIssue: true,
+        });
+      }
+
+      let audioUrl: string;
+      let isFallback = false;
+      const targetVoiceId = voiceId || process.env.MINIMAX_DEFAULT_VOICE_ID || "minimax_female_soft";
 
       try {
-        if (!process.env.ELEVENLABS_API_KEY) {
-          return res.status(401).json({
-            message: "ElevenLabs API key is required for voice generation",
-            error: "No API key configured",
-            apiKeyIssue: true
-          });
-        }
-
-        const audioUrl = await elevenlabs.textToSpeech({
+        const generatedUrl = await minimax.textToSpeech({
           text: processedText,
-          voiceId: actualVoiceId,
-          model: 'eleven_monolingual_v1',
-          stability: 0.5,
-          similarityBoost: 0.75
+          voiceId: targetVoiceId,
         });
 
-        console.log(`Generated audio URL: ${audioUrl}`);
-
-        const filePath = path.join(process.cwd(), 'dist', 'public', audioUrl.replace(/^\//, ''));
-        if (!fs.existsSync(filePath)) {
-          throw new Error("Generated audio file not found");
-        }
-
-        const fileStats = fs.statSync(filePath);
-        const fileSize = fileStats.size;
-        const fileSizeInKB = fileSize / 1024;
-        const isFallback = fileSizeInKB < 1; // Assuming very small files are fallbacks
-
-        if (storyId && !isFallback) {
-          if (mongoose.Types.ObjectId.isValid(storyId)) {
-            const story = await Story.findById(storyId);
-            if (story) {
-              story.audioUrl = audioUrl;
-              await story.save();
-              console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
-            } else {
-              console.log(`Story with ID ${storyId} not found in MongoDB`);
-            }
+        if (generatedUrl.startsWith("/audio/")) {
+          const filePath = path.join(process.cwd(), "dist", "public", generatedUrl.replace(/^\//, ""));
+          if (!fs.existsSync(filePath)) {
+            throw new Error("Generated audio file not found");
           }
+          const fileStats = fs.statSync(filePath);
+          const fileSizeInKB = fileStats.size / 1024;
+          isFallback = fileSizeInKB < 1;
         }
 
-
-        res.json({
-          audioUrl,
-          fallback: isFallback,
-          message: isFallback ? "Generated a fallback audio file. The text may be too complex or long for the TTS service." : undefined
-        });
+        audioUrl = generatedUrl;
       } catch (error: any) {
-        console.error("ElevenLabs API error during generation:", error);
-
-      
-
-        if (error instanceof Error &&
-          (error.message.includes('401') ||
-            error.message.includes('Unauthorized') ||
-            error.message.includes('api-key') ||
-            error.message.includes('authentication'))) {
-          return res.status(401).json({
-            message: "Speech generation failed due to API authentication issues",
-            error: "The ElevenLabs API key is invalid or has expired. Please update it with a valid key.",
-            apiKeyIssue: true
-          });
-        }
-
-        res.status(500).json({
+        console.error("MiniMax API error during generation:", error);
+        return res.status(500).json({
           message: "Speech generation failed",
-          error: error.message || "Unknown error",
-          fallback: true
+          error: error?.message || "Unknown error",
+          fallback: true,
         });
       }
+
+      if (storyId && !isFallback) {
+        if (mongoose.Types.ObjectId.isValid(storyId)) {
+          const story = await Story.findById(storyId);
+          if (story) {
+            story.audioUrl = audioUrl;
+            await story.save();
+            console.log(`Updated story ${storyId} with audio URL ${audioUrl} in MongoDB`);
+          } else {
+            console.log(`Story with ID ${storyId} not found in MongoDB`);
+          }
+        }
+      }
+
+      res.json({
+        audioUrl,
+        fallback: isFallback,
+        provider: "minimax",
+        message: isFallback
+          ? "Generated a fallback audio file. The text may be too complex or long for the TTS service."
+          : undefined,
+      });
     } catch (error: any) {
       console.error("Error in speech generation request parsing/initial checks:", error);
 
@@ -286,26 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.body);
       
       console.log(`Test speech generation - Voice: ${voiceId}, Text length: ${text.length} chars`);
-      
-      // Handle specific voice name cases before conversion
-      let processedVoiceId = voiceId;
-      
-      // Check if we're receiving a UI name like "George" and map it directly
-      if (voiceId === "George") {
-        console.log("Explicitly mapping George to Adam's deep male voice");
-        processedVoiceId = "VR6AewLTigWG4xSOukaG"; // Adam's voice ID
-      } else if (voiceId === "Charlie") {
-        console.log("Explicitly mapping Charlie to Charlie's male voice");
-        processedVoiceId = "IKne3meq5aSn9XLyUdCD"; // Charlie's voice ID
-      } else if (voiceId === "Will") {
-        console.log("Explicitly mapping Will to Will's male voice");
-        processedVoiceId = "bIHbv24MWmeRgasZH58o"; // Will's voice ID
-      }
-      
-      // Get the actual ElevenLabs voice ID from the processed input
-      const actualVoiceId = elevenlabs.getVoiceId(processedVoiceId);
-      console.log(`Using ElevenLabs voice ID: ${actualVoiceId}`);
-      
+
       // Process text (simplified for testing)
       const processedText = text
         .replace(/[\u2018\u2019]/g, "'")  // Replace smart quotes
@@ -313,37 +248,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .replace(/\n{3,}/g, '\n\n')       // Normalize excessive line breaks
         .replace(/\s{3,}/g, ' ')          // Normalize excessive spaces
         .trim();
-      
-      // Generate speech using ElevenLabs API
-      const audioUrl = await elevenlabs.textToSpeech({
+
+      const audioUrl = await minimax.textToSpeech({
         text: processedText,
-        voiceId: actualVoiceId,
-        model: 'eleven_monolingual_v1',
-        stability: 0.5,
-        similarityBoost: 0.75
+        voiceId: voiceId,
       });
-      
-      // Check if the audio file exists and get its size
-      const filePath = path.join(process.cwd(), 'dist', 'public', audioUrl.replace(/^\//, ''));
-      if (!fs.existsSync(filePath)) {
-        return res.status(500).json({
-          message: "Generated audio file not found",
-          error: "File generation failed"
-        });
+
+      let fileSizeInKB = 0;
+      if (audioUrl.startsWith("/audio/")) {
+        const filePath = path.join(process.cwd(), 'dist', 'public', audioUrl.replace(/^\//, ''));
+        if (!fs.existsSync(filePath)) {
+          return res.status(500).json({
+            message: "Generated audio file not found",
+            error: "File generation failed"
+          });
+        }
+        const fileStats = fs.statSync(filePath);
+        fileSizeInKB = fileStats.size / 1024;
       }
-      
-      const fileStats = fs.statSync(filePath);
-      const fileSize = fileStats.size;
-      const fileSizeInKB = fileSize / 1024;
-      
+
       return res.status(200).json({
         message: "Speech generated successfully",
         audioUrl,
-        fileSize: fileSizeInKB.toFixed(2) + " KB",
+        fileSize: fileSizeInKB ? fileSizeInKB.toFixed(2) + " KB" : undefined,
         success: true
       });
     } catch (error: any) {
-      console.error('ElevenLabs API error:', error);
+      console.error('Speech test generation error:', error);
       return res.status(500).json({
         message: "Speech generation failed",
         error: error.message || String(error),
