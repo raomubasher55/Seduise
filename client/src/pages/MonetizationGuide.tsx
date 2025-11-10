@@ -105,24 +105,6 @@ export default function MonetizationGuide() {
     }
   ];
 
-  const creditPacks = {
-    text: [
-      { name: 'Starter Pack', credits: 15, price: 2.99, description: 'Perfect for more story creation' },
-      { name: 'Popular Pack', credits: 40, price: 6.99, description: 'Most popular text credits pack', popular: true },
-      { name: 'Premium Pack', credits: 80, price: 11.99, description: 'Maximum text credits for heavy writers', bestValue: true }
-    ],
-    audio: [
-      { name: 'Starter Pack', credits: 10, price: 4.99, description: 'Perfect for more audio experiences' },
-      { name: 'Popular Pack', credits: 25, price: 9.99, description: 'Most popular audio credits pack', popular: true },
-      { name: 'Premium Pack', credits: 50, price: 17.99, description: 'Maximum audio credits for audio lovers', bestValue: true }
-    ],
-    combo: [
-      { name: 'Starter Combo', textCredits: 10, audioCredits: 8, price: 5.99, description: 'Best value starter combo pack' },
-      { name: 'Popular Combo', textCredits: 25, audioCredits: 20, price: 12.99, description: 'Best value combo pack', popular: true },
-      { name: 'Premium Combo', textCredits: 50, audioCredits: 40, price: 22.99, description: 'Ultimate combo pack for power users', bestValue: true }
-    ]
-  };
-
   const badges = [
     { name: 'Storyteller', reward: 'Achievement Badge', trigger: 'Create your first story' },
     { name: 'First Heart', reward: '+4 text + 1 audio credits', trigger: 'Get your first like' },
@@ -184,7 +166,7 @@ export default function MonetizationGuide() {
         <TabsList className="grid w-full grid-cols-6 bg-[#2D2D2D] mb-8">
           <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
           <TabsTrigger value="plans" className="text-sm">Plans</TabsTrigger>
-          <TabsTrigger value="credits" className="text-sm">Credits</TabsTrigger>
+          <TabsTrigger value="allowances" className="text-sm">Allowances</TabsTrigger>
           <TabsTrigger value="badges" className="text-sm">Earn Free</TabsTrigger>
           <TabsTrigger value="examples" className="text-sm">Examples</TabsTrigger>
           <TabsTrigger value="faq" className="text-sm">FAQ</TabsTrigger>
@@ -372,139 +354,78 @@ export default function MonetizationGuide() {
           </div>
         </TabsContent>
 
-        {/* Credits Tab */}
-        <TabsContent value="credits" className="space-y-8">
+        {/* Allowances Tab */}
+        <TabsContent value="allowances" className="space-y-8">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-['Playfair_Display'] font-bold mb-4">One-Time Credit Packs</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Perfect for topping up when you've used your monthly allowance. Credits never expire!
+            <h2 className="text-3xl font-['Playfair_Display'] font-bold mb-4">Monthly Credit Allowances</h2>
+            <p className="text-gray-400 max-w-3xl mx-auto">
+              Every premium plan refreshes your story and audio credits each billing cycle. Use them however you like—unused credits reset when your plan renews.
             </p>
           </div>
 
-          <Tabs defaultValue="combo" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-[#2D2D2D] max-w-md mx-auto">
-              <TabsTrigger value="combo">Combo Packs</TabsTrigger>
-              <TabsTrigger value="text">Text Credits</TabsTrigger>
-              <TabsTrigger value="audio">Audio Credits</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="combo" className="mt-8">
-              <div className="grid md:grid-cols-3 gap-6">
-                {creditPacks.combo.map((pack, index) => (
-                  <Card key={index} className="bg-[#1E1E1E] border-gray-800 relative">
-                    {pack.popular && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                        Most Popular
-                      </Badge>
-                    )}
-                    {pack.bestValue && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
-                        Best Value
-                      </Badge>
-                    )}
-                    
-                    <CardHeader className="text-center">
-                      <CardTitle className="text-xl">{pack.name}</CardTitle>
-                      <CardDescription>{pack.description}</CardDescription>
-                      <div className="text-2xl font-bold text-[#D9B08C] pt-2">â‚¬{pack.price}</div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-center gap-4">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-[#D9B08C]">{pack.textCredits}</div>
-                          <div className="text-xs text-gray-400">Text Credits</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-[#8B1E3F]">{pack.audioCredits}</div>
-                          <div className="text-xs text-gray-400">Audio Credits</div>
-                        </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {plans
+              .filter((plan) => plan.id !== 'discovery')
+              .map((plan) => (
+                <Card key={plan.id} className="bg-[#1E1E1E] border-gray-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{plan.name}</span>
+                      {plan.badge && <Badge>{plan.badge}</Badge>}
+                    </CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between bg-[#121212] rounded-lg p-3 border border-gray-800">
+                      <div>
+                        <p className="text-xs text-gray-400">Text Credits</p>
+                        <p className="text-2xl font-bold text-[#D9B08C]">{plan.textCredits}</p>
                       </div>
-                      
-                      <Button asChild className="w-full bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C]">
-                        <Link href="/credits">Purchase Pack</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="text" className="mt-8">
-              <div className="grid md:grid-cols-3 gap-6">
-                {creditPacks.text.map((pack, index) => (
-                  <Card key={index} className="bg-[#1E1E1E] border-gray-800 relative">
-                    {pack.popular && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                        Most Popular
-                      </Badge>
-                    )}
-                    {pack.bestValue && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
-                        Best Value
-                      </Badge>
-                    )}
-                    
-                    <CardHeader className="text-center">
-                      <BookOpen className="h-12 w-12 text-[#D9B08C] mx-auto mb-4" />
-                      <CardTitle className="text-xl">{pack.name}</CardTitle>
-                      <CardDescription>{pack.description}</CardDescription>
-                      <div className="text-2xl font-bold text-[#D9B08C] pt-2">â‚¬{pack.price}</div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-[#D9B08C]">{pack.credits}</div>
-                        <div className="text-gray-400">Text Credits</div>
+                      <div>
+                        <p className="text-xs text-gray-400">Audio Credits</p>
+                        <p className="text-2xl font-bold text-[#8B1E3F]">{plan.audioCredits}</p>
                       </div>
-                      
-                      <Button asChild className="w-full bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F]">
-                        <Link href="/credits">Purchase Pack</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                    </div>
+                    <ul className="text-sm text-gray-400 space-y-1">
+                      <li>• Credits refresh every month</li>
+                      <li>• Spend them on any mix of stories or audio</li>
+                      <li>• Upgrade anytime to unlock bigger balances</li>
+                    </ul>
+                    <Button asChild className="w-full bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C]">
+                      <Link href="/premium-upgrade">Compare Plans</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
 
-            <TabsContent value="audio" className="mt-8">
-              <div className="grid md:grid-cols-3 gap-6">
-                {creditPacks.audio.map((pack, index) => (
-                  <Card key={index} className="bg-[#1E1E1E] border-gray-800 relative">
-                    {pack.popular && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                        Most Popular
-                      </Badge>
-                    )}
-                    {pack.bestValue && (
-                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
-                        Best Value
-                      </Badge>
-                    )}
-                    
-                    <CardHeader className="text-center">
-                      <Mic className="h-12 w-12 text-[#8B1E3F] mx-auto mb-4" />
-                      <CardTitle className="text-xl">{pack.name}</CardTitle>
-                      <CardDescription>{pack.description}</CardDescription>
-                      <div className="text-2xl font-bold text-[#D9B08C] pt-2">â‚¬{pack.price}</div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-[#8B1E3F]">{pack.credits}</div>
-                        <div className="text-gray-400">Audio Credits</div>
-                      </div>
-                      
-                      <Button asChild className="w-full bg-gradient-to-r from-[#8B1E3F] to-[#D9B08C]">
-                        <Link href="/credits">Purchase Pack</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+          <Card className="bg-[#1E1E1E] border-gray-800">
+            <CardHeader>
+              <CardTitle>How Credits Are Used</CardTitle>
+              <CardDescription>Each action consumes a predictable number of credits.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-sm uppercase tracking-wide text-gray-400 mb-3">Story Creation</h4>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li>• Short story (3-4 min read) — 1 text credit</li>
+                  <li>• Medium story (5-7 min read) — 2 text credits</li>
+                  <li>• Long story (10+ min read) — 4 text credits</li>
+                  <li>• Continue an existing story — 1 text credit</li>
+                </ul>
               </div>
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+              <div>
+                <h4 className="text-sm uppercase tracking-wide text-gray-400 mb-3">Audio Narration</h4>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li>• Short audio (~2.5 min) — 2 audio credits</li>
+                  <li>• Medium audio (~5 min) — 3 audio credits</li>
+                  <li>• Long audio (~8-10 min) — 5 audio credits</li>
+                  <li>• Custom length — 1 credit per ~2.5 minutes</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>`r`n        </TabsContent>
+
 
         {/* Badges Tab */}
         <TabsContent value="badges" className="space-y-8">
@@ -750,3 +671,11 @@ export default function MonetizationGuide() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

@@ -26,14 +26,11 @@ const PaymentCancelPage = () => {
         <div className="flex justify-center space-x-4">
           <Button
             className="bg-[#8B1E3F] hover:bg-[#A93B5B]"
-            onClick={() => setLocation('/credits')}
+            onClick={() => setLocation('/premium-upgrade')}
           >
-            Try Again
+            Manage Subscription
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setLocation('/')}
-          >
+          <Button variant="outline" onClick={() => setLocation('/')}>
             Return to Home
           </Button>
         </div>

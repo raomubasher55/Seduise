@@ -14,9 +14,9 @@ const PremiumBanner = () => {
 
   const handleUpgradeClick = () => {
     if (user) {
-      navigate('/credits');
+      navigate("/premium-upgrade");
     } else {
-      navigate('/login?redirect=credits');
+      navigate("/login?redirect=premium-upgrade");
     }
   };
 
@@ -27,7 +27,7 @@ const PremiumBanner = () => {
           <Crown className="text-[#D9B08C] mr-3" size={24} />
           <div>
             <h3 className="font-['Playfair_Display'] text-lg">Upgrade to Premium</h3>
-            <p className="text-sm text-gray-300">Unlock unlimited stories, premium voices, and advanced features.</p>
+            <p className="text-sm text-gray-300">Boost your monthly story & audio credits with premium voices.</p>
           </div>
         </div>
         <div className="flex items-center">
@@ -35,7 +35,7 @@ const PremiumBanner = () => {
             className="bg-[#D9B08C] hover:bg-[#E5C7AD] text-[#121212] font-bold px-6 py-3 rounded-lg transition-colors"
             onClick={handleUpgradeClick}
           >
-            Get Credits
+            View Plans
           </Button>
         </div>
       </div>

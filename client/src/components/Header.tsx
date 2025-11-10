@@ -80,23 +80,29 @@ const Header = () => {
               </Link>
             )}
             
-            {/* Credits button - always show when authenticated */}
+            {/* Credits display */}
             {isAuthenticated && (
-              <Link href="/credits" className="hidden md:block">
-                <Button variant="outline" 
-                  className="flex items-center gap-1 border-amber-700 hover:bg-amber-700/20 group px-3"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+              <div className="hidden md:block">
+                <div className="flex items-center gap-2 border border-amber-700/60 rounded-full px-3 py-1 text-amber-500 bg-[#1A120B]">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <circle cx="12" cy="12" r="8" />
-                    <path d="M9.5 9 h5 l-5 6 h5" />
+                    <path d="M9.5 9h5l-5 6h5" />
                   </svg>
-                  <div className="flex items-center gap-1 font-medium text-amber-500">
-                    <span className="text-xs">T:{user?.textCredits || 0}</span>
-                    <span className="text-gray-400">|</span>
-                    <span className="text-xs">A:{user?.audioCredits || 0}</span>
-                  </div>
-                </Button>
-              </Link>
+                  <span className="text-xs font-semibold">T:{user?.textCredits || 0}</span>
+                  <span className="text-gray-400 text-xs">|</span>
+                  <span className="text-xs font-semibold">A:{user?.audioCredits || 0}</span>
+                </div>
+              </div>
             )}
             
             {isAuthenticated ? (
@@ -123,14 +129,27 @@ const Header = () => {
                   <DropdownMenuItem className="hover:bg-[#282828]">
                     <Link href="/dashboard" className="w-full">My Dashboard</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-[#282828]">
-                    <Link href="/credits" className="w-full flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mr-2">
+                  <DropdownMenuItem className="hover:bg-[#282828] cursor-default">
+                    <div className="w-full flex items-center text-amber-500">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
                         <circle cx="12" cy="12" r="8" />
-                        <path d="M9.5 9 h5 l-5 6 h5" />
+                        <path d="M9.5 9h5l-5 6h5" />
                       </svg>
-                      T:{user?.textCredits || 0} A:{user?.audioCredits || 0}
-                    </Link>
+                      <span className="text-xs font-semibold">
+                        T:{user?.textCredits || 0} / A:{user?.audioCredits || 0}
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                   {/* {!isPremium && (
                     <DropdownMenuItem className="hover:bg-[#282828]">
@@ -207,21 +226,28 @@ const Header = () => {
                 />
               )}
               
-              {/* Credits link for mobile when authenticated */}
+              {/* Credits display for mobile when authenticated */}
               {isAuthenticated && (
-                <MobileNavLink 
-                  href="/credits" 
-                  label={
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mr-2">
-                        <circle cx="12" cy="12" r="8" />
-                        <path d="M9.5 9 h5 l-5 6 h5" />
-                      </svg>
-                      <span>T:{user?.textCredits || 0} A:{user?.audioCredits || 0}</span>
-                    </div>
-                  } 
-                  onClick={() => setMobileMenuOpen(false)} 
-                />
+                <div className="text-white px-4 flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-amber-500"
+                  >
+                    <circle cx="12" cy="12" r="8" />
+                    <path d="M9.5 9h5l-5 6h5" />
+                  </svg>
+                  <span className="text-xs text-amber-400 font-semibold">
+                    T:{user?.textCredits || 0} / A:{user?.audioCredits || 0}
+                  </span>
+                </div>
               )}
               
               {/* Auth links */}

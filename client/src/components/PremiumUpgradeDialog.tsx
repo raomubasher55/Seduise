@@ -24,12 +24,7 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
   if (!isOpen) return null;
 
   const handleUpgradeClick = () => {
-    navigate('/subscription');
-    onClose();
-  };
-
-  const handleBuyCreditsClick = () => {
-    navigate('/credits');
+    navigate('/premium-upgrade');
     onClose();
   };
 
@@ -59,7 +54,7 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
               Out of Credits!
             </h2>
             <p className="text-lg mb-6 text-[#F5F5F5]">
-              You've used all your credits. Choose how you'd like to continue creating amazing stories.
+              You've used every credit in your current plan. Upgrade now to refresh your allowance instantly.
             </p>
             {currentCredits && (
               <div className="bg-[#121212] rounded-lg p-4 mb-6 border border-gray-700">
@@ -83,7 +78,7 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
               Unlock Premium
             </h2>
             <p className="text-lg mb-6 text-[#F5F5F5]">
-              Get unlimited story generation, premium voices, and exclusive features.
+              Upgrade to boost your monthly credits, unlock premium voices, and access exclusive stories.
             </p>
           </>
         )}
@@ -92,15 +87,15 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
         <div className="space-y-3 mb-8 text-left">
           <div className="flex items-center space-x-3">
             <Zap className="w-5 h-5 text-[#D9B08C] flex-shrink-0" />
-            <span className="text-sm text-[#F5F5F5]">Unlimited story generation</span>
+            <span className="text-sm text-[#F5F5F5]">Higher monthly story & audio credits</span>
           </div>
           <div className="flex items-center space-x-3">
             <Star className="w-5 h-5 text-[#D9B08C] flex-shrink-0" />
-            <span className="text-sm text-[#F5F5F5]">Premium voice narration</span>
+            <span className="text-sm text-[#F5F5F5]">Premium narration voices & gallery access</span>
           </div>
           <div className="flex items-center space-x-3">
             <Crown className="w-5 h-5 text-[#D9B08C] flex-shrink-0" />
-            <span className="text-sm text-[#F5F5F5]">Exclusive story categories</span>
+            <span className="text-sm text-[#F5F5F5]">Exclusive story drops and community perks</span>
           </div>
         </div>
 
@@ -114,16 +109,6 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
             Upgrade to Premium
           </button>
           
-          {trigger === 'insufficient_credits' && (
-            <button
-              onClick={handleBuyCreditsClick}
-              className="w-full border border-[#D9B08C] text-[#D9B08C] hover:bg-[#D9B08C] hover:text-[#1E1E1E] py-3 rounded-lg transition-all duration-200 flex items-center justify-center bg-transparent"
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Buy More Credits
-            </button>
-          )}
-          
           <button
             onClick={onClose}
             className="w-full text-gray-400 hover:text-white py-2 text-sm hover:bg-[#2D2D2D] transition-all duration-200"
@@ -131,17 +116,9 @@ export const PremiumUpgradeDialog: React.FC<PremiumUpgradeDialogProps> = ({
             Maybe Later
           </button>
         </div>
-
-        {/* Special offer (optional) */}
-        {trigger === 'insufficient_credits' && (
-          <div className="mt-6 p-3 bg-gradient-to-r from-[#D9B08C]/20 to-[#8B1E3F]/20 rounded-lg border border-[#D9B08C]/30">
-            <p className="text-xs text-[#D9B08C]">
-              ✨ First-time premium upgrade gets 50% off your first month!
-            </p>
-          </div>
-        )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
 };
+

@@ -215,7 +215,7 @@ export default function Dashboard() {
             textCredits={user?.textCredits || 0}
             audioCredits={user?.audioCredits || 0}
             isPremium={user?.isPremium}
-            onTopUp={() => navigate('/credits')}
+            onTopUp={() => navigate('/premium-upgrade')}
           />
         </div>
       </div>

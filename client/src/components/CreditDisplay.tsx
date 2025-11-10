@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Volume2, Crown, Plus } from 'lucide-react';
+import { FileText, Volume2, Crown, ArrowUpRight } from 'lucide-react';
 
 interface CreditDisplayProps {
   textCredits: number;
@@ -64,10 +64,9 @@ export default function CreditDisplay({
         
         {/* Description */}
         <p className="text-sm text-gray-400 mb-4 text-center">
-          {isPremium 
-            ? "Your premium credits renew monthly with your subscription."
-            : "Purchase more credits to create additional stories and audio content."
-          }
+          {isPremium
+            ? "Your subscription credits renew monthly. Keep an eye on your allowance as you create."
+            : "Upgrade to a premium plan to unlock monthly story and audio credits."}
         </p>
         
         {/* Top Up Button */}
@@ -77,8 +76,8 @@ export default function CreditDisplay({
             className="w-full bg-gradient-to-r from-[#D9B08C] to-[#8B1E3F] hover:from-[#8B1E3F] hover:to-[#D9B08C] text-white"
             size="sm"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            {isPremium ? "Buy More Credits" : "Get Premium"}
+            <ArrowUpRight className="h-4 w-4 mr-2" />
+            {isPremium ? "Manage Subscription" : "Upgrade to Premium"}
           </Button>
         )}
       </CardContent>

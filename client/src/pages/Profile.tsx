@@ -445,7 +445,7 @@ export default function Profile() {
                     <Button 
                       variant="outline"
                       className="flex-1 border-gray-600 hover:bg-gray-700"
-                      onClick={() => navigate('/credits')}
+                      onClick={() => navigate('/premium-upgrade')}
                     >
                       Buy More Credits
                     </Button>

@@ -26,11 +26,7 @@ import CookiePolicy from "@/pages/CookiePolicy";
 import TermsOfUse from "@/pages/TermsOfUse";
 
 // Subscription and Payment Pages
-import CreditsPage from "@/pages/CreditsPage";
-import CheckoutPage from "@/pages/CheckoutPage";
-import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentCancelPage from "@/pages/PaymentCancelPage";
-import PaymentCreditSuccess from "@/pages/PaymentCreditSuccess";
 import PaymentSubscriptionSuccess from "@/pages/PaymentSubscriptionSuccess";
 import PremiumGallery from "./pages/PremiumGallery";
 import PremiumUpgrade from "./pages/PremiumUpgrade";
@@ -111,29 +107,7 @@ function App() {
                 </ProtectedRoute>
               </Route> */}
               
-              <Route path="/credits">
-                <ProtectedRoute>
-                  <CreditsPage />
-                </ProtectedRoute>
-              </Route>
-
               <Route path="/monetization-guide" component={MonetizationGuide} />
-              
-              <Route path="/checkout/:type/:id">
-                <ProtectedRoute>
-                  <CheckoutPage />
-                </ProtectedRoute>
-              </Route>
-
-              <Route path="/payment/success">
-                <PaymentSuccessPage />
-              </Route>
-
-              <Route path="/payment/credit-success">
-                {/* <ProtectedRoute> */}
-                  <PaymentCreditSuccess />
-                {/* </ProtectedRoute> */}
-              </Route>
 
               <Route path="/payment/subscription-success">
                 <PaymentSubscriptionSuccess />

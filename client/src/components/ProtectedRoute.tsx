@@ -59,16 +59,9 @@ export default function ProtectedRoute({ children, premiumOnly = false, minimumT
             <p className="text-sm text-gray-500 mb-6">
               Current plan: {user?.subscription ? (user.subscription === 'essentiel' ? 'Essentiel' : user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)) : 'Free'}
             </p>
-            <div className="space-y-3">
-              <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                <Link href="/premium-upgrade">Upgrade Subscription</Link>
-              </Button>
-              <div>
-                <Button asChild variant="outline">
-                  <Link href="/credits">Buy Credits Instead</Link>
-                </Button>
-              </div>
-            </div>
+            <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+              <Link href="/premium-upgrade">Upgrade Subscription</Link>
+            </Button>
           </Card>
         </div>
       );
