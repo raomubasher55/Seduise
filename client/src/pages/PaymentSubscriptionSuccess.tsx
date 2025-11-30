@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ export default function PaymentSubscriptionSuccess() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1E1E1E] to-[#3D315B] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D9B08C] mx-auto mb-4"></div>
+          <LoadingSpinner size="md" />
           <p className="text-[#F0E6DC]">Processing your subscription...</p>
         </div>
       </div>

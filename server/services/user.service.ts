@@ -65,3 +65,35 @@ export const deleteUserStory = async (userId: string, storyId: string) => {
   return await deleteStoryService(storyId, userId);
 };
 
+export const updateUserProfile = async (userId: string, profileData: any) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new UserServiceError('User not found', 404);
+  }
+
+  // Only allow updating specific profile fields (security measure)
+  const allowedFields = ['name', 'email', 'bio', 'preferences'];
+  const updateData: any = {};
+  
+  allowedFields.forEach(field => {
+    if (profileData[field] !== undefined) {
+      updateData[field] = profileData[field];
+    }
+  });
+
+  // Validate that we have something to update
+  if (Object.keys(updateData).length === 0) {
+    throw new UserServiceError('No valid fields provided for update', 400);
+  }
+
+  // Update the user
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  ).select('-password'); // Don't return password
+
+  return updatedUser;
+};
+

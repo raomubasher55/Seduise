@@ -316,6 +316,23 @@ export class MemStorage implements IStorage {
     return updatedStory;
   }
 
+  async updateStory(id: string, updateData: { title?: string; content?: string; isPublic?: boolean }): Promise<Story> {
+    const story = this.stories.get(id);
+    if (!story) {
+      throw new Error("Story not found");
+    }
+    
+    const updatedStory = { 
+      ...story, 
+      ...(updateData.title !== undefined && { title: updateData.title }),
+      ...(updateData.content !== undefined && { content: updateData.content }),
+      ...(updateData.isPublic !== undefined && { isPublic: updateData.isPublic })
+    };
+    
+    this.stories.set(id, updatedStory);
+    return updatedStory;
+  }
+
   async likeStory(id: string): Promise<void> {
     const story = this.stories.get(id);
     if (!story) {

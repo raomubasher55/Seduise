@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useEffect, useState } from "react";
 import { Redirect } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -26,9 +27,8 @@ export default function ProtectedRoute({ children, premiumOnly = false, minimumT
   
   if (isLoading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen">
-        <div className="animate-spin h-16 w-16 border-4 border-t-4 border-gray-200 rounded-full"></div>
-        <p className="text-gray-500 mt-4">Loading...</p>
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner size="md" />
       </div>
     );
   }

@@ -364,10 +364,47 @@ export const continueStory = async (req: Request, res: Response) => {
 
 
 export const updateStory = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { title, content } = req.body;
-  const story = await storage.updateStoryContent(id, content);
-  res.status(200).json(story);
+  try {
+    const { id } = req.params;
+    const { title, content, isPublic } = req.body;
+    const userId = req.session.userId;
+    
+    // Validate that at least one field is provided for update
+    if (!title && !content && isPublic === undefined) {
+      return res.status(400).json({ message: "No valid fields provided for update" });
+    }
+    
+    // Find the story in MongoDB first
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    
+    // Check if user owns the story (security check)
+    if (story.userId !== userId) {
+      return res.status(403).json({ message: "You don't have permission to edit this story" });
+    }
+    
+    // Build update object
+    const updateData: { title?: string; content?: string; isPublic?: boolean } = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
+    
+    // Update story in MongoDB
+    const updatedStory = await Story.findByIdAndUpdate(
+      id, 
+      { $set: updateData }, 
+      { new: true, runValidators: true }
+    );
+    
+    res.status(200).json(updatedStory);
+  } catch (error: any) {
+    console.error("Error updating story:", error);
+    res.status(error.message === "Story not found" ? 404 : 500).json({ 
+      message: error.message || "Failed to update story" 
+    });
+  }
 };
 
 

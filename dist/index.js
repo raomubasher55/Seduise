@@ -785,6 +785,20 @@ var MemStorage = class {
     this.stories.set(id, updatedStory);
     return updatedStory;
   }
+  async updateStory(id, updateData) {
+    const story = this.stories.get(id);
+    if (!story) {
+      throw new Error("Story not found");
+    }
+    const updatedStory = {
+      ...story,
+      ...updateData.title !== void 0 && { title: updateData.title },
+      ...updateData.content !== void 0 && { content: updateData.content },
+      ...updateData.isPublic !== void 0 && { isPublic: updateData.isPublic }
+    };
+    this.stories.set(id, updatedStory);
+    return updatedStory;
+  }
   async likeStory(id) {
     const story = this.stories.get(id);
     if (!story) {
@@ -1438,21 +1452,21 @@ async function generateStory(options) {
   let maxTokens = 0;
   let targetWordCount = "";
   if (length === 2) {
-    maxTokens = 1200;
+    maxTokens = 2e3;
     targetWordCount = "Write a short story of approximately 300-400 words.";
   } else if (length === 3) {
-    maxTokens = 2400;
+    maxTokens = 4e3;
     targetWordCount = "Write a medium-length story of approximately 700-900 words.";
   } else if (length === 4) {
-    maxTokens = 4800;
+    maxTokens = 8e3;
     targetWordCount = "Write a longer story of approximately 1500-1800 words.";
   } else {
-    maxTokens = 1200;
+    maxTokens = 2e3;
     targetWordCount = "Write a short story of approximately 300-400 words.";
   }
-  console.log(`Story length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
-  const explicitLevelDescription = explicitLevel !== void 0 ? `Set the explicitness level to ${explicitLevel}% - the higher the percentage, the more explicit the content.` : "Keep the content moderately explicit unless otherwise specified.";
-  const titlePrompt = title ? `The story must directly involve the central concept of "${title}" as its primary focus. The story's main character, plot, theme, and events MUST literally be about "${title}" - for example, if the title is "Greedy Dog", the story MUST feature a dog that is greedy as a central character or theme. If the title is a person's name, they must be the main character. If the title is an object, that object must be central to the story. Make the title the most prominent element of the story.` : "Generate an appropriate title for the story.";
+  console.log(`Story length setting: ${length}, calculated token limit: ${maxTokens}`);
+  const intensityDescription = explicitLevel !== void 0 ? `Set the romantic intensity to ${explicitLevel}% - higher means more passionate and detailed.` : "Keep the content moderately passionate.";
+  const titlePrompt = title ? `The story must directly involve the central concept of "${title}" as its primary focus. The story's main character, plot, theme, and events MUST literally be about "${title}".` : "Generate an appropriate title for the story.";
   const settingPrompt = settingDescription ? `Setting description: ${settingDescription}
 Incorporate these specific setting details into your narrative.` : "";
   const protagonistPrompt = protagonistDescription ? `Protagonist description: ${protagonistDescription}
@@ -1461,7 +1475,7 @@ Ensure the protagonist has these specific characteristics.` : "";
 Incorporate these specific details about the love interest.` : "";
   const systemPrompt = `You must return ONLY valid JSON. No explanations, no title suggestions, no additional text.
 
-Create an erotic story with these parameters:
+Create a romantic story with these parameters:
 - Time Period: ${timePeriod}
 - Location: ${location}
 - Atmosphere: ${atmosphere}
@@ -1470,24 +1484,43 @@ Create an erotic story with these parameters:
 - Relationship: ${relationship}
 - Tone: ${writingTone}
 - ${targetWordCount}
-- ${explicitLevelDescription}
+- ${intensityDescription}
 - ${titlePrompt}
 
 ${settingPrompt}
 ${protagonistPrompt}
 ${loveInterestPrompt}
 
+Create an engaging romantic narrative with emotional depth, vivid descriptions, dialogue, and intimate moments appropriate to the intensity level.
+
 MANDATORY JSON FORMAT (nothing else):
 {
   "title": "Story Title Here",
-  "content": "Complete story content with vivid descriptions, dialogue, and sensual elements. End with cliffhanger."
+  "content": "Complete story content with vivid descriptions, dialogue, and romantic elements. End with cliffhanger."
 }
 
 DO NOT include title options, explanations, or any text outside the JSON object.`;
-  const userPrompt = "Create the erotic story now. Return ONLY the JSON object with title and content. No explanations, no title suggestions, no additional text.";
+  const userPrompt = "Create the romantic story now. Return ONLY the JSON object with title and content. No explanations, no title suggestions, no additional text.";
   try {
+    const safetySettings = [
+      {
+        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        threshold: "BLOCK_ONLY_HIGH"
+      },
+      {
+        category: "HARM_CATEGORY_HATE_SPEECH",
+        threshold: "BLOCK_ONLY_HIGH"
+      },
+      {
+        category: "HARM_CATEGORY_HARASSMENT",
+        threshold: "BLOCK_ONLY_HIGH"
+      },
+      {
+        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+        threshold: "BLOCK_ONLY_HIGH"
+      }
+    ];
     console.log("Generating story with Google Gemini model...");
-    console.log("API Key exists:", !!(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GENAI_API_KEY));
     const response = await geminiAI.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
@@ -1496,63 +1529,74 @@ DO NOT include title options, explanations, or any text outside the JSON object.
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: maxTokens,
-        temperature: 0.7
+        temperature: 0.7,
+        safetySettings
       }
     });
     console.log("Gemini API response received, checking content...");
-    console.log("Response object keys:", Object.keys(response || {}));
     let responseText = response.text;
-    console.log("Raw Response is :", responseText);
-    responseText = "fsdfsd";
-    try {
-      let jsonStr = responseText;
-      try {
-        const result = JSON.parse(jsonStr);
-        return {
-          title: title || result.title || "Untitled Story",
-          content: result.content || "Story generation failed"
-        };
-      } catch (nestedJsonError) {
-        console.error("Error parsing cleaned JSON:", nestedJsonError);
-        try {
-          const contentMatch = responseText.match(/"content"\s*:\s*"([^"]+(?:\\.[^"]*)*)"/) || responseText.match(/"content"\s*:\s*"([^}]+)"/);
-          const titleMatch = responseText.match(/"title"\s*:\s*"([^"]+)"/) || responseText.match(/"title"\s*:\s*"([^,}]+)"/);
-          const extractedContent = contentMatch ? contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r").trim() : "Story generation failed";
-          const extractedTitle = titleMatch ? titleMatch[1].trim() : "Untitled Story";
-          return {
-            title: title || extractedTitle,
-            content: extractedContent
-          };
-        } catch (extractError) {
-          console.error("Error extracting content from JSON string:", extractError);
-          return {
-            title: title || "Untitled Story",
-            content: "Unable to generate story content. Please try again."
-          };
-        }
+    if (!responseText || responseText.trim().length === 0) {
+      const candidate = response.candidates?.[0];
+      const safetyRatings = candidate?.safetyRatings;
+      const finishReason = candidate?.finishReason;
+      console.error("Content issue detected!");
+      console.error("Finish Reason:", finishReason);
+      console.error("Safety Ratings:", JSON.stringify(safetyRatings, null, 2));
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error(`Story was too long and got cut off. This shouldn't happen with current limits. Please try again.`);
       }
-    } catch (jsonError) {
-      console.error("Error parsing JSON response from Gemini:", jsonError);
-      try {
-        const contentMatch = responseText.match(/"content"\s*:\s*"([^"]+(?:\\.[^"]*)*)"/) || responseText.match(/"content"\s*:\s*"([^}]+)"/);
-        const titleMatch = responseText.match(/"title"\s*:\s*"([^"]+)"/) || responseText.match(/"title"\s*:\s*"([^,}]+)"/);
-        const extractedContent = contentMatch ? contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r").trim() : "Story generation failed";
-        const extractedTitle = titleMatch ? titleMatch[1].trim() : "Untitled Story";
-        return {
-          title: title || extractedTitle,
-          content: extractedContent
-        };
-      } catch (extractError) {
-        console.error("Error extracting content from JSON string:", extractError);
-        return {
-          title: title || "Untitled Story",
-          content: "Unable to generate story content. Please try again."
-        };
+      throw new Error(`Story generation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing topic.`);
+    }
+    console.log("Raw Response (first 500 chars):", responseText.substring(0, 500) + "...");
+    responseText = responseText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    if (!responseText.endsWith("}")) {
+      console.warn("Response appears truncated, attempting to find last complete content...");
+      const lastValidJson = responseText.lastIndexOf('"}');
+      if (lastValidJson !== -1) {
+        responseText = responseText.substring(0, lastValidJson + 2) + "\n}";
+        console.log("Reconstructed JSON with proper closing");
       }
     }
+    try {
+      const contentMatch = responseText.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/s);
+      if (contentMatch && contentMatch[1]) {
+        let cleanedContent = contentMatch[1];
+        cleanedContent = cleanedContent.replace(/(?<!\\)"/g, '\\"');
+        responseText = responseText.replace(
+          contentMatch[0],
+          `"content": "${cleanedContent}"`
+        );
+      }
+    } catch (cleanupError) {
+      console.warn("Content cleanup warning:", cleanupError);
+    }
+    try {
+      const result = JSON.parse(responseText);
+      return {
+        title: title || result.title || "Untitled Story",
+        content: result.content || "Story generation failed"
+      };
+    } catch (jsonError) {
+      console.error("JSON parse error, using regex fallback:", jsonError);
+      const contentMatch = responseText.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/s);
+      const titleMatch = responseText.match(/"title"\s*:\s*"([^"]+)"/);
+      let extractedContent = "Story generation failed.";
+      if (contentMatch && contentMatch[1]) {
+        extractedContent = contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r").replace(/\\\\/g, "\\").trim();
+        if (!extractedContent.endsWith(".") && !extractedContent.endsWith("!") && !extractedContent.endsWith("?")) {
+          extractedContent += "...";
+        }
+      }
+      const extractedTitle = titleMatch ? titleMatch[1].trim() : "Untitled Story";
+      console.log("Successfully extracted via regex fallback");
+      return {
+        title: title || extractedTitle,
+        content: extractedContent
+      };
+    }
   } catch (error) {
-    console.error("All story generation attempts failed:", error);
-    throw new Error("Failed to generate story. Please try again later or check your API keys.");
+    console.error("Story generation error:", error);
+    throw new Error(error instanceof Error ? error.message : "Failed to generate story. Please try again.");
   }
 }
 async function generateChapterSummary(content, chapterNumber) {
@@ -1632,23 +1676,35 @@ async function generateChapterTitle(content, chapterNumber) {
 }
 async function generateTitleSuggestions(content) {
   try {
+    const safetySettings = [
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+    ];
     const response = await geminiAI.models.generateContent({
-      // CHANGED: method call
       model: "gemini-2.5-flash",
-      // CHANGED: using recommended stable model
       contents: [
-        // CHANGED: 'messages' array converted to 'contents' array
         { role: "user", parts: [{ text: `Story content (first paragraph): ${content.substring(0, 300)}...` }] }
       ],
       config: {
-        // CHANGED: added config object
         systemInstruction: "Generate 5 captivating, sensual titles for this erotic story. Keep them concise (2-5 words). Respond in JSON format with an array of titles.",
         maxOutputTokens: 150,
-        // CHANGED: max_tokens moved and renamed
-        temperature: 0.8
+        temperature: 0.8,
+        safetySettings
       }
     });
-    let responseText = response.text || '{"titles": ["Untitled Story"]}';
+    let responseText = response.text;
+    if (!responseText || responseText.trim().length === 0) {
+      const candidate = response.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      console.error("Title suggestions generation issue. Finish Reason:", finishReason);
+      if (finishReason === "MAX_TOKENS") {
+        return ["Epic Tale", "Passionate Journey", "Desire Awakened", "Night's Embrace", "Secret Liaison"];
+      }
+      return ["Untitled Story", "Passionate Encounter", "Desire Awakened", "Night's Embrace", "Secret Liaison"];
+    }
+    responseText = responseText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
     responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -1694,24 +1750,39 @@ async function generateTitleSuggestions(content) {
 }
 async function generateChoices(chapterContent) {
   try {
+    const safetySettings = [
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+    ];
     const response = await geminiAI.models.generateContent({
-      // CHANGED: method call
       model: "gemini-2.5-flash",
-      // CHANGED: using recommended stable model
       contents: [
-        // CHANGED: 'messages' array converted to 'contents' array
         { role: "user", parts: [{ text: `Current chapter ends with: ${chapterContent.slice(-500)}` }] }
       ],
       config: {
-        // CHANGED: added config object
         systemInstruction: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.`,
         maxOutputTokens: 150,
-        // CHANGED: max_tokens moved and renamed
-        temperature: 0.7
+        temperature: 0.7,
+        safetySettings
       }
     });
-    let responseText = response.text || "[]";
-    responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
+    let responseText = response.text;
+    if (!responseText || responseText.trim().length === 0) {
+      const candidate = response.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      console.error("Choices generation issue. Finish Reason:", finishReason);
+      if (finishReason === "MAX_TOKENS") {
+        return [
+          { text: "Continue with passion" },
+          { text: "Take things slower" },
+          { text: "Explore new territory" }
+        ];
+      }
+      return [];
+    }
+    responseText = responseText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
     try {
       const choices = JSON.parse(responseText);
       if (Array.isArray(choices) && choices.every((c) => typeof c.text === "string")) {
@@ -1795,8 +1866,13 @@ ${loveInterestPrompt}
 ${choicePrompt}
 \xA0 \xA0 
 Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
+    const safetySettings = [
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+    ];
     const response = await geminiAI.models.generateContent({
-      // Gemini SDK
       model: "gemini-2.5-flash",
       contents: [
         { role: "user", parts: [{ text: `Here's the existing story content:
@@ -1808,10 +1884,20 @@ IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: maxTokens,
-        temperature: 0.8
+        temperature: 0.8,
+        safetySettings
       }
     });
-    let responseText = response.text || "The story continues...";
+    let responseText = response.text;
+    if (!responseText || responseText.trim().length === 0) {
+      const candidate = response.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      console.error("Story continuation issue. Finish Reason:", finishReason);
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error("Story continuation was too long and got cut off. Please try with a shorter length setting.");
+      }
+      throw new Error(`Story continuation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
     }
@@ -1849,17 +1935,17 @@ async function concludeStory(existingContent, settings, selectedChoice) {
     let maxTokens = 0;
     let targetWordCount = "";
     if (length === 2) {
-      maxTokens = 1200;
-      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
-    } else if (length === 3) {
       maxTokens = 2400;
-      targetWordCount = "Write a medium-length conclusion of approximately 700-900 words.";
+      targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
+    } else if (length === 3) {
+      maxTokens = 3600;
+      targetWordCount = "Write a medium-length conclusion of approximately 800-1200 words.";
     } else if (length === 4) {
-      maxTokens = 4800;
-      targetWordCount = "Write a longer conclusion of approximately 1500-1800 words.";
+      maxTokens = 5600;
+      targetWordCount = "Write a comprehensive conclusion of approximately 1600-2000 words.";
     } else {
-      maxTokens = 1200;
-      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+      maxTokens = 2400;
+      targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     }
     console.log(`Story conclusion length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
     const explicitLevelDescription = explicitLevel !== void 0 ? `Set the explicitness level to ${explicitLevel}% - the higher the percentage, the more explicit the content.` : "Keep the content moderately explicit unless otherwise specified.";
@@ -1895,8 +1981,13 @@ ${loveInterestPrompt}
 ${choicePrompt}
 \xA0 \xA0 
 Your conclusion should provide a sense of closure and resolution.`;
+    const safetySettings = [
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+    ];
     const response = await geminiAI.models.generateContent({
-      // Gemini SDK
       model: "gemini-2.5-flash",
       contents: [
         { role: "user", parts: [{ text: `Here's the existing story content:
@@ -1908,10 +1999,20 @@ IMPORTANT: Conclude the story from the exact point where it ended. Provide a sat
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: maxTokens,
-        temperature: 0.8
+        temperature: 0.8,
+        safetySettings
       }
     });
-    let responseText = response.text || "The story concludes...";
+    let responseText = response.text;
+    if (!responseText || responseText.trim().length === 0) {
+      const candidate = response.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      console.error("Story conclusion issue. Finish Reason:", finishReason);
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error("Story conclusion was too long and got cut off. Please try with a shorter length setting.");
+      }
+      throw new Error(`Story conclusion blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
     }
@@ -3169,10 +3270,36 @@ var continueStory2 = async (req, res) => {
   }
 };
 var updateStory = async (req, res) => {
-  const { id } = req.params;
-  const { title, content } = req.body;
-  const story = await storage.updateStoryContent(id, content);
-  res.status(200).json(story);
+  try {
+    const { id } = req.params;
+    const { title, content, isPublic } = req.body;
+    const userId = req.session.userId;
+    if (!title && !content && isPublic === void 0) {
+      return res.status(400).json({ message: "No valid fields provided for update" });
+    }
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: "Story not found" });
+    }
+    if (story.userId !== userId) {
+      return res.status(403).json({ message: "You don't have permission to edit this story" });
+    }
+    const updateData = {};
+    if (title !== void 0) updateData.title = title;
+    if (content !== void 0) updateData.content = content;
+    if (isPublic !== void 0) updateData.isPublic = isPublic;
+    const updatedStory = await Story.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+    res.status(200).json(updatedStory);
+  } catch (error) {
+    console.error("Error updating story:", error);
+    res.status(error.message === "Story not found" ? 404 : 500).json({
+      message: error.message || "Failed to update story"
+    });
+  }
 };
 var deleteStory2 = async (req, res) => {
   const { id } = req.params;
@@ -3752,6 +3879,28 @@ var deleteUserStory = async (userId, storyId) => {
   if (story.userId !== userId) throw new UserServiceError("You don't have permission to delete this story", 403);
   return await deleteStory(storyId, userId);
 };
+var updateUserProfile = async (userId, profileData) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new UserServiceError("User not found", 404);
+  }
+  const allowedFields = ["name", "email", "bio", "preferences"];
+  const updateData = {};
+  allowedFields.forEach((field) => {
+    if (profileData[field] !== void 0) {
+      updateData[field] = profileData[field];
+    }
+  });
+  if (Object.keys(updateData).length === 0) {
+    throw new UserServiceError("No valid fields provided for update", 400);
+  }
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  ).select("-password");
+  return updatedUser;
+};
 
 // server/controllers/user.controller.ts
 var debugSubscription = async (req, res) => {
@@ -3802,11 +3951,28 @@ var removeMyStory = async (req, res) => {
     res.status(status).json({ message: error?.message || "Failed to delete story" });
   }
 };
+var updateProfile = async (req, res) => {
+  try {
+    const { id: userId } = req.params;
+    const profileData = req.body;
+    const updatedUser = await updateUserProfile(userId, profileData);
+    res.json({
+      message: "User profile updated successfully",
+      data: updatedUser
+    });
+  } catch (error) {
+    const status = error?.status || 500;
+    res.status(status).json({
+      message: error?.message || "Failed to update user profile"
+    });
+  }
+};
 
 // server/routes/user.route.ts
 var router4 = Router4();
 router4.use(authMiddleware);
 router4.get("/debug-subscription", debugSubscription);
+router4.patch("/:id", updateProfile);
 router4.get("/stories", getMyStories);
 router4.patch("/stories/:id/visibility", updateMyStoryVisibility);
 router4.delete("/stories/:id", removeMyStory);

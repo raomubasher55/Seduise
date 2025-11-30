@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { debugAndFixSubscription, getStoriesForUser, setUserStoryVisibility, deleteUserStory } from '../services/user.service';
+import { debugAndFixSubscription, getStoriesForUser, setUserStoryVisibility, deleteUserStory, updateUserProfile } from '../services/user.service';
 
 export const debugSubscription = async (req: Request, res: Response) => {
   try {
@@ -55,3 +55,28 @@ export const removeMyStory = async (req: Request, res: Response) => {
   }
 };
 
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    // Extract user ID from the route params
+    const { id: userId } = req.params as { id: string };
+
+    // Extract profile data from request body
+    const profileData = req.body;
+
+    // Call the service
+    const updatedUser = await updateUserProfile(userId, profileData);
+
+    // Successful response
+    res.json({
+      message: 'User profile updated successfully',
+      data: updatedUser
+    });
+
+  } catch (error: any) {
+
+    const status = error?.status || 500;
+    res.status(status).json({
+      message: error?.message || 'Failed to update user profile'
+    });
+  }
+};

@@ -65,19 +65,25 @@ const Header = () => {
               {/* <Search size={20} /> */}
             </Button>
             
-            {/* Premium button - hidden on small mobile screens */}
+            {/* Premium button with current plan - hidden on small mobile screens */}
             {isPremium ? (
-              <Button className="hidden sm:flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
-                <Crown size={18} className="mr-2" />
-                <span>Premium</span>
-              </Button>
-            ) : (
-              <Link href="/premium-upgrade">
-                <Button className="hidden sm:flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
+              <div className="hidden sm:flex items-center gap-2">
+                <Button className="flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
                   <Crown size={18} className="mr-2" />
-                  <span>Get Premium</span>
+                  <span>{user?.subscription || 'discovery'}</span>
                 </Button>
-              </Link>
+             
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link href="/premium-upgrade">
+                  <Button className="flex items-center bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-full text-white hover:from-purple-700 hover:to-pink-700 transition-all">
+                    <Crown size={18} className="mr-2" />
+                    <span>{user?.subscription || 'discovery'}</span>
+                  </Button>
+                </Link>
+                
+              </div>
             )}
             
             {/* Credits display */}
@@ -219,7 +225,7 @@ const Header = () => {
                   label={
                     <div className="flex items-center">
                       <Crown size={16} className="mr-2 text-purple-400" />
-                      <span>Get Premium</span>
+                      <span>{user?.subscription || 'discovery'}</span>
                     </div>
                   } 
                   onClick={() => setMobileMenuOpen(false)} 

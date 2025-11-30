@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LoadingPage } from "@/components/ui/loading-spinner";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -29,19 +30,33 @@ export default function Profile() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { name: string }) => {
-      const response = await fetch("/api/user/profile", {
+      console.log("Updating profile with data:", data);
+      
+      const response = await fetch(`/api/user/${user?._id}`, {
         method: "PATCH",
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
+        credentials: 'include', // Include cookies for authentication
       });
       
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+      
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+      
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        throw new Error(`Failed to update profile: ${response.status} - ${responseText}`);
       }
       
-      return await response.json();
+      try {
+        return JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse JSON response:", responseText);
+        throw new Error("Invalid JSON response from server");
+      }
     },
     onSuccess: () => {
       toast({
@@ -115,13 +130,7 @@ export default function Profile() {
   };
 
   if (!user) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D9B08C]"></div>
-        </div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   return (

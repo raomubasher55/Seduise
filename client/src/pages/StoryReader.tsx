@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { LoadingPage } from "@/components/ui/loading-spinner";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -50,10 +51,10 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     onMutate: async (storyId) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
-      
+
       // Snapshot the previous value
       const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
-      
+
       // Optimistically update to new value
       queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
         if (!old) return old;
@@ -64,7 +65,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
           likes: wasLiked ? Math.max(0, (old.likes || 0) - 1) : (old.likes || 0) + 1
         };
       });
-      
+
       // Return a context with the previous and new story
       return { previousStory };
     },
@@ -115,7 +116,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     onMutate: async (storyId) => {
       await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
       const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
-      
+
       queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
         if (!old) return old;
         const wasUpvoted = old.hasUpvoted;
@@ -128,7 +129,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
           downvotes: wasUpvoted ? (old.downvotes || 0) : wasDownvoted ? Math.max(0, (old.downvotes || 0) - 1) : (old.downvotes || 0)
         };
       });
-      
+
       return { previousStory };
     },
     onSuccess: (data) => {
@@ -177,7 +178,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     onMutate: async (storyId) => {
       await queryClient.cancelQueries({ queryKey: [`/api/stories/${storyId}`] });
       const previousStory = queryClient.getQueryData([`/api/stories/${storyId}`]);
-      
+
       queryClient.setQueryData([`/api/stories/${storyId}`], (old: any) => {
         if (!old) return old;
         const wasDownvoted = old.hasDownvoted;
@@ -190,7 +191,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
           upvotes: wasDownvoted ? (old.upvotes || 0) : wasUpvoted ? Math.max(0, (old.upvotes || 0) - 1) : (old.upvotes || 0)
         };
       });
-      
+
       return { previousStory };
     },
     onSuccess: (data) => {
@@ -325,9 +326,9 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
     onError: (error: any) => {
       const errorMessage = error.message || "";
-      if (errorMessage.includes("Insufficient text credits") || 
-          errorMessage.includes("Insufficient credits") ||
-          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+      if (errorMessage.includes("Insufficient text credits") ||
+        errorMessage.includes("Insufficient credits") ||
+        errorMessage.includes("You need") && errorMessage.includes("credits")) {
         setShowPremiumDialog(true);
       } else {
         toast({
@@ -351,9 +352,9 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
     onError: (error: any) => {
       const errorMessage = error.message || "";
-      if (errorMessage.includes("Insufficient text credits") || 
-          errorMessage.includes("Insufficient credits") ||
-          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+      if (errorMessage.includes("Insufficient text credits") ||
+        errorMessage.includes("Insufficient credits") ||
+        errorMessage.includes("You need") && errorMessage.includes("credits")) {
         setShowPremiumDialog(true);
       } else {
         toast({
@@ -381,7 +382,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
       // Add to local unlocked chapters for immediate UI update
       const chapterKey = `${storyId}-${currentChapterNum}`;
       setUnlockedChapters(prev => new Set([...prev, chapterKey]));
-      
+
       // Refresh user data to get updated unlockedChapters
       refreshUser();
       // Invalidate relevant queries
@@ -391,9 +392,9 @@ const StoryReader = ({ params }: StoryReaderProps) => {
     },
     onError: (error: any) => {
       const errorMessage = error.message || "";
-      if (errorMessage.includes("Insufficient text credits") || 
-          errorMessage.includes("Insufficient credits") ||
-          errorMessage.includes("You need") && errorMessage.includes("credits")) {
+      if (errorMessage.includes("Insufficient text credits") ||
+        errorMessage.includes("Insufficient credits") ||
+        errorMessage.includes("You need") && errorMessage.includes("credits")) {
         setShowPremiumDialog(true);
       } else {
         toast({
@@ -465,13 +466,7 @@ const StoryReader = ({ params }: StoryReaderProps) => {
   const progress = chapters.length > 0 ? (currentChapterNum / chapters.length) * 100 : 0;
 
   if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D9B08C]"></div>
-        </div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   if (error || !story) {
@@ -518,42 +513,42 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <button 
-                          onClick={handleLike} 
+                        <button
+                          onClick={handleLike}
                           disabled={likeMutation.isPending}
                           className={`transition-all duration-200 hover:scale-110 ${likeMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
                           title={story?.hasLiked ? 'Unlike this story' : 'Like this story'}
                         >
-                          <Heart 
-                            size={16} 
-                            fill={story?.hasLiked ? "#A93B5B" : "none"} 
-                            className={`text-[#A93B5B] transition-colors duration-200 ${story?.hasLiked ? 'drop-shadow-sm' : ''}`} 
+                          <Heart
+                            size={16}
+                            fill={story?.hasLiked ? "#A93B5B" : "none"}
+                            className={`text-[#A93B5B] transition-colors duration-200 ${story?.hasLiked ? 'drop-shadow-sm' : ''}`}
                           />
                         </button>
                         <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.likes || 0}</span>
-                        <button 
-                          onClick={handleUpvote} 
+                        <button
+                          onClick={handleUpvote}
                           disabled={upvoteMutation.isPending}
                           className={`transition-all duration-200 hover:scale-110 ${upvoteMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
                           title={story?.hasUpvoted ? 'Remove upvote' : 'Upvote this story'}
                         >
-                          <ThumbsUp 
-                            size={16} 
-                            fill={story?.hasUpvoted ? "#60A5FA" : "none"} 
-                            className={`text-blue-400 transition-colors duration-200 ${story?.hasUpvoted ? 'drop-shadow-sm' : ''}`} 
+                          <ThumbsUp
+                            size={16}
+                            fill={story?.hasUpvoted ? "#60A5FA" : "none"}
+                            className={`text-blue-400 transition-colors duration-200 ${story?.hasUpvoted ? 'drop-shadow-sm' : ''}`}
                           />
                         </button>
                         <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.upvotes || 0}</span>
-                        <button 
-                          onClick={handleDownvote} 
+                        <button
+                          onClick={handleDownvote}
                           disabled={downvoteMutation.isPending}
                           className={`transition-all duration-200 hover:scale-110 ${downvoteMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
                           title={story?.hasDownvoted ? 'Remove downvote' : 'Downvote this story'}
                         >
-                          <ThumbsDown 
-                            size={16} 
-                            fill={story?.hasDownvoted ? "#F87171" : "none"} 
-                            className={`text-red-400 transition-colors duration-200 ${story?.hasDownvoted ? 'drop-shadow-sm' : ''}`} 
+                          <ThumbsDown
+                            size={16}
+                            fill={story?.hasDownvoted ? "#F87171" : "none"}
+                            className={`text-red-400 transition-colors duration-200 ${story?.hasDownvoted ? 'drop-shadow-sm' : ''}`}
                           />
                         </button>
                         <span className="text-xs text-gray-400 min-w-[16px] text-center">{story?.downvotes || 0}</span>
@@ -658,21 +653,25 @@ const StoryReader = ({ params }: StoryReaderProps) => {
                 />
               ) : (
                 <div className="mb-6 bg-[#121212] p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <div>
                       <h4 className="font-['Playfair_Display'] text-lg">
                         {story.title}
                       </h4>
-                      <p className="text-sm text-gray-400">Generate audio to listen to this chapter</p>
+                      <p className="text-sm text-gray-400">
+                        Generate audio to listen to this chapter
+                      </p>
                     </div>
+
                     <Button
                       onClick={handleGenerateAudio}
                       disabled={generateSpeechMutation.isPending || !isChapterUnlocked}
-                      className="bg-[#8B1E3F] hover:bg-[#A93B5B]"
+                      className="bg-[#8B1E3F] hover:bg-[#A93B5B] w-full md:w-auto"
                     >
                       {generateSpeechMutation.isPending ? "Generating..." : "Generate Audio"}
                     </Button>
                   </div>
+
                 </div>
               )}
 

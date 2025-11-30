@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { LoadingPage } from "@/components/ui/loading-spinner";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -27,19 +28,30 @@ export default function EditStory() {
   });
 
   // Get story data
-  const { data: storyData, isLoading } = useQuery({
+  const { data: storyData, isLoading, error } = useQuery({
     queryKey: [`/api/stories/${params.id}`],
-    enabled: Boolean(params.id) && isAuthenticated,
-    onSuccess: (data) => {
-      if (data) {
-        setStory({
-          title: data.title || "",
-          content: data.content || "",
-          isPublic: data.isPublic || true,
-        });
+    queryFn: async () => {
+      const response = await fetch(`/api/stories/${params.id}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch story');
       }
+      return response.json();
     },
+    enabled: Boolean(params.id) && isAuthenticated,
   });
+
+  // Update form state when story data is loaded
+  useEffect(() => {
+    if (storyData) {
+      setStory({
+        title: storyData.title || "",
+        content: storyData.content || "",
+        isPublic: storyData.isPublic !== false, // Default to true if undefined
+      });
+    }
+  }, [storyData]);
 
   // Update story mutation
   const updateStoryMutation = useMutation({
@@ -161,13 +173,7 @@ export default function EditStory() {
   }, [isAuthenticated, navigate]);
 
   if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D9B08C]"></div>
-        </div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   if (!storyData) {

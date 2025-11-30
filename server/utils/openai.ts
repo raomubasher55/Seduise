@@ -965,18 +965,19 @@ export async function concludeStory(existingContent: string, settings: StoryGene
     let maxTokens = 0;
     let targetWordCount = "";
 
+    // For conclusions, use higher token limits to ensure proper story resolution
     if (length === 2) {
-      maxTokens = 1200;
-      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+      maxTokens = 2400; // Doubled for proper conclusion space
+      targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     } else if (length === 3) {
-      maxTokens = 2400;
-      targetWordCount = "Write a medium-length conclusion of approximately 700-900 words.";
+      maxTokens = 3600; // Increased from 2400
+      targetWordCount = "Write a medium-length conclusion of approximately 800-1200 words.";
     } else if (length === 4) {
-      maxTokens = 4800;
-      targetWordCount = "Write a longer conclusion of approximately 1500-1800 words.";
+      maxTokens = 5600; // Increased from 4800
+      targetWordCount = "Write a comprehensive conclusion of approximately 1600-2000 words.";
     } else {
-      maxTokens = 1200;
-      targetWordCount = "Write a short conclusion of approximately 300-400 words.";
+      maxTokens = 2400; // Default increased
+      targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     }
 
     console.log(`Story conclusion length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);

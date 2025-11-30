@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import ScrollToTop from "./components/ScrollToTop";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,6 +37,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <ScrollToTop />
         <div className="min-h-screen flex flex-col bg-[#121212] text-[#F5F5F5]">
           <Header />
           <main className="flex-grow">

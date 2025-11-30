@@ -1,41 +1,55 @@
-import { GoogleGenAI } from '@google/genai';
 
-// Initialize the GoogleGenAI client.
-// It automatically looks for the GEMINI_API_KEY environment variable.
-const ai = new GoogleGenAI({
-    apiKey: "AIzaSyDH1Rq7cMp_b8iMtqT4pwEXnHq3m7Y41N0"
-});
-
-/**
- * Sends a prompt to the Gemini model and prints the response.
- */
-async function runGeminiExample() {
-    try {
-        const prompt = "hello";
-
-        console.log(`Sending prompt: "${prompt}"`);
-
-        // Call the model to generate content
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [
-                {
-                    role: "user",
-                    parts: [{ text: prompt }]
-                }
-            ],
-            config:{
-                systemInstruction: "your are coding agent",
-            }
-        });
-
-        // The result is in response.text
-        console.log("\n🤖 Gemini Response:");
-        console.log(response.text);
-
-    } catch (error) {
-        console.error("An error occurred during the API call:", error);
-    }
-}
-
-runGeminiExample();
+6:52:48 PM [express] GET /api/stories/692c4784fbd74e7832c9827d 304 in 146ms :: {"_id":"692c4784fbd74…
+Error updating story: Error: Story not found
+    at MemStorage.updateStory (D:\Seduise\server\storage.ts:322:13)
+    at updateStory (D:\Seduise\server\controllers\story.controller.ts:381:33)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at next (D:\Seduise\node_modules\express\lib\router\route.js:149:13)
+    at authMiddleware (D:\Seduise\server\middlewares\auth.middleware.ts:22:12)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at next (D:\Seduise\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (D:\Seduise\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at D:\Seduise\node_modules\express\lib\router\index.js:284:15
+    at param (D:\Seduise\node_modules\express\lib\router\index.js:365:14)
+    at param (D:\Seduise\node_modules\express\lib\router\index.js:376:14)
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:421:3)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at Function.handle (D:\Seduise\node_modules\express\lib\router\index.js:175:3)
+    at router (D:\Seduise\node_modules\express\lib\router\index.js:47:12)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at <anonymous> (D:\Seduise\server\index.ts:123:5)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:91:12)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at <anonymous> (D:\Seduise\server\index.ts:61:7)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at strategy.pass (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:355:9)
+    at SessionStrategy.authenticate (D:\Seduise\node_modules\passport\lib\strategies\session.js:126:10)
+    at attempt (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:378:16)
+    at authenticate (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:379:7)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
+    at initialize (D:\Seduise\node_modules\passport\lib\middleware\initialize.js:98:5)
+    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
+6:53:22 PM [express] PUT /api/stories/692c4784fbd74e7832c9827d 404 in 69ms :: {"message":"Story not …
+6:54:01 PM [express] GET /api/stories/692c4784fbd74e7832c9827d 304 in 159ms :: {"_id":"692c4784fbd74…
