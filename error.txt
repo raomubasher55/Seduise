@@ -1,55 +1,83 @@
+  // Get user stories count
+  const { data: userStories = [] } = useQuery<any[]>({
+    queryKey: ["/api/user/stories"],
+    enabled: isAuthenticated,
+  });
 
-6:52:48 PM [express] GET /api/stories/692c4784fbd74e7832c9827d 304 in 146ms :: {"_id":"692c4784fbd74…
-Error updating story: Error: Story not found
-    at MemStorage.updateStory (D:\Seduise\server\storage.ts:322:13)
-    at updateStory (D:\Seduise\server\controllers\story.controller.ts:381:33)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at next (D:\Seduise\node_modules\express\lib\router\route.js:149:13)
-    at authMiddleware (D:\Seduise\server\middlewares\auth.middleware.ts:22:12)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at next (D:\Seduise\node_modules\express\lib\router\route.js:149:13)
-    at Route.dispatch (D:\Seduise\node_modules\express\lib\router\route.js:119:3)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at D:\Seduise\node_modules\express\lib\router\index.js:284:15
-    at param (D:\Seduise\node_modules\express\lib\router\index.js:365:14)
-    at param (D:\Seduise\node_modules\express\lib\router\index.js:376:14)
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:421:3)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at Function.handle (D:\Seduise\node_modules\express\lib\router\index.js:175:3)
-    at router (D:\Seduise\node_modules\express\lib\router\index.js:47:12)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at <anonymous> (D:\Seduise\server\index.ts:123:5)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:91:12)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at <anonymous> (D:\Seduise\server\index.ts:61:7)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at strategy.pass (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:355:9)
-    at SessionStrategy.authenticate (D:\Seduise\node_modules\passport\lib\strategies\session.js:126:10)
-    at attempt (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:378:16)
-    at authenticate (D:\Seduise\node_modules\passport\lib\middleware\authenticate.js:379:7)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-    at D:\Seduise\node_modules\express\lib\router\index.js:286:9
-    at Function.process_params (D:\Seduise\node_modules\express\lib\router\index.js:346:12)
-    at next (D:\Seduise\node_modules\express\lib\router\index.js:280:10)
-    at initialize (D:\Seduise\node_modules\passport\lib\middleware\initialize.js:98:5)
-    at Layer.handle [as handle_request] (D:\Seduise\node_modules\express\lib\router\layer.js:95:5)
-    at trim_prefix (D:\Seduise\node_modules\express\lib\router\index.js:328:13)
-6:53:22 PM [express] PUT /api/stories/692c4784fbd74e7832c9827d 404 in 69ms :: {"message":"Story not …
-6:54:01 PM [express] GET /api/stories/692c4784fbd74e7832c9827d 304 in 159ms :: {"_id":"692c4784fbd74…
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { name: string }) => {
+      const response = await fetch(`/api/user/${user?._id}`, {
+      method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        credentials: 'include', // Include cookies for authentication
+      });
+      
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+      
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update profile: ${response.status} - ${responseText}`);
+      }
+      
+      try {
+        return JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse JSON response:", responseText);
+        throw new Error("Invalid JSON response from server");
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setIsEditing(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update password mutation
+  const updatePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const response = await fetch("/api/user/password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to update password");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update your password. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });

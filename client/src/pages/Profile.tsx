@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User, Edit, Crown, Clock, BookOpen, Eye, Heart, Save, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
+import { updateUserProfile, getUserStories } from "@/lib/ai";
 
 export default function Profile() {
   const [, navigate] = useLocation();
@@ -24,40 +25,13 @@ export default function Profile() {
   // Get user stories count
   const { data: userStories = [] } = useQuery<any[]>({
     queryKey: ["/api/user/stories"],
+    queryFn: getUserStories,
     enabled: isAuthenticated,
   });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { name: string }) => {
-      console.log("Updating profile with data:", data);
-      
-      const response = await fetch(`/api/user/${user?._id}`, {
-        method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-        credentials: 'include', // Include cookies for authentication
-      });
-      
-      console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
-      
-      const responseText = await response.text();
-      console.log("Raw response:", responseText);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to update profile: ${response.status} - ${responseText}`);
-      }
-      
-      try {
-        return JSON.parse(responseText);
-      } catch (e) {
-        console.error("Failed to parse JSON response:", responseText);
-        throw new Error("Invalid JSON response from server");
-      }
-    },
+    mutationFn: updateUserProfile,
     onSuccess: () => {
       toast({
         title: "Profile Updated",

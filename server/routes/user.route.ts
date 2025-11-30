@@ -9,7 +9,9 @@ router.use(authMiddleware);
 
 // Debug endpoint to check and fix user subscription status
 router.get("/debug-subscription", debugSubscription);
-router.patch('/:id', updateProfile );
+
+// Update user profile - MUST be before /:id route
+router.patch("/profile", updateProfile);
 
 // Get all stories for the current user
 router.get("/stories", getMyStories); 
@@ -19,5 +21,8 @@ router.patch("/stories/:id/visibility", updateMyStoryVisibility);
 
 // Delete a story 
 router.delete("/stories/:id", removeMyStory);
+
+// Parameterized routes MUST come after specific routes
+router.patch('/:id', updateProfile);
 
 export default router;

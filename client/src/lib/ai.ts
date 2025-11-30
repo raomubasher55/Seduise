@@ -27,3 +27,19 @@ export async function getStoryTitleSuggestions(content: string): Promise<string[
   const response = await apiRequest("POST", "/api/stories/title-suggestions", { content });
   return response.json();
 }
+
+// Profile API functions
+export async function updateUserProfile(profileData: { name: string; email?: string }) {
+  const response = await apiRequest("PATCH", "/api/user/profile", profileData);
+  return response.json();
+}
+
+export async function getUserStories() {
+  const response = await apiRequest("GET", "/api/user/stories");
+  return response.json();
+}
+
+export async function updateStory(storyId: string, updateData: { title: string; content: string; isPublic: boolean }) {
+  const response = await apiRequest("PUT", `/api/stories/${storyId}`, updateData);
+  return response.json();
+}

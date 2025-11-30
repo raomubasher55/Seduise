@@ -57,11 +57,21 @@ export const removeMyStory = async (req: Request, res: Response) => {
 
 export const updateProfile = async (req: Request, res: Response) => {
   try {
-    // Extract user ID from the route params
-    const { id: userId } = req.params as { id: string };
+    // Extract user ID from session (like other controllers)
+    const userId = req.session.userId as string;
+
+    // Validate session
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized - no session' });
+    }
 
     // Extract profile data from request body
     const profileData = req.body;
+
+    // Validate that at least one field is provided for update
+    if (!profileData || Object.keys(profileData).length === 0) {
+      return res.status(400).json({ message: 'Profile data is required' });
+    }
 
     // Call the service
     const updatedUser = await updateUserProfile(userId, profileData);
