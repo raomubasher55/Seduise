@@ -533,302 +533,6 @@ var init_reward_service = __esm({
   }
 });
 
-// server/constants/plans.ts
-var plans_exports = {};
-__export(plans_exports, {
-  AUDIO_CREDIT_PACKAGES: () => AUDIO_CREDIT_PACKAGES,
-  COMBO_CREDIT_PACKAGES: () => COMBO_CREDIT_PACKAGES,
-  CREDIT_COSTS: () => CREDIT_COSTS,
-  STORY_LENGTHS: () => STORY_LENGTHS,
-  SUBSCRIPTION_PLANS: () => SUBSCRIPTION_PLANS,
-  TEXT_CREDIT_PACKAGES: () => TEXT_CREDIT_PACKAGES,
-  getAudioCreditCost: () => getAudioCreditCost,
-  getMonthlyCredits: () => getMonthlyCredits,
-  getTextCreditCost: () => getTextCreditCost,
-  getUserLimits: () => getUserLimits,
-  hasReachedLimit: () => hasReachedLimit
-});
-function getUserLimits(subscriptionType) {
-  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyLimits || SUBSCRIPTION_PLANS.discovery.monthlyLimits;
-}
-function getMonthlyCredits(subscriptionType) {
-  return SUBSCRIPTION_PLANS[subscriptionType]?.monthlyCredits || SUBSCRIPTION_PLANS.discovery.monthlyCredits;
-}
-function hasReachedLimit(usageThisMonth, subscriptionType, checkType) {
-  const limits = getUserLimits(subscriptionType);
-  const monthlyCredits = getMonthlyCredits(subscriptionType);
-  switch (checkType) {
-    case "stories":
-      return usageThisMonth.storiesGenerated >= limits.stories;
-    case "textCredits":
-      return usageThisMonth.textCreditsUsed >= monthlyCredits.text;
-    case "audioCredits":
-      return usageThisMonth.audioCreditsUsed >= monthlyCredits.audio;
-    default:
-      return false;
-  }
-}
-function getTextCreditCost(action, storyLength) {
-  if (action === "generateStory") {
-    if (storyLength === 2) return CREDIT_COSTS.text.generateStory.short;
-    else if (storyLength === 3) return CREDIT_COSTS.text.generateStory.medium;
-    else if (storyLength === 4) return CREDIT_COSTS.text.generateStory.long;
-    return CREDIT_COSTS.text.generateStory.medium;
-  } else if (action === "continueStory") {
-    return CREDIT_COSTS.text.continueStory;
-  }
-  return 1;
-}
-function getAudioCreditCost(storyLength, minutes) {
-  if (minutes) {
-    return Math.ceil(minutes / 2.5);
-  }
-  if (storyLength === 2) return CREDIT_COSTS.audio.generateAudio.short;
-  else if (storyLength === 3) return CREDIT_COSTS.audio.generateAudio.medium;
-  else if (storyLength === 4) return CREDIT_COSTS.audio.generateAudio.long;
-  return CREDIT_COSTS.audio.generateAudio.medium;
-}
-var SUBSCRIPTION_PLANS, TEXT_CREDIT_PACKAGES, AUDIO_CREDIT_PACKAGES, COMBO_CREDIT_PACKAGES, CREDIT_COSTS, STORY_LENGTHS;
-var init_plans = __esm({
-  "server/constants/plans.ts"() {
-    "use strict";
-    SUBSCRIPTION_PLANS = {
-      discovery: {
-        id: "discovery",
-        name: "Discovery",
-        price: 0,
-        // Free
-        billingPeriod: "free",
-        description: "Explore Without Commitment",
-        monthlyCredits: {
-          text: 2,
-          audio: 1
-        },
-        monthlyLimits: {
-          stories: 2,
-          audioCredits: 1
-        },
-        features: [
-          "\u{1F58B} Create up to 2 personalized stories (text)",
-          "\u{1F3A7} 1 free audio (\u2248 1 to 2 min)",
-          "\u{1F399} Standard voice",
-          "\u{1F4DA} No access to the premium library",
-          "\u2728 Perfect to explore the world of Seduice for free, in both text and voice"
-        ]
-      },
-      essentiel: {
-        id: "essentiel",
-        name: "Essentiel",
-        price: 599,
-        // €5.99 (in cents)
-        billingPeriod: "monthly",
-        description: "Pleasure at Your Own Pace",
-        monthlyCredits: {
-          text: 5,
-          audio: 6
-        },
-        popular: true,
-        monthlyLimits: {
-          stories: 5,
-          audioCredits: 6
-        },
-        features: [
-          "\u{1F58B} Create up to 5 personalized stories (text)",
-          "\u{1F3A7} 6 audio credits (\u2248 15 minutes total)",
-          "\u{1F399} Natural-sounding voices",
-          "\u{1F4DA} No access to the premium library",
-          "\u{1F510} A soft and regular introduction to your intimate desires"
-        ]
-      },
-      seduction: {
-        id: "seduction",
-        name: "Seduction",
-        price: 1199,
-        // €11.99 (in cents)
-        billingPeriod: "monthly",
-        description: "Your Pleasure Rendezvous",
-        monthlyCredits: {
-          text: 12,
-          audio: 12
-        },
-        monthlyLimits: {
-          stories: 12,
-          audioCredits: 12
-        },
-        features: [
-          "\u{1F58B} Create up to 12 personalized stories (text)",
-          "\u{1F3A7} 12 audio credits (\u2248 30 minutes)",
-          "\u{1F399} Expressive & realistic voices",
-          "\u{1F4DA} Partial access to the premium audio library",
-          "\u{1F381} New stories added monthly",
-          "\u{1F4AB} Let your desires unfold like an intimate audio series"
-        ]
-      },
-      intimacy: {
-        id: "intimacy",
-        name: "Intimacy",
-        price: 2499,
-        // €24.99 (in cents)
-        billingPeriod: "monthly",
-        description: "The Ultimate Experience Without Limits",
-        monthlyCredits: {
-          text: 25,
-          audio: 24
-        },
-        bestValue: true,
-        monthlyLimits: {
-          stories: 25,
-          audioCredits: 24
-        },
-        features: [
-          "\u{1F58B} Create up to 25 personalized stories (text)",
-          "\u{1F3A7} 24 audio credits (\u2248 60 minutes)",
-          "\u{1F399} Expressive & immersive voices",
-          "\u{1F4DA} Full access to the premium audio library",
-          "\u{1F48C} Tailored suggestions and exclusive stories",
-          "\u{1F534} The Ultimate Experience Without Limits"
-        ]
-      }
-    };
-    TEXT_CREDIT_PACKAGES = {
-      text_starter: {
-        id: "text_starter",
-        name: "Text Pack - Starter",
-        credits: 15,
-        price: 299,
-        // €2.99 (in cents)
-        description: "Perfect for more story creation"
-      },
-      text_popular: {
-        id: "text_popular",
-        name: "Text Pack - Popular",
-        credits: 40,
-        price: 699,
-        // €6.99 (in cents)
-        popular: true,
-        description: "Most popular text credits pack"
-      },
-      text_premium: {
-        id: "text_premium",
-        name: "Text Pack - Premium",
-        credits: 80,
-        price: 1199,
-        // €11.99 (in cents)
-        bestValue: true,
-        description: "Maximum text credits for heavy writers"
-      }
-    };
-    AUDIO_CREDIT_PACKAGES = {
-      audio_starter: {
-        id: "audio_starter",
-        name: "Audio Pack - Starter",
-        credits: 10,
-        price: 499,
-        // €4.99 (in cents)
-        description: "Perfect for more audio experiences"
-      },
-      audio_popular: {
-        id: "audio_popular",
-        name: "Audio Pack - Popular",
-        credits: 25,
-        price: 999,
-        // €9.99 (in cents)
-        popular: true,
-        description: "Most popular audio credits pack"
-      },
-      audio_premium: {
-        id: "audio_premium",
-        name: "Audio Pack - Premium",
-        credits: 50,
-        price: 1799,
-        // €17.99 (in cents)
-        bestValue: true,
-        description: "Maximum audio credits for audio lovers"
-      }
-    };
-    COMBO_CREDIT_PACKAGES = {
-      combo_starter: {
-        id: "combo_starter",
-        name: "Combo Pack - Starter",
-        textCredits: 3,
-        audioCredits: 2,
-        price: 599,
-        // €5.99 (in cents)
-        description: "Best value starter combo pack"
-      },
-      combo_popular: {
-        id: "combo_popular",
-        name: "Combo Pack - Popular",
-        textCredits: 7,
-        audioCredits: 5,
-        price: 1299,
-        // €12.99 (in cents)
-        popular: true,
-        description: "Best value combo pack"
-      },
-      combo_premium: {
-        id: "combo_premium",
-        name: "Combo Pack - Premium",
-        textCredits: 15,
-        audioCredits: 10,
-        price: 2299,
-        // €22.99 (in cents)
-        bestValue: true,
-        description: "Ultimate combo pack for power users"
-      }
-    };
-    CREDIT_COSTS = {
-      text: {
-        generateStory: {
-          short: 1,
-          // Short story
-          medium: 2,
-          // Medium story
-          long: 4
-          // Long story
-        },
-        continueStory: 1
-        // Continue/add chapter
-      },
-      audio: {
-        generateAudio: {
-          short: 2,
-          // ~2.5 minutes audio
-          medium: 3,
-          // ~5 minutes audio
-          long: 5
-          // ~8-10 minutes audio
-        },
-        perMinute: 1
-        // 1 audio credit per ~2.5 minutes
-      }
-    };
-    STORY_LENGTHS = {
-      short: {
-        id: 2,
-        name: "Short",
-        audioDurationMinutes: 3,
-        // 2-3 minutes
-        creditCost: 1
-      },
-      medium: {
-        id: 3,
-        name: "Medium",
-        audioDurationMinutes: 5,
-        // 4-5 minutes
-        creditCost: 2
-      },
-      long: {
-        id: 4,
-        name: "Long",
-        audioDurationMinutes: 9,
-        // 8-9 minutes
-        creditCost: 4
-      }
-    };
-  }
-});
-
 // server/index.ts
 import dotenv8 from "dotenv";
 import express2 from "express";
@@ -1709,14 +1413,12 @@ import { Router as Router2 } from "express";
 init_story_model();
 
 // server/utils/openai.ts
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv5 from "dotenv";
 dotenv5.config();
-var geminiAI = new OpenAI({
-  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  apiKey: process.env.GEMINI_API || "AIzaSyB_t3pkKT_GvB4vPYNkrdALSajq5N0Sbu4"
+var geminiAI = new GoogleGenAI({
+  apiKey: "AIzaSyDH1Rq7cMp_b8iMtqT4pwEXnHq3m7Y41N0"
 });
-var stream = false;
 async function generateStory(options) {
   const {
     title,
@@ -1785,91 +1487,66 @@ DO NOT include title options, explanations, or any text outside the JSON object.
   const userPrompt = "Create the erotic story now. Return ONLY the JSON object with title and content. No explanations, no title suggestions, no additional text.";
   try {
     console.log("Generating story with Google Gemini model...");
-    const completion = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+    console.log("API Key exists:", !!(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GENAI_API_KEY));
+    const response = await geminiAI.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: userPrompt }] }
       ],
-      max_tokens: maxTokens,
-      temperature: 0.7,
-      // Slightly lower for more consistent JSON output
-      stream
+      config: {
+        systemInstruction: systemPrompt,
+        maxOutputTokens: maxTokens,
+        temperature: 0.7
+      }
     });
-    if (stream) {
-      let fullResponse = "";
-      for await (const chunk of completion) {
-        if (chunk.choices[0].finish_reason) {
-          console.log("Generation complete.");
-        } else {
-          fullResponse += chunk.choices[0].delta.content || "";
-        }
-      }
-      fullResponse = fullResponse.replace(/```json\s?/g, "").replace(/```\s?/g, "");
+    console.log("Gemini API response received, checking content...");
+    console.log("Response object keys:", Object.keys(response || {}));
+    let responseText = response.text;
+    console.log("Raw Response is :", responseText);
+    responseText = "fsdfsd";
+    try {
+      let jsonStr = responseText;
       try {
-        const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
-        let jsonStr = jsonMatch ? jsonMatch[0] : fullResponse;
-        jsonStr = jsonStr.replace(/\\n/g, "\\n").replace(/\\'/g, "\\'").replace(/\\"/g, '\\"').replace(/\\&/g, "\\&").replace(/\\r/g, "\\r").replace(/\\t/g, "\\t").replace(/\\b/g, "\\b").replace(/\\f/g, "\\f");
-        try {
-          const result = JSON.parse(jsonStr);
-          return {
-            title: title || result.title || "Untitled Story",
-            content: result.content || fullResponse
-          };
-        } catch (nestedJsonError) {
-          console.error("Error parsing cleaned JSON from stream:", nestedJsonError);
-          return {
-            title: title || "Untitled Story",
-            content: fullResponse
-          };
-        }
-      } catch (jsonError) {
-        console.error("Error parsing JSON response in stream:", jsonError);
+        const result = JSON.parse(jsonStr);
         return {
-          title: title || "Untitled Story",
-          content: fullResponse
+          title: title || result.title || "Untitled Story",
+          content: result.content || "Story generation failed"
         };
-      }
-    } else {
-      let responseText = completion.choices[0].message.content || '{"title": "Untitled", "content": "Story generation failed."}';
-      responseText = responseText.replace(/```json\s*/g, "").replace(/```\s*$/g, "").trim();
-      try {
-        let jsonStr = responseText;
+      } catch (nestedJsonError) {
+        console.error("Error parsing cleaned JSON:", nestedJsonError);
         try {
-          const result = JSON.parse(jsonStr);
+          const contentMatch = responseText.match(/"content"\s*:\s*"([^"]+(?:\\.[^"]*)*)"/) || responseText.match(/"content"\s*:\s*"([^}]+)"/);
+          const titleMatch = responseText.match(/"title"\s*:\s*"([^"]+)"/) || responseText.match(/"title"\s*:\s*"([^,}]+)"/);
+          const extractedContent = contentMatch ? contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r").trim() : "Story generation failed";
+          const extractedTitle = titleMatch ? titleMatch[1].trim() : "Untitled Story";
           return {
-            title: title || result.title || "Untitled Story",
-            content: result.content || "Story generation failed"
+            title: title || extractedTitle,
+            content: extractedContent
           };
-        } catch (nestedJsonError) {
-          console.error("Error parsing cleaned JSON:", nestedJsonError);
-          let content = responseText;
-          content = content.replace(/^.*?Here are a few title options.*?(?=\n\n|\n[A-Z])/is, "").replace(/^\* \*\*.*?\*\*.*$/gm, "").replace(/^Here's? (?:the|a) story.*?$/gm, "").replace(/^Based on.*?$/gm, "").replace(/^.*?ranging in tone.*?$/gm, "").replace(/^\s*[\*\-\+]\s+.*$/gm, "").replace(/^\s*$\n/gm, "").trim();
-          const storyMatch = content.match(/(The\s+(?:turquoise|crystal|warm|golden|sun|beach|water|wind|island).*?)$/is) || content.match(/(I\s+(?:was|had|found|saw|felt).*?)$/is) || content.match(/([A-Z][a-z]+.*?(?:water|sun|beach|resort|island|paradise|garden).*?)$/is);
-          if (storyMatch) {
-            content = storyMatch[1].trim();
-          }
+        } catch (extractError) {
+          console.error("Error extracting content from JSON string:", extractError);
           return {
             title: title || "Untitled Story",
-            content
+            content: "Unable to generate story content. Please try again."
           };
         }
-      } catch (jsonError) {
-        console.error("Error parsing JSON response from Gemini:", jsonError);
-        let content = responseText;
-        const afterTitleOptions = content.split(/Here are a few title options.*?\n/i)[1];
-        if (afterTitleOptions) {
-          const storyStart = afterTitleOptions.search(/The\s+(?:turquoise|crystal|warm|sun|water)/i);
-          if (storyStart !== -1) {
-            content = afterTitleOptions.substring(storyStart);
-          } else {
-            content = afterTitleOptions.replace(/^\* \*\*.*?\*\*.*$/gm, "").trim();
-          }
-        }
-        content = content.replace(/^\* \*\*.*?\*\*.*$/gm, "").replace(/^\s*$/gm, "").trim();
+      }
+    } catch (jsonError) {
+      console.error("Error parsing JSON response from Gemini:", jsonError);
+      try {
+        const contentMatch = responseText.match(/"content"\s*:\s*"([^"]+(?:\\.[^"]*)*)"/) || responseText.match(/"content"\s*:\s*"([^}]+)"/);
+        const titleMatch = responseText.match(/"title"\s*:\s*"([^"]+)"/) || responseText.match(/"title"\s*:\s*"([^,}]+)"/);
+        const extractedContent = contentMatch ? contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, "	").replace(/\\r/g, "\r").trim() : "Story generation failed";
+        const extractedTitle = titleMatch ? titleMatch[1].trim() : "Untitled Story";
+        return {
+          title: title || extractedTitle,
+          content: extractedContent
+        };
+      } catch (extractError) {
+        console.error("Error extracting content from JSON string:", extractError);
         return {
           title: title || "Untitled Story",
-          content
+          content: "Unable to generate story content. Please try again."
         };
       }
     }
@@ -1880,16 +1557,23 @@ DO NOT include title options, explanations, or any text outside the JSON object.
 }
 async function generateChapterSummary(content, chapterNumber) {
   try {
-    const response = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: `Generate a brief, tasteful summary (1-2 sentences) for Chapter ${chapterNumber} of an erotic story. Focus on the key events and emotional developments without being overly explicit.` },
-        { role: "user", content: `Chapter ${chapterNumber} content: ${content.substring(0, 800)}...` }
+    const response = await geminiAI.models.generateContent({
+      // CHANGED: method call
+      model: "gemini-2.5-flash",
+      // CHANGED: using recommended stable model
+      contents: [
+        // CHANGED: 'messages' array converted to 'contents' array
+        { role: "user", parts: [{ text: `Chapter ${chapterNumber} content: ${content.substring(0, 800)}...` }] }
       ],
-      max_tokens: 100,
-      temperature: 0.7
+      config: {
+        // CHANGED: added config object for system instructions and tokens
+        systemInstruction: `Generate a brief, tasteful summary (1-2 sentences) for Chapter ${chapterNumber} of an erotic story. Focus on the key events and emotional developments without being overly explicit.`,
+        maxOutputTokens: 100,
+        // CHANGED: max_tokens moved and renamed
+        temperature: 0.7
+      }
     });
-    let summary = response.choices[0].message.content?.replace(/"/g, "").trim() || `Summary for Chapter ${chapterNumber}`;
+    let summary = response.text?.replace(/"/g, "").trim() || `Summary for Chapter ${chapterNumber}`;
     summary = summary.replace(/^Chapter \d+:?\s*/i, "").trim();
     if (!summary) summary = `Chapter ${chapterNumber} summary`;
     return summary;
@@ -1948,16 +1632,23 @@ async function generateChapterTitle(content, chapterNumber) {
 }
 async function generateTitleSuggestions(content) {
   try {
-    const response = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: "Generate 5 captivating, sensual titles for this erotic story. Keep them concise (2-5 words). Respond in JSON format with an array of titles." },
-        { role: "user", content: `Story content (first paragraph): ${content.substring(0, 300)}...` }
+    const response = await geminiAI.models.generateContent({
+      // CHANGED: method call
+      model: "gemini-2.5-flash",
+      // CHANGED: using recommended stable model
+      contents: [
+        // CHANGED: 'messages' array converted to 'contents' array
+        { role: "user", parts: [{ text: `Story content (first paragraph): ${content.substring(0, 300)}...` }] }
       ],
-      max_tokens: 150,
-      temperature: 0.8
+      config: {
+        // CHANGED: added config object
+        systemInstruction: "Generate 5 captivating, sensual titles for this erotic story. Keep them concise (2-5 words). Respond in JSON format with an array of titles.",
+        maxOutputTokens: 150,
+        // CHANGED: max_tokens moved and renamed
+        temperature: 0.8
+      }
     });
-    let responseText = response.choices[0].message.content || '{"titles": ["Untitled Story"]}';
+    let responseText = response.text || '{"titles": ["Untitled Story"]}';
     responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -2003,16 +1694,23 @@ async function generateTitleSuggestions(content) {
 }
 async function generateChoices(chapterContent) {
   try {
-    const response = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.` },
-        { role: "user", content: `Current chapter ends with: ${chapterContent.slice(-500)}` }
+    const response = await geminiAI.models.generateContent({
+      // CHANGED: method call
+      model: "gemini-2.5-flash",
+      // CHANGED: using recommended stable model
+      contents: [
+        // CHANGED: 'messages' array converted to 'contents' array
+        { role: "user", parts: [{ text: `Current chapter ends with: ${chapterContent.slice(-500)}` }] }
       ],
-      max_tokens: 150,
-      temperature: 0.7
+      config: {
+        // CHANGED: added config object
+        systemInstruction: `You are an expert erotic fiction writer. Given the end of a story chapter, generate 3 distinct, engaging, and sensual choices that the reader can make to influence the next part of the story. Each choice should be a concise phrase (under 15 words). Respond in JSON format with an array of objects, each having a 'text' field for the choice description and an optional 'outcome' field if a specific outcome is implied.`,
+        maxOutputTokens: 150,
+        // CHANGED: max_tokens moved and renamed
+        temperature: 0.7
+      }
     });
-    let responseText = response.choices[0].message.content || "[]";
+    let responseText = response.text || "[]";
     responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "");
     try {
       const choices = JSON.parse(responseText);
@@ -2067,55 +1765,57 @@ async function continueStory(existingContent, settings, selectedChoice) {
     const loveInterestPrompt = loveInterestDescription ? `Love interest description: ${loveInterestDescription}` : "";
     const choicePrompt = selectedChoice ? `The user chose: "${selectedChoice}". Continue the story based on this choice.` : "";
     const systemPrompt = `You are an expert erotic fiction writer. Continue this story seamlessly from where it left off.
-    
-    CRITICAL INSTRUCTIONS:
-    1. Read the existing content carefully and continue EXACTLY where it ended
-    2. DO NOT repeat any dialogue, actions, or scenes from the existing content
-    3. DO NOT use phrases like "And if I choose to stay?" or similar dialogue that appeared before
-    4. Maintain the same characters, setting, and tone throughout
-    5. Continue the story's natural progression without resetting or restarting
-    6. Advance the plot - do NOT repeat similar situations or conversations
-    7. DO NOT include "Chapter X" headers - provide only the story content
-    8. End at a natural stopping point with a cliffhanger for the next chapter
-    9. Ensure each chapter moves the story forward with new developments
-    
-    Story settings:
-    - Time Period: ${timePeriod}
-    - Location: ${location}
-    - Atmosphere: ${atmosphere}
-    - Protagonist Gender: ${protagonistGender}
-    - Partner Gender: ${partnerGender}
-    - Relationship: ${relationship}
-    - Writing Tone: ${writingTone}
-    ${targetWordCount} This is critical for producing the correct audio duration.
-    ${explicitLevelDescription}
-    
-    ${settingPrompt}
-    ${protagonistPrompt}
-    ${loveInterestPrompt}
-    
-    ${choicePrompt}
-    
-    Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
-    const response = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Here's the existing story content:
+\xA0 \xA0 
+CRITICAL INSTRUCTIONS:
+1. Read the existing content carefully and continue EXACTLY where it ended
+2. DO NOT repeat any dialogue, actions, or scenes from the existing content
+3. DO NOT use phrases like "And if I choose to stay?" or similar dialogue that appeared before
+4. Maintain the same characters, setting, and tone throughout
+5. Continue the story's natural progression without resetting or restarting
+6. Advance the plot - do NOT repeat similar situations or conversations
+7. DO NOT include "Chapter X" headers - provide only the story content
+8. End at a natural stopping point with a cliffhanger for the next chapter
+9. Ensure each chapter moves the story forward with new developments
+\xA0 \xA0 
+Story settings:
+- Time Period: ${timePeriod}
+- Location: ${location}
+- Atmosphere: ${atmosphere}
+- Protagonist Gender: ${protagonistGender}
+- Partner Gender: ${partnerGender}
+- Relationship: ${relationship}
+- Writing Tone: ${writingTone}
+${targetWordCount} This is critical for producing the correct audio duration.
+${explicitLevelDescription}
+\xA0 \xA0 
+${settingPrompt}
+${protagonistPrompt}
+${loveInterestPrompt}
+\xA0 \xA0 
+${choicePrompt}
+\xA0 \xA0 
+Your continuation should advance the plot naturally while maintaining character consistency and story flow.`;
+    const response = await geminiAI.models.generateContent({
+      // Gemini SDK
+      model: "gemini-2.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: `Here's the existing story content:
 
 ${existingContent}
 
-IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from the last sentence. DO NOT repeat any dialogue, actions, or scenarios that already happened. Move the story forward with new developments, locations, or conversation topics.` }
+IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from the last sentence. DO NOT repeat any dialogue, actions, or scenarios that already happened. Move the story forward with new developments, locations, or conversation topics.` }] }
       ],
-      max_tokens: maxTokens,
-      temperature: 0.8
+      config: {
+        systemInstruction: systemPrompt,
+        maxOutputTokens: maxTokens,
+        temperature: 0.8
+      }
     });
-    let responseText = response.choices[0].message.content || "The story continues...";
+    let responseText = response.text || "The story continues...";
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
     }
     responseText = responseText.replace(/^Chapter \d+:?\s*/i, "").trim();
-    const lastChar = responseText.slice(-1);
     const lastFewChars = responseText.slice(-3);
     if (!['."', '!"', '?"', '"'].some((ending) => lastFewChars.includes(ending))) {
       const sentences = responseText.split(/[.!?]+/);
@@ -2168,52 +1868,54 @@ async function concludeStory(existingContent, settings, selectedChoice) {
     const loveInterestPrompt = loveInterestDescription ? `Love interest description: ${loveInterestDescription}` : "";
     const choicePrompt = selectedChoice ? `The user chose: "${selectedChoice}". Conclude the story based on this choice.` : "";
     const systemPrompt = `You are an expert erotic fiction writer. Conclude this story seamlessly from where it left off.
-    
-    CRITICAL INSTRUCTIONS:
-    1. Read the existing content carefully and continue EXACTLY where it ended
-    2. DO NOT repeat any dialogue, actions, or scenes from the existing content
-    3. Bring the story to a satisfying conclusion. Resolve the main conflicts and provide a clear ending.
-    4. DO NOT end with a cliffhanger.
-    5. Maintain the same characters, setting, and tone throughout
-    6. DO NOT include "Chapter X" headers - provide only the story content
-    
-    Story settings:
-    - Time Period: ${timePeriod}
-    - Location: ${location}
-    - Atmosphere: ${atmosphere}
-    - Protagonist Gender: ${protagonistGender}
-    - Partner Gender: ${partnerGender}
-    - Relationship: ${relationship}
-    - Writing Tone: ${writingTone}
-    ${targetWordCount} This is critical for producing the correct audio duration.
-    ${explicitLevelDescription}
-    
-    ${settingPrompt}
-    ${protagonistPrompt}
-    ${loveInterestPrompt}
-    
-    ${choicePrompt}
-    
-    Your conclusion should provide a sense of closure and resolution.`;
-    const response = await geminiAI.chat.completions.create({
-      model: "gemini-2.0-flash-exp",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Here's the existing story content:
+\xA0 \xA0 
+CRITICAL INSTRUCTIONS:
+1. Read the existing content carefully and continue EXACTLY where it ended
+2. DO NOT repeat any dialogue, actions, or scenes from the existing content
+3. Bring the story to a satisfying conclusion. Resolve the main conflicts and provide a clear ending.
+4. DO NOT end with a cliffhanger.
+5. Maintain the same characters, setting, and tone throughout
+6. DO NOT include "Chapter X" headers - provide only the story content
+\xA0 \xA0 
+Story settings:
+- Time Period: ${timePeriod}
+- Location: ${location}
+- Atmosphere: ${atmosphere}
+- Protagonist Gender: ${protagonistGender}
+- Partner Gender: ${partnerGender}
+- Relationship: ${relationship}
+- Writing Tone: ${writingTone}
+${targetWordCount} This is critical for producing the correct audio duration.
+${explicitLevelDescription}
+\xA0 \xA0 
+${settingPrompt}
+${protagonistPrompt}
+${loveInterestPrompt}
+\xA0 \xA0 
+${choicePrompt}
+\xA0 \xA0 
+Your conclusion should provide a sense of closure and resolution.`;
+    const response = await geminiAI.models.generateContent({
+      // Gemini SDK
+      model: "gemini-2.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: `Here's the existing story content:
 
 ${existingContent}
 
-IMPORTANT: Conclude the story from the exact point where it ended. Provide a satisfying resolution.` }
+IMPORTANT: Conclude the story from the exact point where it ended. Provide a satisfying resolution.` }] }
       ],
-      max_tokens: maxTokens,
-      temperature: 0.8
+      config: {
+        systemInstruction: systemPrompt,
+        maxOutputTokens: maxTokens,
+        temperature: 0.8
+      }
     });
-    let responseText = response.choices[0].message.content || "The story concludes...";
+    let responseText = response.text || "The story concludes...";
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
     }
     responseText = responseText.replace(/^Chapter \d+:?\s*/i, "").trim();
-    const lastChar = responseText.slice(-1);
     const lastFewChars = responseText.slice(-3);
     if (!['."', '!"', '?"', '"'].some((ending) => lastFewChars.includes(ending))) {
       const sentences = responseText.split(/[.!?]+/);
@@ -4131,14 +3833,107 @@ var stripe_default = stripe;
 // server/services/payment.service.ts
 init_user_model();
 import { z as z3 } from "zod";
+
+// server/constants/plans.ts
+var SUBSCRIPTION_PLANS = {
+  discovery: {
+    id: "discovery",
+    name: "Discovery",
+    price: 0,
+    billingPeriod: "free",
+    description: "Explore without commitment",
+    monthlyCredits: {
+      text: 2,
+      audio: 1
+    },
+    monthlyLimits: {
+      stories: 2,
+      audioCredits: 1
+    },
+    features: [
+      "Create up to 2 personalized stories",
+      "1 short audio narration",
+      "Standard narration voice",
+      "No premium gallery access"
+    ]
+  },
+  essentiel: {
+    id: "essentiel",
+    name: "Essentiel",
+    price: 599,
+    billingPeriod: "monthly",
+    description: "Pleasure at your own pace",
+    monthlyCredits: {
+      text: 5,
+      audio: 6
+    },
+    popular: true,
+    monthlyLimits: {
+      stories: 5,
+      audioCredits: 6
+    },
+    features: [
+      "Create up to 5 personalized stories",
+      "6 audio credits (~15 min total)",
+      "Natural-sounding voices",
+      "Basic premium gallery access"
+    ]
+  },
+  seduction: {
+    id: "seduction",
+    name: "Seduction",
+    price: 1199,
+    billingPeriod: "monthly",
+    description: "Your pleasure rendezvous",
+    monthlyCredits: {
+      text: 12,
+      audio: 12
+    },
+    monthlyLimits: {
+      stories: 12,
+      audioCredits: 12
+    },
+    features: [
+      "Create up to 12 personalized stories",
+      "12 audio credits (~30 min total)",
+      "Expressive & realistic voices",
+      "Premium gallery early/exclusive access",
+      "New premium stories every month"
+    ]
+  },
+  intimacy: {
+    id: "intimacy",
+    name: "Intimacy",
+    price: 2499,
+    billingPeriod: "monthly",
+    description: "The ultimate experience without limits",
+    monthlyCredits: {
+      text: 25,
+      audio: 24
+    },
+    bestValue: true,
+    monthlyLimits: {
+      stories: 25,
+      audioCredits: 24
+    },
+    features: [
+      "Create up to 25 personalized stories",
+      "24 audio credits (~60 min total)",
+      "Immersive studio-quality voices",
+      "Full premium gallery access",
+      "Tailored suggestions & exclusives"
+    ]
+  }
+};
+
+// server/services/payment.service.ts
 var PaymentService = class {
   async createSubscriptionCheckout(userId, planId, origin) {
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
     const schema = z3.object({
       planId: z3.enum(["essentiel", "seduction", "intimacy"])
     });
     const { planId: validatedPlanId } = schema.parse({ planId });
-    const selectedPlan = SUBSCRIPTION_PLANS2[validatedPlanId];
+    const selectedPlan = SUBSCRIPTION_PLANS[validatedPlanId];
     if (!selectedPlan) {
       throw new Error("Invalid plan ID");
     }
@@ -4146,7 +3941,6 @@ var PaymentService = class {
     if (!user) {
       throw new Error("User not found");
     }
-    const priceInCents = selectedPlan.price;
     const clientReferenceId = `seduise_app_${userId}_${Date.now()}`;
     const session2 = await stripe_default.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -4158,7 +3952,7 @@ var PaymentService = class {
               name: selectedPlan.name,
               description: `${selectedPlan.description} - ${selectedPlan.monthlyCredits.text} text + ${selectedPlan.monthlyCredits.audio} audio credits/month`
             },
-            unit_amount: priceInCents,
+            unit_amount: selectedPlan.price,
             recurring: {
               interval: "month"
             }
@@ -4180,110 +3974,6 @@ var PaymentService = class {
       }
     });
     return { id: session2.id };
-  }
-  async createCreditCheckout(userId, packageId, origin) {
-    const { COMBO_CREDIT_PACKAGES: COMBO_CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    const schema = z3.object({
-      packageId: z3.enum(["starter", "popular", "premium"]).default("popular")
-    });
-    const { packageId: validatedPackageId } = schema.parse({ packageId });
-    const packageMapping = {
-      "starter": "combo_starter",
-      "popular": "combo_popular",
-      "premium": "combo_premium"
-    };
-    const mappedPackageId = packageMapping[validatedPackageId];
-    const selectedPackage = COMBO_CREDIT_PACKAGES2[mappedPackageId];
-    if (!selectedPackage) {
-      throw new Error("Invalid package ID");
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const priceInCents = selectedPackage.price;
-    const clientReferenceId = `seduise_app_${userId}_${Date.now()}`;
-    const session2 = await stripe_default.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: selectedPackage.name,
-              description: `${selectedPackage.textCredits} text + ${selectedPackage.audioCredits} audio credits - ${selectedPackage.description}`
-            },
-            unit_amount: priceInCents
-          },
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      customer_email: user.email,
-      client_reference_id: clientReferenceId,
-      success_url: `${origin}/payment/credit-success?session_id={CHECKOUT_SESSION_ID}&textCredits=${selectedPackage.textCredits}&audioCredits=${selectedPackage.audioCredits}&package=${validatedPackageId}`,
-      cancel_url: `${origin}/credits`,
-      metadata: {
-        userId,
-        packageId: validatedPackageId,
-        textCredits: selectedPackage.textCredits.toString(),
-        audioCredits: selectedPackage.audioCredits.toString(),
-        type: "credit_purchase"
-      }
-    });
-    return { id: session2.id };
-  }
-  async processCreditSuccess(sessionId, credits, packageId, userId) {
-    if (!sessionId) {
-      if (userId) {
-      } else {
-        return {
-          success: true,
-          message: "Credit purchase completed (demo mode)",
-          demo: true
-        };
-      }
-    }
-    let creditsToAdd = parseInt(credits) || 0;
-    if (creditsToAdd <= 0 && packageId) {
-      const { CREDIT_PACKAGES } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-      const packageKey = packageId;
-      if (CREDIT_PACKAGES[packageKey]) {
-        creditsToAdd = CREDIT_PACKAGES[packageKey].credits;
-      }
-    }
-    if (creditsToAdd <= 0) {
-      creditsToAdd = 50;
-    }
-    if (userId) {
-      const user = await User.findById(userId);
-      if (user) {
-        user.credits = (user.credits || 0) + creditsToAdd;
-        await user.save();
-        return {
-          success: true,
-          message: "Credits added successfully!",
-          credits: user.credits
-        };
-      }
-    }
-    return { success: true, message: "Credit purchase successful!" };
-  }
-  async updateUserCredits(userId, credits) {
-    if (!credits || isNaN(credits)) {
-      throw new Error("Invalid credit amount");
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    user.credits = (user.credits || 0) + credits;
-    await user.save();
-    return {
-      success: true,
-      message: "Credits updated successfully",
-      credits: user.credits
-    };
   }
   async processSubscriptionSuccessWithStripeVerification(sessionId, plan, userId) {
     const session2 = await stripe_default.checkout.sessions.retrieve(sessionId);
@@ -4317,12 +4007,11 @@ var PaymentService = class {
         alreadyProcessed: true,
         textCredits: 0,
         audioCredits: 0,
-        totalTextCredits: user.textCredits,
-        totalAudioCredits: user.audioCredits
+        totalTextCredits: user.textCredits || 0,
+        totalAudioCredits: user.audioCredits || 0
       };
     }
-    const { SUBSCRIPTION_PLANS: SUBSCRIPTION_PLANS2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-    const planDetails = SUBSCRIPTION_PLANS2[actualPlan];
+    const planDetails = SUBSCRIPTION_PLANS[actualPlan];
     if (!planDetails) {
       throw new Error("Plan details not found");
     }
@@ -4353,115 +4042,14 @@ var PaymentService = class {
       totalAudioCredits: user.audioCredits
     };
   }
-  async processCreditSuccessWithStripeVerification(sessionId, credits, packageId, userId) {
-    const session2 = await stripe_default.checkout.sessions.retrieve(sessionId);
-    const isPaymentSuccessful = session2.payment_status === "paid" || session2.status === "complete" && session2.payment_status !== "unpaid";
-    if (!isPaymentSuccessful) {
-      throw new Error(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
-    }
-    let actualUserId = session2.metadata?.userId || userId;
-    if (!actualUserId && session2.client_reference_id) {
-      const refParts = session2.client_reference_id.split("_");
-      if (refParts.length >= 2 && refParts[0] === "user") {
-        actualUserId = refParts[1];
-      }
-    }
-    if (!actualUserId) {
-      throw new Error("User identification failed");
-    }
-    let textCreditsToAdd = 0;
-    let audioCreditsToAdd = 0;
-    if (session2.metadata?.textCredits && session2.metadata?.audioCredits) {
-      textCreditsToAdd = parseInt(session2.metadata.textCredits);
-      audioCreditsToAdd = parseInt(session2.metadata.audioCredits);
-    } else if (packageId || session2.metadata?.packageId) {
-      const pkgId = packageId || session2.metadata?.packageId;
-      const { COMBO_CREDIT_PACKAGES: COMBO_CREDIT_PACKAGES2 } = await Promise.resolve().then(() => (init_plans(), plans_exports));
-      const packageMapping = {
-        "starter": "combo_starter",
-        "popular": "combo_popular",
-        "premium": "combo_premium"
-      };
-      const mappedPackageId = packageMapping[pkgId];
-      if (mappedPackageId && COMBO_CREDIT_PACKAGES2[mappedPackageId]) {
-        const pkg = COMBO_CREDIT_PACKAGES2[mappedPackageId];
-        textCreditsToAdd = pkg.textCredits;
-        audioCreditsToAdd = pkg.audioCredits;
-      }
-    }
-    if (textCreditsToAdd <= 0 && audioCreditsToAdd <= 0) {
-      textCreditsToAdd = 14;
-      audioCreditsToAdd = 6;
-    }
-    const user = await User.findById(actualUserId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    if (user.processedSessions && user.processedSessions.includes(sessionId)) {
-      return {
-        success: true,
-        message: "Credits already processed",
-        alreadyProcessed: true,
-        textCredits: 0,
-        audioCredits: 0,
-        totalTextCredits: user.textCredits || 0,
-        totalAudioCredits: user.audioCredits || 0
-      };
-    }
-    if (!user.processedSessions) {
-      user.processedSessions = [];
-    }
-    user.processedSessions.push(sessionId);
-    const previousTextCredits = user.textCredits || 0;
-    const previousAudioCredits = user.audioCredits || 0;
-    user.textCredits = previousTextCredits + textCreditsToAdd;
-    user.audioCredits = previousAudioCredits + audioCreditsToAdd;
-    await user.save();
-    return {
-      success: true,
-      message: "Payment successful and credits added",
-      textCredits: textCreditsToAdd,
-      audioCredits: audioCreditsToAdd,
-      totalTextCredits: user.textCredits,
-      totalAudioCredits: user.audioCredits
-    };
-  }
   async processWebhookEvent(event) {
     if (event.type === "checkout.session.completed") {
       const session2 = event.data.object;
-      const isPaymentSuccessful = session2.payment_status === "paid" || session2.status === "complete" && session2.payment_status !== "unpaid";
-      if (!isPaymentSuccessful) {
-        throw new Error(`Payment not completed: status=${session2.status}, payment_status=${session2.payment_status}`);
-      }
-      let userId = session2.metadata?.userId;
-      if (!userId && session2.client_reference_id) {
-        const refParts = session2.client_reference_id.split("_");
-        if (refParts.length >= 2 && refParts[0] === "user") {
-          userId = refParts[1];
-        }
-      }
-      if (!userId) {
-        throw new Error("User ID not found in session metadata or client reference");
-      }
-      const user = await User.findById(userId);
-      if (!user) {
-        throw new Error(`User ${userId} not found`);
-      }
       const purchaseType = session2.metadata?.type;
-      if (purchaseType === "credit_purchase") {
-        const creditsToAdd = parseInt(session2.metadata?.credits || "0");
-        if (creditsToAdd > 0) {
-          user.credits = (user.credits || 0) + creditsToAdd;
-          await user.save();
-          return { message: `Added ${creditsToAdd} credits to user ${userId}` };
-        } else {
-          throw new Error("Invalid credit amount");
-        }
-      } else if (purchaseType === "subscription_purchase") {
-        return { message: `Subscription purchase detected - will be processed via success page` };
-      } else {
-        return { message: `Unknown purchase type: ${purchaseType}` };
+      if (purchaseType === "subscription_purchase") {
+        return { message: "Subscription purchase handled via success page" };
       }
+      return { message: `Unhandled purchase type: ${purchaseType || "unknown"}` };
     }
     return { message: "Event processed successfully" };
   }
@@ -4471,15 +4059,10 @@ var PaymentService = class {
       return {
         type: "checkout.session.completed",
         data: { object: body },
-        id: "dev_" + Date.now()
+        id: `dev_${Date.now()}`
       };
-    } else {
-      return stripe_default.webhooks.constructEvent(
-        body,
-        signature,
-        endpointSecret
-      );
     }
+    return stripe_default.webhooks.constructEvent(body, signature, endpointSecret);
   }
 };
 var paymentService = new PaymentService();
@@ -4506,71 +4089,6 @@ var PaymentController = class {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to create subscription checkout session" });
-    }
-  }
-  async createCreditCheckout(req, res) {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      const { packageId } = req.body;
-      const origin = req.headers.origin || "https://" + req.headers.host;
-      const result = await paymentService.createCreditCheckout(userId, packageId, origin);
-      res.json(result);
-    } catch (error) {
-      console.error("Error creating credit checkout session:", error);
-      if (error instanceof z4.ZodError) {
-        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-      }
-      if (error instanceof Error) {
-        return res.status(400).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Failed to create checkout session" });
-    }
-  }
-  async creditSuccessPost(req, res) {
-    try {
-      const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID || req.body && req.body.session_id;
-      const credits = req.query.credits || req.body && req.body.credits;
-      const packageId = req.query.package || req.body && req.body.package;
-      console.log("Credit success handler received:", {
-        session_id,
-        credits,
-        packageId,
-        method: req.method,
-        query: req.query,
-        body: req.body
-      });
-      const userId = req.session.userId;
-      const result = await paymentService.processCreditSuccess(
-        session_id,
-        credits,
-        packageId,
-        userId
-      );
-      res.status(200).json(result);
-    } catch (error) {
-      console.error("Error processing credit purchase:", error);
-      res.status(500).json({ success: false, message: "Failed to process credit purchase" });
-    }
-  }
-  async updateCredits(req, res) {
-    try {
-      const { credits } = req.body;
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ success: false, message: "User not authenticated" });
-      }
-      const result = await paymentService.updateUserCredits(userId, parseInt(credits));
-      console.log(`Added ${credits} credits to user ${userId} via direct update`);
-      res.status(200).json(result);
-    } catch (error) {
-      console.error("Error updating credits:", error);
-      if (error instanceof Error) {
-        return res.status(400).json({ success: false, message: error.message });
-      }
-      res.status(500).json({ success: false, message: "Failed to update credits" });
     }
   }
   async subscriptionSuccessGet(req, res) {
@@ -4623,65 +4141,6 @@ var PaymentController = class {
       });
     }
   }
-  async creditSuccessGet(req, res) {
-    try {
-      const session_id = req.query.session_id || req.query.CHECKOUT_SESSION_ID;
-      const credits = req.query.credits;
-      const packageId = req.query.package;
-      console.log("GET Credit success handler received:", {
-        session_id,
-        credits,
-        packageId,
-        query: req.query
-      });
-      if (!session_id || typeof session_id !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid session ID"
-        });
-      }
-      const userId = req.session.userId;
-      const result = await paymentService.processCreditSuccessWithStripeVerification(
-        session_id,
-        credits,
-        packageId,
-        userId
-      );
-      res.status(200).json(result);
-    } catch (error) {
-      console.error("Error processing credit success:", error);
-      if (error instanceof Error) {
-        if (error.message.includes("Payment not completed")) {
-          return res.status(402).json({
-            success: false,
-            message: "Payment not completed. Please complete the payment and try again."
-          });
-        }
-        if (error.message.includes("User identification failed")) {
-          return res.status(400).json({
-            success: false,
-            message: "User identification failed. Please contact support."
-          });
-        }
-        if (error.message.includes("User not found")) {
-          return res.status(404).json({
-            success: false,
-            message: "User not found. Please contact support."
-          });
-        }
-        if (error.message.includes("Error retrieving Stripe session")) {
-          return res.status(500).json({
-            success: false,
-            message: "Error verifying payment. Please contact support."
-          });
-        }
-      }
-      return res.status(500).json({
-        success: false,
-        message: "An unexpected error occurred. Please contact support."
-      });
-    }
-  }
   async webhook(req, res) {
     console.log(`Webhook received [${(/* @__PURE__ */ new Date()).toISOString()}]`);
     const signature = req.headers["stripe-signature"];
@@ -4713,10 +4172,6 @@ var paymentController = new PaymentController();
 // server/routes/payment.route.ts
 var router5 = Router5();
 router5.post("/create-subscription-checkout", authMiddleware, paymentController.createSubscriptionCheckout.bind(paymentController));
-router5.post("/create-credit-checkout", authMiddleware, paymentController.createCreditCheckout.bind(paymentController));
-router5.post("/credit-success", paymentController.creditSuccessPost.bind(paymentController));
-router5.post("/update-credits", paymentController.updateCredits.bind(paymentController));
-router5.get("/credit-success", paymentController.creditSuccessGet.bind(paymentController));
 router5.get("/subscription-success", paymentController.subscriptionSuccessGet.bind(paymentController));
 router5.post("/webhook", paymentController.webhook.bind(paymentController));
 var payment_route_default = router5;

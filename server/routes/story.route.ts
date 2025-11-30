@@ -5,7 +5,7 @@ import { trackEngagement } from "../middlewares/engagement.middleware";
 
 const router = Router();
 
-// Story CRUD operations
+// Story CRUD operations - MUST be before parameterized routes
 router.route("/generate").post(authMiddleware, trackEngagement('story_created'), createStory);
 router.route("/title-suggestions").post(authMiddleware, titleSuggestions);
 
@@ -15,10 +15,10 @@ router.get("/public", getPublicStoriesList);
 // Get stories by category
 router.get("/by-category/:category", getStoriesByCategoryController);
 
-// Get all premium stories (only for passion/escape subscribers) - MUST be before parameterized routes
+// Get all premium stories (only for passion/escape subscribers)
 router.get("/premium-stories", authMiddleware, getPremiumStoriesController);
 
-// Story-specific routes with ID parameter
+// Story-specific routes with ID parameter - MUST be after all specific routes
 router.route("/:id").get(getStory);
 router.route("/:id").put(authMiddleware, updateStory);
 router.route("/:id").delete(authMiddleware, deleteStory);
