@@ -6,8 +6,16 @@ dotenv.config();
 
 // Using Google Gemini API with OpenAI compatibility
 const geminiAI = new GoogleGenAI({
-  apiKey: "AIzaSyDH1Rq7cMp_b8iMtqT4pwEXnHq3m7Y41N0"
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
 });
+
+// Validate API key on startup
+if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+  console.error("❌ ERROR: No Google Gemini API key found in environment variables!");
+  console.error("Please set GEMINI_API_KEY or GOOGLE_API_KEY in your .env file");
+} else {
+  console.log("✅ Google Gemini API key loaded successfully");
+}
 
 
 const stream = false; // Change to `true` if you want streaming responses
@@ -51,21 +59,21 @@ export async function generateStory(options: StoryGenerationOptions): Promise<{
     explicitLevel,
   } = options;
 
-  // --- Token and Word Count Logic (INCREASED for JSON overhead) ---
+  // --- Token and Word Count Logic (OPTIMIZED for Gemini 2.5 Flash) ---
   let maxTokens = 0;
   let targetWordCount = "";
 
-  if (length === 2) { 
-    maxTokens = 2000;  // Increased from 1200
+  if (length === 2) {
+    maxTokens = 1500;  // Increased for short stories
     targetWordCount = "Write a short story of approximately 300-400 words.";
   } else if (length === 3) {
-    maxTokens = 4000;  // Increased from 2400
+    maxTokens = 2500;  // Increased for medium stories
     targetWordCount = "Write a medium-length story of approximately 700-900 words.";
-  } else if (length === 4) { 
-    maxTokens = 8000;  // Increased from 4800
-    targetWordCount = "Write a longer story of approximately 1500-1800 words.";
+  } else if (length === 4) {
+    maxTokens = 4500;  // Increased for long stories
+    targetWordCount = "Write a longer story of approximately 1200-1500 words.";
   } else {
-    maxTokens = 2000;
+    maxTokens = 1500;
     targetWordCount = "Write a short story of approximately 300-400 words.";
   }
   console.log(`Story length setting: ${length}, calculated token limit: ${maxTokens}`);
@@ -158,23 +166,33 @@ DO NOT include title options, explanations, or any text outside the JSON object.
     console.log("Gemini API response received, checking content...");
 
     let responseText = response.text;
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+
+    // Log finish reason for debugging
+    if (finishReason) {
+      console.log("Finish Reason:", finishReason);
+    }
 
     // --- Handle Safety Block or Empty Response with detailed logging ---
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
       const safetyRatings = candidate?.safetyRatings;
-      const finishReason = candidate?.finishReason;
-      
+
       console.error("Content issue detected!");
       console.error("Finish Reason:", finishReason);
       console.error("Safety Ratings:", JSON.stringify(safetyRatings, null, 2));
 
-      // MAX_TOKENS is NOT a safety filter issue - it means the response was cut off
+      // MAX_TOKENS with no text is an error
       if (finishReason === "MAX_TOKENS") {
-        throw new Error(`Story was too long and got cut off. This shouldn't happen with current limits. Please try again.`);
+        throw new Error(`Story generation failed due to token limits. Please try a shorter story or reduce complexity.`);
       }
 
       throw new Error(`Story generation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing topic.`);
+    }
+
+    // If we got content but hit MAX_TOKENS, log warning but continue (we have partial response)
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("⚠️  Warning: Story generation hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
 
     console.log("Raw Response (first 500 chars):", responseText.substring(0, 500) + '...');
@@ -814,16 +832,16 @@ export async function continueStory(existingContent: string, settings: StoryGene
     let targetWordCount = "";
 
     if (length === 2) {
-      maxTokens = 1200;
+      maxTokens = 1024;
       targetWordCount = "Write a short continuation of approximately 300-400 words.";
     } else if (length === 3) {
-      maxTokens = 2400;
+      maxTokens = 2048;
       targetWordCount = "Write a medium-length continuation of approximately 700-900 words.";
     } else if (length === 4) {
-      maxTokens = 4800;
-      targetWordCount = "Write a longer continuation of approximately 1500-1800 words.";
+      maxTokens = 4096;
+      targetWordCount = "Write a longer continuation of approximately 1200-1500 words.";
     } else {
-      maxTokens = 1200;
+      maxTokens = 1024;
       targetWordCount = "Write a short continuation of approximately 300-400 words.";
     }
 
@@ -903,17 +921,26 @@ Your continuation should advance the plot naturally while maintaining character 
 
     // Enhanced error handling like in generateStory
     let responseText = response.text;
-    
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+
+    if (finishReason) {
+      console.log("Continuation Finish Reason:", finishReason);
+    }
+
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
-      const finishReason = candidate?.finishReason;
       console.error("Story continuation issue. Finish Reason:", finishReason);
-      
+
       if (finishReason === "MAX_TOKENS") {
-        throw new Error("Story continuation was too long and got cut off. Please try with a shorter length setting.");
+        throw new Error("Story continuation failed due to token limits. Please try with a shorter length setting.");
       }
-      
+
       throw new Error(`Story continuation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
+
+    // If we got content but hit MAX_TOKENS, log warning but continue
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("⚠️  Warning: Story continuation hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
 
     // ... (Rest of the post-processing remains unchanged)
@@ -965,18 +992,18 @@ export async function concludeStory(existingContent: string, settings: StoryGene
     let maxTokens = 0;
     let targetWordCount = "";
 
-    // For conclusions, use higher token limits to ensure proper story resolution
+    // For conclusions, use slightly higher token limits to ensure proper story resolution
     if (length === 2) {
-      maxTokens = 2400; // Doubled for proper conclusion space
+      maxTokens = 1536; // Conservative but sufficient for conclusions
       targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     } else if (length === 3) {
-      maxTokens = 3600; // Increased from 2400
-      targetWordCount = "Write a medium-length conclusion of approximately 800-1200 words.";
+      maxTokens = 3072; // Conservative for medium conclusions
+      targetWordCount = "Write a medium-length conclusion of approximately 800-1000 words.";
     } else if (length === 4) {
-      maxTokens = 5600; // Increased from 4800
-      targetWordCount = "Write a comprehensive conclusion of approximately 1600-2000 words.";
+      maxTokens = 4096; // Conservative for long conclusions
+      targetWordCount = "Write a comprehensive conclusion of approximately 1200-1500 words.";
     } else {
-      maxTokens = 2400; // Default increased
+      maxTokens = 1536; // Default conservative
       targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     }
 
@@ -1054,17 +1081,26 @@ Your conclusion should provide a sense of closure and resolution.`;
 
     // Enhanced error handling like in generateStory
     let responseText = response.text;
-    
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+
+    if (finishReason) {
+      console.log("Conclusion Finish Reason:", finishReason);
+    }
+
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
-      const finishReason = candidate?.finishReason;
       console.error("Story conclusion issue. Finish Reason:", finishReason);
-      
+
       if (finishReason === "MAX_TOKENS") {
-        throw new Error("Story conclusion was too long and got cut off. Please try with a shorter length setting.");
+        throw new Error("Story conclusion failed due to token limits. Please try with a shorter length setting.");
       }
-      
+
       throw new Error(`Story conclusion blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
+
+    // If we got content but hit MAX_TOKENS, log warning but continue
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("⚠️  Warning: Story conclusion hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
 
     // ... (Rest of the post-processing remains unchanged)

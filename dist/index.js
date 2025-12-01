@@ -1431,8 +1431,14 @@ import { GoogleGenAI } from "@google/genai";
 import dotenv5 from "dotenv";
 dotenv5.config();
 var geminiAI = new GoogleGenAI({
-  apiKey: "AIzaSyDH1Rq7cMp_b8iMtqT4pwEXnHq3m7Y41N0"
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
 });
+if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+  console.error("\u274C ERROR: No Google Gemini API key found in environment variables!");
+  console.error("Please set GEMINI_API_KEY or GOOGLE_API_KEY in your .env file");
+} else {
+  console.log("\u2705 Google Gemini API key loaded successfully");
+}
 async function generateStory(options) {
   const {
     title,
@@ -1452,16 +1458,16 @@ async function generateStory(options) {
   let maxTokens = 0;
   let targetWordCount = "";
   if (length === 2) {
-    maxTokens = 2e3;
+    maxTokens = 1500;
     targetWordCount = "Write a short story of approximately 300-400 words.";
   } else if (length === 3) {
-    maxTokens = 4e3;
+    maxTokens = 2500;
     targetWordCount = "Write a medium-length story of approximately 700-900 words.";
   } else if (length === 4) {
-    maxTokens = 8e3;
-    targetWordCount = "Write a longer story of approximately 1500-1800 words.";
+    maxTokens = 4500;
+    targetWordCount = "Write a longer story of approximately 1200-1500 words.";
   } else {
-    maxTokens = 2e3;
+    maxTokens = 1500;
     targetWordCount = "Write a short story of approximately 300-400 words.";
   }
   console.log(`Story length setting: ${length}, calculated token limit: ${maxTokens}`);
@@ -1535,17 +1541,23 @@ DO NOT include title options, explanations, or any text outside the JSON object.
     });
     console.log("Gemini API response received, checking content...");
     let responseText = response.text;
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason) {
+      console.log("Finish Reason:", finishReason);
+    }
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
       const safetyRatings = candidate?.safetyRatings;
-      const finishReason = candidate?.finishReason;
       console.error("Content issue detected!");
       console.error("Finish Reason:", finishReason);
       console.error("Safety Ratings:", JSON.stringify(safetyRatings, null, 2));
       if (finishReason === "MAX_TOKENS") {
-        throw new Error(`Story was too long and got cut off. This shouldn't happen with current limits. Please try again.`);
+        throw new Error(`Story generation failed due to token limits. Please try a shorter story or reduce complexity.`);
       }
       throw new Error(`Story generation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing topic.`);
+    }
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("\u26A0\uFE0F  Warning: Story generation hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
     console.log("Raw Response (first 500 chars):", responseText.substring(0, 500) + "...");
     responseText = responseText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
@@ -1817,16 +1829,16 @@ async function continueStory(existingContent, settings, selectedChoice) {
     let maxTokens = 0;
     let targetWordCount = "";
     if (length === 2) {
-      maxTokens = 1200;
+      maxTokens = 1024;
       targetWordCount = "Write a short continuation of approximately 300-400 words.";
     } else if (length === 3) {
-      maxTokens = 2400;
+      maxTokens = 2048;
       targetWordCount = "Write a medium-length continuation of approximately 700-900 words.";
     } else if (length === 4) {
-      maxTokens = 4800;
-      targetWordCount = "Write a longer continuation of approximately 1500-1800 words.";
+      maxTokens = 4096;
+      targetWordCount = "Write a longer continuation of approximately 1200-1500 words.";
     } else {
-      maxTokens = 1200;
+      maxTokens = 1024;
       targetWordCount = "Write a short continuation of approximately 300-400 words.";
     }
     console.log(`Story continuation length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
@@ -1889,14 +1901,20 @@ IMPORTANT: Continue from the exact point where it ended. Pick up seamlessly from
       }
     });
     let responseText = response.text;
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason) {
+      console.log("Continuation Finish Reason:", finishReason);
+    }
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
-      const finishReason = candidate?.finishReason;
       console.error("Story continuation issue. Finish Reason:", finishReason);
       if (finishReason === "MAX_TOKENS") {
-        throw new Error("Story continuation was too long and got cut off. Please try with a shorter length setting.");
+        throw new Error("Story continuation failed due to token limits. Please try with a shorter length setting.");
       }
       throw new Error(`Story continuation blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("\u26A0\uFE0F  Warning: Story continuation hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
@@ -1935,16 +1953,16 @@ async function concludeStory(existingContent, settings, selectedChoice) {
     let maxTokens = 0;
     let targetWordCount = "";
     if (length === 2) {
-      maxTokens = 2400;
+      maxTokens = 1536;
       targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     } else if (length === 3) {
-      maxTokens = 3600;
-      targetWordCount = "Write a medium-length conclusion of approximately 800-1200 words.";
+      maxTokens = 3072;
+      targetWordCount = "Write a medium-length conclusion of approximately 800-1000 words.";
     } else if (length === 4) {
-      maxTokens = 5600;
-      targetWordCount = "Write a comprehensive conclusion of approximately 1600-2000 words.";
+      maxTokens = 4096;
+      targetWordCount = "Write a comprehensive conclusion of approximately 1200-1500 words.";
     } else {
-      maxTokens = 2400;
+      maxTokens = 1536;
       targetWordCount = "Write a satisfying conclusion of approximately 400-600 words.";
     }
     console.log(`Story conclusion length setting: ${length} (Short=2, Medium=3, Long=4), calculated token limit: ${maxTokens}`);
@@ -2004,14 +2022,20 @@ IMPORTANT: Conclude the story from the exact point where it ended. Provide a sat
       }
     });
     let responseText = response.text;
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason) {
+      console.log("Conclusion Finish Reason:", finishReason);
+    }
     if (!responseText || responseText.trim().length === 0) {
-      const candidate = response.candidates?.[0];
-      const finishReason = candidate?.finishReason;
       console.error("Story conclusion issue. Finish Reason:", finishReason);
       if (finishReason === "MAX_TOKENS") {
-        throw new Error("Story conclusion was too long and got cut off. Please try with a shorter length setting.");
+        throw new Error("Story conclusion failed due to token limits. Please try with a shorter length setting.");
       }
       throw new Error(`Story conclusion blocked by safety filters. Reason: ${finishReason}. Try reducing explicit level or changing content.`);
+    }
+    if (finishReason === "MAX_TOKENS") {
+      console.warn("\u26A0\uFE0F  Warning: Story conclusion hit MAX_TOKENS limit but we have content. Proceeding with available response.");
     }
     if (responseText.includes("{") && responseText.includes("}")) {
       responseText = responseText.replace(/```json\s?/g, "").replace(/```\s?/g, "").replace(/{[^}]*}/g, "").replace(/\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]/g, "").replace(/\s{2,}/g, " ").trim();
@@ -3953,8 +3977,14 @@ var removeMyStory = async (req, res) => {
 };
 var updateProfile = async (req, res) => {
   try {
-    const { id: userId } = req.params;
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized - no session" });
+    }
     const profileData = req.body;
+    if (!profileData || Object.keys(profileData).length === 0) {
+      return res.status(400).json({ message: "Profile data is required" });
+    }
     const updatedUser = await updateUserProfile(userId, profileData);
     res.json({
       message: "User profile updated successfully",
@@ -3972,10 +4002,11 @@ var updateProfile = async (req, res) => {
 var router4 = Router4();
 router4.use(authMiddleware);
 router4.get("/debug-subscription", debugSubscription);
-router4.patch("/:id", updateProfile);
+router4.patch("/profile", updateProfile);
 router4.get("/stories", getMyStories);
 router4.patch("/stories/:id/visibility", updateMyStoryVisibility);
 router4.delete("/stories/:id", removeMyStory);
+router4.patch("/:id", updateProfile);
 var user_route_default = router4;
 
 // server/routes/payment.route.ts
